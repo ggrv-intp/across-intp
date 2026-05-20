@@ -240,6 +240,19 @@ spark.executor.heartbeatInterval   30s
 #   2. The UI itself emits heartbeat/refresh traffic that would pollute the
 #      netp/nets signal we are trying to measure precisely.
 spark.ui.enabled                   false
+
+# Standalone Worker scratch cleanup. The primary reap is deterministic and
+# happens between workloads inside bench/hibench/run-hibench-subset.sh
+# (reap_spark_worker_scratch_between_workloads), where no profiler is
+# running. These keys are a safety net for non-HiBench Spark traffic and
+# for any app-* dirs that slip past the workload-boundary reap (e.g. the
+# very last workload before publish). interval=1800s + appDataTtl=600s
+# ensures any tick falls in a multi-minute gap between reps, NOT during a
+# profiled rep: terasort/kmeans reps run ~20-30 min so cleanup activity
+# stays outside the measurement window.
+spark.worker.cleanup.enabled       true
+spark.worker.cleanup.interval      1800
+spark.worker.cleanup.appDataTtl    600
 EOF
 
     log "wrote Spark distributed configs to $SPARK_DIST_CONF"

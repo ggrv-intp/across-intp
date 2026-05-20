@@ -1256,6 +1256,41 @@ EOF
 }
 
 # -----------------------------------------------------------------------------
+# Spark Standalone Worker scratch reap (between workloads only)
+# -----------------------------------------------------------------------------
+
+reap_spark_worker_scratch_between_workloads() {
+    # Delete finished app-* dirs under $SPARK_HOME/work/. Called only at the
+    # workload boundary inside the main loop — every variant has finished and
+    # no profiler is running, so the rm cannot perturb measurements.
+    #
+    # Without this, each Spark application (one per rep) leaves ~1.3 GB of
+    # executor logs + shuffle index files in work/ and the Standalone Worker
+    # defaults (spark.worker.cleanup.enabled=false) never reap them. A single
+    # all-stress/large HiBench pass otherwise grows work/ by ~95 GB.
+    #
+    # Safety: only fires when INTP_DISTRIBUTED_MODE=1 (otherwise no Worker
+    # exists) and only matches app-* dirs older than ~1 minute (find -mmin
+    # +0), so a concurrent unrelated Spark application's in-flight scratch
+    # is left alone. Operators on dedicated benchmark hosts get the full reap.
+    local workload_name="${1:-}"
+    [ "${DRY_RUN:-0}" -eq 1 ] && return 0
+    [ "${INTP_DISTRIBUTED_MODE:-0}" = "1" ] || return 0
+    [ -n "${SPARK_HOME:-}" ] && [ -d "$SPARK_HOME/work" ] || return 0
+
+    local before_kb after_kb freed_kb reaped
+    before_kb=$(du -sk "$SPARK_HOME/work" 2>/dev/null | awk '{print $1+0}')
+    reaped=$(find "$SPARK_HOME/work" -mindepth 1 -maxdepth 1 -type d \
+                   -name 'app-*' -mmin +0 -print 2>/dev/null | wc -l)
+    find "$SPARK_HOME/work" -mindepth 1 -maxdepth 1 -type d \
+         -name 'app-*' -mmin +0 -exec rm -rf {} + 2>/dev/null || true
+    after_kb=$(du -sk "$SPARK_HOME/work" 2>/dev/null | awk '{print $1+0}')
+    freed_kb=$((before_kb - after_kb))
+    [ "$freed_kb" -lt 0 ] && freed_kb=0
+    log "  [reap] $workload_name done — removed $reaped Spark app dir(s), freed $((freed_kb/1024)) MB from $SPARK_HOME/work"
+}
+
+# -----------------------------------------------------------------------------
 # Aggregate means (same format as run-intp-bench.sh aggregate-means.tsv)
 # -----------------------------------------------------------------------------
 
@@ -1399,6 +1434,11 @@ run_subset_for_profile() {
                 "$variant" "$workload_name" "$script" "$spark_env" \
                 "$outdir/bare/$variant/hibench/$workload_name" "$mode"
         done
+        # Reap finished Spark Standalone Worker app-* scratch between
+        # workloads. All variants for this workload are done and no profiler
+        # is running, so the rm is invisible to measurements. Skipped in
+        # localmode (no Worker) and in dry-run.
+        reap_spark_worker_scratch_between_workloads "$workload_name"
     done
 
     build_aggregate_means "$outdir"
