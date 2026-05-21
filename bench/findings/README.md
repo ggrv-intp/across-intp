@@ -16,9 +16,10 @@ benchmark campaign.
   - Why per-variant metric magnitudes differ (v1.1 reads `llcocc=0` on 100% of
     HiBench reps — multi-process blindness, not noise); the `mbw` ceiling fix
     and current validity; why `aggregate-means.tsv` now carries all 7 HiBench
-    profiles (`stage=hibench-<profile>`); and why v3.2 reads ~0 `blk` /
-    TCP-veth `netp=0` — production-oriented service-time/tracepoint definitions
-    meeting a veth-routed NVMe harness.
+    profiles (`stage=hibench-<profile>`); and v3.2's `blk`/`netp` on disk/veth —
+    `blk`≈0 is a correct service-time reading on NVMe, while TCP-over-veth
+    `netp=0` is a genuine (likely production-relevant) probe gap, with a host
+    diagnostic to confirm it.
 
 ## Legacy-V0 campaign reports (Ubuntu 22.04 + kernel 5.15)
 

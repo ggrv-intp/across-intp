@@ -12,8 +12,9 @@ when that is real vs. an artifact; (2) the state of the `mbw` column and its
 ceiling fix; (3) how `aggregate-means.tsv` was fixed to carry all 7 HiBench
 profiles (it previously collapsed to one);
 (4) why v3.2 reads near-zero `blk` and zero `netp` on the disk/veth pairwise
-workloads — a production-oriented metric definition meeting a veth-routed,
-NVMe-backed benchmark harness.
+workloads — `blk` is a correct production-faithful service-time reading on fast
+NVMe, while `netp` is correct on loopback but has one genuine probe gap
+(TCP-over-veth) worth fixing.
 
 ---
 
@@ -179,11 +180,18 @@ rows. Filtering a single profile is now `stage == "hibench-cpu-extreme"`.
 ## 4. v3.2 reads ~0 `blk` and 0 `netp` on the disk/veth pairwise figures
 
 In `fig07_pairwise_heatmap_bare`, the v3.2 panel shows an all-black `blk`
-column and a black `netp` column where v1.1/v2 light up. Both are explained by
-v3.2's metric **definitions**, which were chosen for **production NICs and
-storage**, not for this benchmark's synthetic veth-routed traffic on fast NVMe.
-Neither is a failed probe — v3.2's `blk`/`netp` machinery is inherited from V3
-unchanged and has an equivalence test against it.
+column and a black `netp` column where v1.1/v2 light up. The two have
+**different** explanations, and only one is a real gap:
+
+- **`blk` (black) is correct, not a gap.** It is v3.2's production-faithful
+  *service-time* definition reading ~0 on fast NVMe (see below). Nothing to fix.
+- **`netp` (black) is two cells with two causes.** `net_v_net` (loopback) reads 0
+  in *both* v2 and v3.2 and is correct (loopback → `nets`). `tcp_v_tcp_veth`
+  (veth) is a **genuine v3.2 probe gap** — v2 reads it, v3.2 misses it — and is
+  likely production-relevant. That one warrants a fix.
+
+The `blk`/`netp` machinery is inherited from V3 unchanged (equivalence-tested),
+so these behaviors are V3-family-wide, not v3.2-specific regressions.
 
 ### `blk` — service-time utilization vs iostat `%util`
 
@@ -209,43 +217,77 @@ benchmark*, whose disk stressor hammers a fast NVMe, that production-faithful
 number is legitimately near zero. So the black `blk` column is v3.2 telling the
 truth about an NVMe that is barely service-time-bound, not a missing metric.
 
-### `netp` — loopback-skipped tracepoints vs `/proc/net/dev`
+### `netp` — the single-node network model, and the one real gap
 
-| variant | source | loopback handling |
-|---------|--------|-------------------|
-| v1.1, v2 | `/proc/net/dev` byte counters ([netp.c](../../variants/v2-hybrid-c/src/netp.c)) | counts whatever the kernel attributes to the iface |
-| v3.2 (=V3) | tracepoints `net_dev_xmit` + `netif_receive_skb` | **skips `lo`** to avoid the ≥2× xmit+recv double-count on single-host workloads ([intp_agg.bpf.c:185](../../variants/v3.2-ebpf-agg/src/intp_agg.bpf.c#L185)) |
+First, the benchmark's network model, because it explains *why* `netp` looks
+sparse on a single host:
 
-Split by pairwise row:
+- A single-socket/single-node host has **no external NIC traffic** to measure.
+- So the bench routes traffic two ways: **loopback** (`lo`) for the socket
+  stressors (`net_v_net`, `app1x_sort_net` = stress-ng `--sock`/`--udp`), and a
+  **veth pair** (`intp-veth-h` ↔ `intp-veth-g`) as a *synthetic external NIC* for
+  the iperf3 workloads (`*_veth`). The veth is the stand-in for the physical NIC
+  that production would have.
 
-| pair | v1.1 netp | v2 netp | v3.2 netp | reading |
-|------|-----------|---------|-----------|---------|
-| `net_v_net` | 99 | 0 | 0 | **v2 & v3.2 agree** — socket/loopback traffic, correctly counted as `nets` not physical `netp`; only v1.1 mis-attributes it |
-| `tcp_v_tcp_veth` | 99 | 97 | **0** | **v3.2-specific gap** |
-| (UDP-over-veth, solo) | 82 | 96 | 99 | v3.2 captures it fine |
+Both `netp` backends deliberately **exclude `lo`** — this is not a v3.2 quirk:
 
-So v3.2's netp probe is **not** globally broken — UDP-over-veth reads ~99, and
-the `net_v_net=0` is *more* correct than v1.1. The one genuine gap is
-**TCP-over-veth**: v3.2 reports `netp=0` while v2's `/proc/net/dev` counts it.
-The likely cause (not yet traced to certainty) is that veth + TCP segmentation
-offload delivers large GSO super-frames straight to the peer's RX path without
-firing the per-frame `net_dev_xmit`/`netif_receive_skb` accounting v3.2 relies
-on, whereas UDP's per-datagram path does fire it. This is precisely the kind of
-**synthetic veth-routed transport** that the production-oriented tracepoint
-design did not target: on a real NIC, TCP egress traverses the physical device's
-xmit path and is counted normally.
+| variant | source | loopback |
+|---------|--------|----------|
+| v1.1 | `/proc/net/dev` | counts `lo` (mis-attributes loopback as physical) |
+| v2 | `/sys/class/net/*/statistics`, **non-`lo` aggregate** ([netp.c:32-34](../../variants/v2-hybrid-c/src/netp.c#L32)) | **skips `lo`** ("matches v3's eBPF semantics") |
+| v3.2 (=V3) | tracepoints `net_dev_xmit` + `netif_receive_skb`, **`lo` excluded** ([intp_agg.bpf.c:185](../../variants/v3.2-ebpf-agg/src/intp_agg.bpf.c#L185)) | **skips `lo`** to avoid the ≥2× xmit+recv double-count |
+
+So per pairwise row:
+
+| pair | route | v1.1 | v2 | v3.2 | reading |
+|------|-------|------|----|------|---------|
+| `net_v_net` | `lo` (sock) | 99 | **0** | **0** | **v2 and v3.2 agree and are correct** — loopback is net-stack, captured in `nets`; only v1.1 mis-labels it physical `netp` |
+| `tcp_v_tcp_veth` | veth (TCP) | 99 | 97 | **0** | **the one genuine v3.2 gap** |
+| UDP-over-veth (solo) | veth (UDP) | 82 | 96 | 99 | control — v3.2 captures it fine |
+
+**Therefore "enable loopback counting in v3.2" is the wrong fix:** it would
+(1) *diverge* from v2 (which also skips `lo`), (2) re-introduce the ≥2×
+single-host double-count the design removed, and (3) not even touch the real
+gap — `tcp_v_tcp_veth` is on the **veth**, not `lo`, and the veth is already not
+skipped (UDP-over-veth proves it).
+
+**The real gap is TCP-over-veth only**, and two hypotheses are ruled out by the
+code: it is *not* the loopback skip (veth ≠ `lo`), and *not* PID attribution
+(the bench runs v2/v3 **system-wide** — [run-intp-bench.sh:176-177](../run-intp-bench.sh#L176),
+`V_USE_PID_FILTER=0` — so `should_monitor_current()` is always true). What
+remains is whether the **veth TCP path actually fires** v3.2's two tracepoints.
+The leading explanation is **GSO/TSO**: TCP egress over veth is handed down as
+large GSO super-frames and delivered to the peer via the GRO path, so the
+per-frame `net_dev_xmit`/`netif_receive_skb` accounting under-counts; UDP's
+per-datagram path fires them normally. **This is not confirmed by a live trace**
+(the host was not available from this session) — run
+[`diagnose-netp-veth-coverage.sh`](../../variants/v3.2-ebpf-agg/tests/integration/diagnose-netp-veth-coverage.sh)
+on the measurement host (`--proto tcp`, then `--proto udp`) to confirm: it
+compares the bytes v3.2's tracepoints see against the `/sys/class/net` counters
+v2 uses.
+
+**Production relevance.** If the cause is GSO/TSO, it is **not** a mere bench
+artifact: real NICs run TCP with TSO/GSO, so v3.2 would under-count `netp` for
+production TCP egress too. The production-AND-bench-compatible fix is to make
+v3.2's `netp` **GSO-aware on non-`lo` interfaces** (count `skb_shinfo->gso_segs`
+× MSS / use the byte length the GRO/GSO skb carries, or fall back to the
+`/sys/class/net` non-`lo` byte deltas v2 already uses) — keeping `lo` excluded.
+That fix is gated on the diagnostic above and a BPF rebuild on the host, so it
+is **not applied here**.
 
 ### Practical guidance
 
-- On the **veth/NVMe benchmark harness**, treat v3.2's `blk` and TCP-veth `netp`
-  as the production-semantics readings, not as a harness interference signal.
-  For harness-level disk/net pressure, v2's `%util`-`blk` and `/proc/net/dev`-`netp`
-  are the comparable numbers; cross-check storage with v3.2's raw service-time
-  counters if needed.
-- In **production** (real NICs, real storage, no veth/loopback synthetic path),
-  v3.2's definitions are the intended, faithful ones — service-time `blk` exposes
-  true device pressure without the NVMe `%util` saturation, and loopback-skipped
-  `netp` avoids the ≥2× single-host double-count.
-- Do not read the black v3.2 `blk`/TCP-veth `netp` cells as "v3.2 lost the
-  metric"; they are the correct output of a production-tuned definition measured
-  on a fast-NVMe, veth-routed bench.
+- The **disk/net interference signal on this harness** is best read from v2:
+  `%util`-`blk` and the non-`lo` byte-counter `netp` both light up on the
+  veth/NVMe bench. v1.1 over-reports (saturating `blk`, loopback counted as
+  `netp`).
+- v3.2's **`blk`** (service-time) is the production-faithful number and is
+  *correctly* ~0 on NVMe — not a gap. Do not "fix" it for the bench except by
+  using a device/IO pattern where service time is non-trivial, or by switching
+  the definition (which would just duplicate v2's `%util`).
+- v3.2's **`netp`** is correct except for the **TCP-over-veth** undercount, which
+  is a real (and likely production-relevant) gap to fix in the BPF — not a reason
+  to start counting `lo`.
+- Net: read the black v3.2 `blk` cells as truth (NVMe barely service-bound);
+  read the black v3.2 TCP-veth `netp` cell as a **probe gap to fix**, confirmed
+  via the diagnostic.
