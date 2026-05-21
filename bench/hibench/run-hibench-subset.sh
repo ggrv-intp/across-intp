@@ -64,6 +64,14 @@ ENV_DEPLOY="${ENV_DEPLOY:-bare}"
 INTP_FULL_IMAGE="${INTP_FULL_IMAGE:-intp-full:latest}"
 INTP_FULL_VM_IMAGE="${INTP_FULL_VM_IMAGE:-}"
 DRY_RUN=0
+# Resume support (mirrors run-intp-bench.sh's per-rep skip contract). When set,
+# run_subset_for_profile reuses an existing <profile>-<size>-<ts> run-dir under
+# OUT_ROOT instead of minting a fresh timestamp, and reps whose profiler.tsv
+# already has samples AND run.json status="ok" are skipped. Without this, a
+# resumed campaign (run-os-campaign.sh always shares RESUME_DIR) accumulates a
+# SECOND full run-dir per profile and doubles the rep count after publish merges
+# them -- the "24 reps where 12 were intended" bug. Failed/empty reps are re-run.
+RESUME="${RESUME:-0}"
 INTERVAL=1
 WARMUP=15                   # seconds to let Spark ramp before recording
 MAX_WORKLOAD_DURATION=600   # max profiler window per Spark job (seconds)
@@ -225,6 +233,12 @@ Options:
   --nic-speed-bps N           Override detected NIC speed (B/s)
   --env MODE                  Deployment mode: bare | container-full | vm-full
                               (default: bare)
+  --resume                    Reuse the existing <profile>-<size>-<ts> run-dir
+                              under --out-root (instead of minting a new one)
+                              and skip reps that already completed cleanly
+                              (profiler.tsv has samples + run.json status=ok).
+                              Failed/empty reps are re-run. Prevents the
+                              double-run-dir / 24-rep accumulation on resume.
   --dry-run                   Print actions without executing
   -h, --help                  Show this help
 
@@ -257,6 +271,7 @@ parse_args() {
             --elapsed-cv-warn-pct) ELAPSED_CV_WARN_PCT="$2"; shift 2 ;;
             --stap-target)   STAP_TARGET="$2"; shift 2 ;;
             --env)           ENV_DEPLOY="$2"; shift 2 ;;
+            --resume)        RESUME=1; shift ;;
             --dry-run)       DRY_RUN=1; shift ;;
             -h|--help)       usage; exit 0 ;;
             *) die "unknown option: $1" ;;
@@ -1033,6 +1048,20 @@ run_workload_full_deploy() {
     return 0
 }
 
+# rep_is_complete <rep_dir>  -- resume predicate. A rep counts as "done" only
+# if it produced samples AND its Spark job exited cleanly. Reps with
+# status="spark_failed"/"profiler_start_failed" (e.g. the disk-full casualties)
+# or an empty/missing profiler.tsv return non-zero so they get re-run.
+rep_is_complete() {
+    local rep_dir="$1"
+    local tsv="$rep_dir/profiler.tsv" rj="$rep_dir/run.json"
+    [ -f "$tsv" ] && [ -f "$rj" ] || return 1
+    grep -q '"status":"ok"' "$rj" 2>/dev/null || return 1
+    local n
+    n=$(awk '/^[0-9]/{n++}END{print n+0}' "$tsv" 2>/dev/null)
+    [ "${n:-0}" -gt 0 ]
+}
+
 run_workload_with_profiler() {
     # Args: variant, workload_name, spark_script, spark_env, workload_outdir, profile_mode
     # workload_outdir is the per-(variant, workload) directory; per-rep
@@ -1056,11 +1085,26 @@ run_workload_with_profiler() {
 
     mkdir -p "$workload_outdir"
 
-    # Stressor stays steady across all reps so interference signal is constant.
-    start_stressor "$profile_mode" "$workload_outdir"
-
     local rep_total="$WORKLOAD_REPS"
     [ "$rep_total" -ge 1 ] || rep_total=1
+
+    # Resume fast-path: if every rep already completed cleanly, don't start the
+    # stressor or re-run anything -- the existing per-rep data is kept and
+    # build_aggregate_means() (profile level) picks it up unchanged.
+    if [ "$RESUME" = "1" ]; then
+        local _c=0 _need=0
+        while [ "$_c" -lt "$rep_total" ]; do
+            _c=$((_c + 1))
+            rep_is_complete "$workload_outdir/rep${_c}" || { _need=1; break; }
+        done
+        if [ "$_need" -eq 0 ]; then
+            log "  [$variant] $workload_name — resume: all ${rep_total} reps already complete; skipping"
+            return 0
+        fi
+    fi
+
+    # Stressor stays steady across all reps so interference signal is constant.
+    start_stressor "$profile_mode" "$workload_outdir"
 
     local r=0
     local successful_reps=0
@@ -1075,6 +1119,18 @@ run_workload_with_profiler() {
         local rep_outdir="$workload_outdir/rep${r}"
         local profiler_tsv="$rep_outdir/profiler.tsv"
         local workload_log="$rep_outdir/workload.log"
+
+        # Resume: keep a rep that already completed cleanly; re-run failed/empty.
+        if [ "$RESUME" = "1" ] && rep_is_complete "$rep_outdir"; then
+            local _prev
+            _prev=$(awk '/^[0-9]/{n++}END{print n+0}' "$profiler_tsv" 2>/dev/null)
+            log "  [$variant] $workload_name rep=${r}/${rep_total} — skip (resume: already ok, ${_prev} samples)"
+            REP_ELAPSED+=("0"); REP_SAMPLES+=("$_prev"); REP_STATUS+=("\"ok\"")
+            total_samples=$((total_samples + _prev))
+            successful_reps=$((successful_reps + 1))
+            continue
+        fi
+
         mkdir -p "$rep_outdir"
         : > "$workload_log"
 
@@ -1341,8 +1397,20 @@ build_aggregate_means() {
 
 run_subset_for_profile() {
     local mode="$1"
-    local outdir
-    outdir="$OUT_ROOT/$mode-$SIZE-$(date +%Y%m%d_%H%M%S)"
+    local outdir=""
+    # Resume: reuse the newest existing run-dir for this profile instead of
+    # minting a fresh timestamp. Minting a new one on every invocation is what
+    # produced two <profile>-<size>-<ts> dirs per profile (=> 24 reps) when the
+    # campaign was re-run with a shared RESUME_DIR.
+    if [ "$RESUME" = "1" ]; then
+        outdir="$(ls -1d "$OUT_ROOT/$mode-$SIZE-"*/ 2>/dev/null | sed 's:/*$::' | sort | tail -n1)"
+        if [ -n "$outdir" ] && [ -d "$outdir" ]; then
+            log "resume: reusing existing run-dir for profile=$mode -> $outdir"
+        else
+            outdir=""
+        fi
+    fi
+    [ -n "$outdir" ] || outdir="$OUT_ROOT/$mode-$SIZE-$(date +%Y%m%d_%H%M%S)"
     mkdir -p "$outdir" 2>/dev/null || {
         # Fall back to $HOME, not /tmp: /tmp is wiped on reboot and silently
         # strands a whole run's profiler.tsv data. $HOME is visible and

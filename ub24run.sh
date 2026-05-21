@@ -31,6 +31,10 @@
 #   sudo HIBENCH_SIZE=small bash ub24run.sh
 #   sudo SKIP_STRESS=1 CAMPAIGN_OUT=results/ub24-campaign-... bash ub24run.sh
 #
+# Resume is idempotent gap-filling: pointing CAMPAIGN_OUT at an existing
+# campaign dir re-runs only the reps that did not complete cleanly (both the
+# stress-ng and HiBench legs), so re-running never doubles HiBench reps to 24.
+#
 # See bench/run-os-campaign.sh --help for every environment knob
 # (HIBENCH_SIZE, HIBENCH_PROFILE, REPS, DURATION, SKIP_* resume flags, ...).
 # -----------------------------------------------------------------------------

@@ -28,6 +28,11 @@
 #   sudo bash ub22run.sh                 # full campaign (HiBench size=large)
 #   sudo bash ub22run.sh --dry-run       # print every step, run nothing
 #   sudo HIBENCH_SIZE=small bash ub22run.sh
+#   sudo CAMPAIGN_OUT=results/ub22-campaign-... bash ub22run.sh   # resume
+#
+# Resume is idempotent gap-filling: pointing CAMPAIGN_OUT at an existing
+# campaign dir re-runs only the reps that did not complete cleanly (both the
+# stress-ng and HiBench legs), so re-running never doubles HiBench reps to 24.
 #
 # See bench/run-os-campaign.sh --help for every environment knob.
 # -----------------------------------------------------------------------------

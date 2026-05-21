@@ -30,7 +30,11 @@
 #   -h, --help           show this help
 #
 # Environment overrides (all optional):
-#   CAMPAIGN_OUT       reuse an existing results/<...>-campaign dir (resume)
+#   CAMPAIGN_OUT       reuse an existing results/<...>-campaign dir (resume).
+#                      Resume is gap-filling: the stress-ng + HiBench legs skip
+#                      reps that already completed cleanly and re-run only
+#                      missing/failed ones -- no duplicate run-dirs, no 24-rep
+#                      doubling. Combine with SKIP_* to resume from a stage.
 #   HIBENCH_SIZE       HiBench dataset size      (default: large)
 #   HIBENCH_PROFILE    HiBench co-runner profile (default: all-stress)
 #   REPS               repetitions per workload  (default: 12)
@@ -272,6 +276,10 @@ fi
 # ── Stage 5: HIBENCH leg (veth routed, cluster up) ───────────────────────────
 # run-big-batch pass B: HiBench segment only, distributed mode ON, same OUT.
 # RUN_PLOTS=1 here renders figures for BOTH legs (bench-full/ + hibench/).
+# Because RESUME_DIR="$OUT" is shared with pass A, run-big-batch passes --resume
+# to the HiBench runner: a re-run reuses each profile's existing run-dir and
+# fills only the missing/failed reps, instead of accumulating a SECOND run-dir
+# per profile (which previously doubled reps to 24 after publish merged them).
 if [ "$SKIP_HIBENCH" = "1" ]; then
     log "SKIP_HIBENCH=1 -- skipping HiBench leg"
 else

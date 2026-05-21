@@ -102,9 +102,13 @@ set -u -o pipefail
 # Derived from script location so the campaign survives repo path changes
 # (e.g. the historical intp → intp-comparison rename).
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# Resume support: set RESUME_DIR to an existing big-batch output directory to
-# skip runs whose profiler.tsv already has samples (idempotent re-execution).
-# If unset, a fresh timestamped directory is created.
+# Resume support: set RESUME_DIR to an existing big-batch output directory for
+# idempotent re-execution. The stress-ng segment skips reps whose profiler.tsv
+# already has samples; the HiBench segment reuses each profile's existing
+# <profile>-<size>-<ts> run-dir and skips reps that completed cleanly (it is
+# passed --resume below when RESUME_DIR is set), so a re-run fills only the gaps
+# instead of minting a second run-dir per profile. If unset, a fresh timestamped
+# directory is created.
 if [ -n "${RESUME_DIR:-}" ]; then
     OUT="$RESUME_DIR"
     if [ ! -d "$OUT" ]; then
@@ -416,6 +420,12 @@ fi
 # ── Segment 2: HiBench Spark subset ──────────────────────────────────────────
 if [ "$RUN_HIBENCH" = "1" ]; then
   HIBENCH_EXTRA_ARGS=()
+  # Resume into the shared output dir: reuse each profile's existing run-dir and
+  # skip reps that already completed cleanly, instead of minting a second
+  # <profile>-<size>-<ts> dir (which doubled the rep count after publish merged
+  # them). RESUME_DIR is set by run-os-campaign.sh on every leg, so the campaign
+  # is idempotent; on a first run nothing exists to reuse/skip (no-op).
+  [ -n "${RESUME_DIR:-}" ] && HIBENCH_EXTRA_ARGS+=(--resume)
   [ -n "$MEM_BW_MAX_BPS" ] && HIBENCH_EXTRA_ARGS+=(--mem-bw-max-bps "$MEM_BW_MAX_BPS")
   [ -n "$NIC_SPEED_BPS"  ] && HIBENCH_EXTRA_ARGS+=(--nic-speed-bps  "$NIC_SPEED_BPS")
   [ -n "$LLC_SIZE_BYTES" ] && HIBENCH_EXTRA_ARGS+=(--llc-size-bytes "$LLC_SIZE_BYTES")
