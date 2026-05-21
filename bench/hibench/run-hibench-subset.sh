@@ -1352,11 +1352,18 @@ reap_spark_worker_scratch_between_workloads() {
 
 build_aggregate_means() {
     # Per-rep aggregate matching the schema produced by run-intp-bench.sh
-    # (env, variant, stage, workload, rep, 7 metrics). HiBench writes stage
-    # ='hibench' so downstream tooling (plot, convert-profiler-to-meyer,
-    # generate-iada-tree) can filter or merge with stress-ng 'solo' rows.
+    # (env, variant, stage, workload, rep, 7 metrics). HiBench rows carry
+    # stage='hibench-<profile>' (e.g. hibench-cpu-extreme) -- the co-runner
+    # profile is encoded into the stage column so the 7-profile axis SURVIVES
+    # the publish merge, which dedups by env+variant+stage+workload+rep. A bare
+    # 'hibench' stage made all 7 profiles share one key, collapsing the merged
+    # aggregate-means.tsv to a single profile (last-write-wins). Downstream
+    # consumers that want every HiBench row match stage with the 'hibench-'
+    # prefix; those wanting stress-ng still match 'solo'/'pairwise' exactly.
     local outdir="$1"
     local agg="$outdir/aggregate-means.tsv"
+    # Profile parsed from the run-dir name <profile>-<size>-<ts>.
+    local profile; profile="${outdir##*/}"; profile="${profile%-"$SIZE"-*}"
     {
         printf 'env\tvariant\tstage\tworkload\trep\tnetp\tnets\tblk\tmbw\tllcmr\tllcocc\tcpu\n'
         find "$outdir" -name profiler.tsv | while read -r f; do
@@ -1367,6 +1374,9 @@ build_aggregate_means() {
             stage=$(echo "$f" | awk -F/ '{print $(NF-3)}')
             workload=$(echo "$f" | awk -F/ '{print $(NF-2)}')
             rep=$(echo "$f" | awk -F/ '{print $(NF-1)}' | sed 's/rep//')
+            # The path stage component is the literal 'hibench' dir; tag the
+            # co-runner profile so merged rows stay distinct across profiles.
+            [ "$stage" = "hibench" ] && stage="hibench-$profile"
             awk -v E="$env" -v V="$variant" -v S="$stage" -v W="$workload" -v R="$rep" '
                 /^#/||/^ts/||/^netp/||NF==0 { next }
                 /^[0-9]/ {

@@ -12,6 +12,11 @@ benchmark campaign.
   - Documents what was improved in V1 (the restored stap-native build) and
     which operational limitations remain under modern kernels and hardware.
     The userspace-helper recovery path is implemented in V1.1.
+- [UB24 campaign -- Metric validity notes](ub24-campaign-metric-validity.md)
+  - Why per-variant metric magnitudes differ (v1.1 reads `llcocc=0` on 100% of
+    HiBench reps — multi-process blindness, not noise); the `mbw` ceiling fix
+    and current validity; and why `aggregate-means.tsv` carries only one HiBench
+    profile (stage-key collapse on merge).
 
 ## Legacy-V0 campaign reports (Ubuntu 22.04 + kernel 5.15)
 
