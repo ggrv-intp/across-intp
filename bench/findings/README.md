@@ -15,8 +15,10 @@ benchmark campaign.
 - [UB24 campaign -- Metric validity notes](ub24-campaign-metric-validity.md)
   - Why per-variant metric magnitudes differ (v1.1 reads `llcocc=0` on 100% of
     HiBench reps — multi-process blindness, not noise); the `mbw` ceiling fix
-    and current validity; and why `aggregate-means.tsv` carries only one HiBench
-    profile (stage-key collapse on merge).
+    and current validity; why `aggregate-means.tsv` now carries all 7 HiBench
+    profiles (`stage=hibench-<profile>`); and why v3.2 reads ~0 `blk` /
+    TCP-veth `netp=0` — production-oriented service-time/tracepoint definitions
+    meeting a veth-routed NVMe harness.
 
 ## Legacy-V0 campaign reports (Ubuntu 22.04 + kernel 5.15)
 

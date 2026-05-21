@@ -649,23 +649,17 @@ def fig_pca_kmeans(means: pd.DataFrame, outdir: Path) -> None:
     ax.set_xlabel(f"PC1 ({pca.explained_variance_ratio_[0]*100:.1f}%)")
     ax.set_ylabel(f"PC2 ({pca.explained_variance_ratio_[1]*100:.1f}%)")
 
-    # In-axes legends: variant (marker), workload-cluster (colour).
+    # In-axes legend: variant (marker) only. The workload-cluster colour key is
+    # already given by the "Workloads by cluster" sidebar, so the redundant
+    # lower-left cluster legend is omitted.
     from matplotlib.lines import Line2D
     var_handles = [Line2D([0], [0], marker=variant_markers.get(v, "o"),
                           color="w", markerfacecolor="lightgray",
                           markeredgecolor="black", markersize=8,
                           label=_variant_label(v))
                    for v in variants]
-    clu_handles = [Line2D([0], [0], marker="o", color="w",
-                          markerfacecolor=cluster_palette(c),
-                          markeredgecolor="black", markersize=8,
-                          label=cluster_label_of[c] or f"cluster {c+1}")
-                   for c in range(k)]
-    leg1 = ax.legend(handles=var_handles, loc="upper left",
-                     title="variant", fontsize=8, title_fontsize=8.5)
-    ax.add_artist(leg1)
-    ax.legend(handles=clu_handles, loc="lower left",
-              title="workload cluster", fontsize=8, title_fontsize=8.5)
+    ax.legend(handles=var_handles, loc="upper left",
+              title="variant", fontsize=8, title_fontsize=8.5)
 
     # Sidebar: workloads grouped by cluster, with the cluster's colour
     # swatch in front of each block. Replaces per-marker labelling.

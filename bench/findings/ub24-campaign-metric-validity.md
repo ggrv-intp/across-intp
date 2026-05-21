@@ -9,7 +9,11 @@
 These notes explain three things an evaluator will notice in the ub24 result
 tree: (1) why the per-variant metric magnitudes differ — chiefly `llcocc` — and
 when that is real vs. an artifact; (2) the state of the `mbw` column and its
-ceiling fix; (3) why `aggregate-means.tsv` carries only one HiBench profile.
+ceiling fix; (3) how `aggregate-means.tsv` was fixed to carry all 7 HiBench
+profiles (it previously collapsed to one);
+(4) why v3.2 reads near-zero `blk` and zero `netp` on the disk/veth pairwise
+workloads — a production-oriented metric definition meeting a veth-routed,
+NVMe-backed benchmark harness.
 
 ---
 
@@ -169,3 +173,79 @@ Any tooling *outside* this repo (e.g. ad-hoc paper-analysis scripts) that
 hard-codes `stage == "hibench"` must switch to a prefix match
 (`stage.startswith("hibench")` / `stage LIKE 'hibench-%'`) to pick up HiBench
 rows. Filtering a single profile is now `stage == "hibench-cpu-extreme"`.
+
+---
+
+## 4. v3.2 reads ~0 `blk` and 0 `netp` on the disk/veth pairwise figures
+
+In `fig07_pairwise_heatmap_bare`, the v3.2 panel shows an all-black `blk`
+column and a black `netp` column where v1.1/v2 light up. Both are explained by
+v3.2's metric **definitions**, which were chosen for **production NICs and
+storage**, not for this benchmark's synthetic veth-routed traffic on fast NVMe.
+Neither is a failed probe — v3.2's `blk`/`netp` machinery is inherited from V3
+unchanged and has an equivalence test against it.
+
+### `blk` — service-time utilization vs iostat `%util`
+
+The two backends measure different definitions of "block I/O utilization":
+
+| variant | definition | source | reads on NVMe under load |
+|---------|-----------|--------|--------------------------|
+| v1.1, v2 | iostat `%util` — wall-time fraction the device queue was non-empty | `/proc/diskstats` `io_ticks` ([blk.c](../../variants/v2-hybrid-c/src/blk.c)) | **97–99%** |
+| v3.2 (=V3) | service-time utilization = `Σ per-request svctm / interval` | eBPF `block_rq_issue→complete` ([intp_agg.bpf.h:63](../../variants/v3.2-ebpf-agg/src/intp_agg.bpf.h#L63)) | **~1–4%** |
+
+`%util` (io_ticks) is the classic disk-busy metric, but it **saturates to ~100%
+on multi-queue NVMe** even at a tiny fraction of the device's real throughput —
+the queue is essentially never empty under stress. v3.2 instead sums the actual
+issue→complete **service time**; on NVMe each request finishes in microseconds,
+so the summed busy-time is a sliver of the 1 s interval → ~1–4%. The raw v3.2
+trace confirms it (per-sample blk values are `01`–`04`).
+
+**Which is "right"?** For a *production* server — where the relevant question
+is "how much real I/O service pressure is this co-runner adding" — v3.2's
+service-time number is the faithful, non-saturating signal, and `%util` is the
+misleading one (it pins to 100% and hides headroom on SSD/NVMe). For *this
+benchmark*, whose disk stressor hammers a fast NVMe, that production-faithful
+number is legitimately near zero. So the black `blk` column is v3.2 telling the
+truth about an NVMe that is barely service-time-bound, not a missing metric.
+
+### `netp` — loopback-skipped tracepoints vs `/proc/net/dev`
+
+| variant | source | loopback handling |
+|---------|--------|-------------------|
+| v1.1, v2 | `/proc/net/dev` byte counters ([netp.c](../../variants/v2-hybrid-c/src/netp.c)) | counts whatever the kernel attributes to the iface |
+| v3.2 (=V3) | tracepoints `net_dev_xmit` + `netif_receive_skb` | **skips `lo`** to avoid the ≥2× xmit+recv double-count on single-host workloads ([intp_agg.bpf.c:185](../../variants/v3.2-ebpf-agg/src/intp_agg.bpf.c#L185)) |
+
+Split by pairwise row:
+
+| pair | v1.1 netp | v2 netp | v3.2 netp | reading |
+|------|-----------|---------|-----------|---------|
+| `net_v_net` | 99 | 0 | 0 | **v2 & v3.2 agree** — socket/loopback traffic, correctly counted as `nets` not physical `netp`; only v1.1 mis-attributes it |
+| `tcp_v_tcp_veth` | 99 | 97 | **0** | **v3.2-specific gap** |
+| (UDP-over-veth, solo) | 82 | 96 | 99 | v3.2 captures it fine |
+
+So v3.2's netp probe is **not** globally broken — UDP-over-veth reads ~99, and
+the `net_v_net=0` is *more* correct than v1.1. The one genuine gap is
+**TCP-over-veth**: v3.2 reports `netp=0` while v2's `/proc/net/dev` counts it.
+The likely cause (not yet traced to certainty) is that veth + TCP segmentation
+offload delivers large GSO super-frames straight to the peer's RX path without
+firing the per-frame `net_dev_xmit`/`netif_receive_skb` accounting v3.2 relies
+on, whereas UDP's per-datagram path does fire it. This is precisely the kind of
+**synthetic veth-routed transport** that the production-oriented tracepoint
+design did not target: on a real NIC, TCP egress traverses the physical device's
+xmit path and is counted normally.
+
+### Practical guidance
+
+- On the **veth/NVMe benchmark harness**, treat v3.2's `blk` and TCP-veth `netp`
+  as the production-semantics readings, not as a harness interference signal.
+  For harness-level disk/net pressure, v2's `%util`-`blk` and `/proc/net/dev`-`netp`
+  are the comparable numbers; cross-check storage with v3.2's raw service-time
+  counters if needed.
+- In **production** (real NICs, real storage, no veth/loopback synthetic path),
+  v3.2's definitions are the intended, faithful ones — service-time `blk` exposes
+  true device pressure without the NVMe `%util` saturation, and loopback-skipped
+  `netp` avoids the ≥2× single-host double-count.
+- Do not read the black v3.2 `blk`/TCP-veth `netp` cells as "v3.2 lost the
+  metric"; they are the correct output of a production-tuned definition measured
+  on a fast-NVMe, veth-routed bench.
