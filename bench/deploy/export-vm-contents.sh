@@ -49,7 +49,7 @@ INCLUDE_PATHS=(
     /opt/spark
     /opt/HiBench
     /opt/intp
-    /root/intp-comparison
+    /root/across-intp
     /root/.ssh
     /var/lib/hadoop
     /var/lib/hibench

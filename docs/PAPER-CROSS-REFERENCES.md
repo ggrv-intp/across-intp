@@ -1,7 +1,6 @@
 # Paper Cross-References
 
-This document maps each `[TODO: ...]` placeholder in the IntP comparison
-paper draft (`intp_comparison.pdf`, last revision 2026-05-10) to the
+This document maps each `[TODO: ...]` placeholder in the paper draft to the
 repository content that grounds it. Use it during writing as a "where do I
 get the material to fill this in" index.
 

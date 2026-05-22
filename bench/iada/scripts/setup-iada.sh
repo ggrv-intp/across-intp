@@ -84,7 +84,7 @@ TARGET_USER="${SUDO_USER:-root}"
 TARGET_HOME=$(getent passwd "$TARGET_USER" | cut -d: -f6)
 
 # Default --clone-root to the parent dir of this repo, so that
-# intp-comparison and CloudSimInterference end up as siblings.
+# across-intp and CloudSimInterference end up as siblings.
 if [ -z "$CLONE_ROOT" ]; then
     CLONE_ROOT="$(dirname "$REPO_ROOT")"
 fi

@@ -30,7 +30,7 @@ campaign.
 Operational check before starting:
 
 ```bash
-cd /root/intp-comparison
+cd /root/across-intp
 git fetch && git pull
 git log -1 --format='%h %s'   # must include any fix you depend on
 ```

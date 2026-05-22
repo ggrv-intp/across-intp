@@ -1,6 +1,6 @@
 cff-version: 1.2.0
 message: "If you use this software in your research, please cite it as below."
-title: "intp-comparison — Multi-Variant Comparison Harness for the intp Interference Profiler"
+title: "Across-IntP — Multi-Variant Comparison Harness for the intp Interference Profiler"
 abstract: >
   Nine implementation variants of intp, an interference profiler that collects
   seven metrics from the Linux kernel. Developed as part of a Master's
@@ -14,7 +14,7 @@ authors:
     given-names: "André"
     affiliation: "PPGCC/PUCRS"
     orcid: "https://orcid.org/0000-0002-1639-3238"
-repository-code: "https://github.com/ggrv-intp/intp-comparison"
+repository-code: "https://github.com/ggrv-intp/across-intp"
 license: MIT
 type: software
 keywords:

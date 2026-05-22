@@ -1,4 +1,4 @@
-From: intp-comparison <noreply@example.invalid>
+From: across-intp <noreply@example.invalid>
 Subject: [PATCH] MLClassifier: read project_folder from INTP_R_FOLDER env
 
 Replace the hostname-hardcoded R folder paths in MLClassifier.java with
