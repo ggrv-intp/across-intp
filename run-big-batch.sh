@@ -460,6 +460,8 @@ if [ "$RUN_PLOTS" = "1" ]; then
         python3 bench/plot/plot-intp-bench.py "$OUT/bench-full"
       run_step "extract stress-ng fragility table" \
         python3 bench/plot/extract-fragility.py "$OUT/bench-full"
+      run_step "emit per-workload data-quality flags" \
+        python3 bench/plot/quality-flags.py "$OUT/bench-full"
       if [ -f "$OUT/bench-full/aggregate-means.tsv" ]; then
         run_step "plot PCA correlation circle" \
           python3 bench/plot/plot-pca-correlation-circle.py \

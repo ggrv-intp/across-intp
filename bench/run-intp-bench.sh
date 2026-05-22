@@ -2710,8 +2710,17 @@ _overhead_cgroup_cpustat_delta_tsv() {
 # we only require that field 5 of a data row is numeric.
 _overhead_parse_stressng() {
     awk '
-        /stress-ng: metrc:/ {
-            if ($5 !~ /^[0-9]+(\.[0-9]+)?$/) next
+        # stress-ng prints the --metrics-brief table under the "metrc:" tag on
+        # newer builds (>=0.15) and under "info:" on the 0.13.x line shipped
+        # here; accept both. A genuine per-stressor data row has numeric
+        # bogo-ops ($5), real-time ($6) and bogo-ops/s-real ($9). Guarding on
+        # all three excludes the two header rows AND the stream stressor extra
+        # "memory rate (MB|Mflop per sec)" lines (non-numeric $6/$9), which
+        # would otherwise inflate the bogo-ops total.
+        ($2 == "info:" || $2 == "metrc:") &&
+        $5 ~ /^[0-9]+(\.[0-9]+)?$/ &&
+        $6 ~ /^[0-9]+(\.[0-9]+)?$/ &&
+        $9 ~ /^[0-9]+(\.[0-9]+)?$/ {
             ops    += $5
             if ($6 + 0 > rt) rt = $6 + 0
             ops_r  += $9

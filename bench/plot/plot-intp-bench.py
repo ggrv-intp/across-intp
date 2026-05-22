@@ -988,18 +988,33 @@ def fig_fidelity_matrix(results_dir: Path, outdir: Path) -> None:
             gt = pd.read_csv(gt_path, sep="\t")
         except Exception:
             continue
-        if prof.empty or gt.empty: continue
-        gt["disk_total_mb"] = gt.get("disk_read_mb", 0).fillna(0) + gt.get("disk_write_mb", 0).fillna(0)
-        gt["net_total_mb"]  = gt.get("net_rx_mb", 0).fillna(0)   + gt.get("net_tx_mb", 0).fillna(0)
-        n = min(len(prof), len(gt))
-        if n < 5: continue
-        prof = prof.iloc[:n].reset_index(drop=True)
-        gt = gt.iloc[:n].reset_index(drop=True)
+        if prof.empty or gt.empty or "ts" not in prof or "ts" not in gt: continue
+        for c in ("disk_read_mb", "disk_write_mb", "net_rx_mb", "net_tx_mb"):
+            if c in gt: gt[c] = pd.to_numeric(gt[c], errors="coerce").fillna(0)
+        gt["disk_total_mb"] = gt.get("disk_read_mb", 0) + gt.get("disk_write_mb", 0)
+        gt["net_total_mb"]  = gt.get("net_rx_mb", 0)   + gt.get("net_tx_mb", 0)
+        # Align by wall-clock timestamp, NOT row index. The profiler starts
+        # after the workload warm-up (~5-13 s here) and drops samples on read
+        # timeouts, so the i-th profiler row is not the i-th ground-truth row;
+        # index alignment (the previous method) shears the two series apart and
+        # collapses the correlation toward zero. Drop the first few ground-truth
+        # rows to shed the counter-startup spike (e.g. a ~900 GB disk_write_mb
+        # delta in row 0), then pair each profiler sample to the nearest
+        # ground-truth sample within 0.75 s.
+        prof = prof.copy(); gt = gt.iloc[3:].copy()
+        prof["ts"] = pd.to_numeric(prof["ts"], errors="coerce")
+        gt["ts"]   = pd.to_numeric(gt["ts"], errors="coerce")
+        prof = prof.dropna(subset=["ts"]).sort_values("ts")
+        gt   = gt.dropna(subset=["ts"]).sort_values("ts")
+        if len(prof) < 5 or len(gt) < 5: continue
+        gt_cols = [c for c in dict.fromkeys(pair_map.values()) if c in gt.columns]
+        merged = pd.merge_asof(prof, gt[["ts"] + gt_cols], on="ts",
+                               direction="nearest", tolerance=0.75)
         env = prof_path.parts[-6]; variant = prof_path.parts[-5]
         for metric, gt_col in pair_map.items():
-            if metric not in prof or gt_col not in gt: continue
-            a = pd.to_numeric(prof[metric], errors="coerce")
-            b = pd.to_numeric(gt[gt_col], errors="coerce")
+            if metric not in merged or gt_col not in merged: continue
+            a = pd.to_numeric(merged[metric], errors="coerce")
+            b = pd.to_numeric(merged[gt_col], errors="coerce")
             mask = a.notna() & b.notna()
             if mask.sum() < 5 or a[mask].std() == 0 or b[mask].std() == 0: continue
             r = float(np.corrcoef(a[mask], b[mask])[0, 1])

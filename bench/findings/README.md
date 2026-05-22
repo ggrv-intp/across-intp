@@ -20,6 +20,16 @@ benchmark campaign.
     `blk`≈0 is a correct service-time reading on NVMe, while TCP-over-veth
     `netp=0` is a genuine (likely production-relevant) probe gap, with a host
     diagnostic to confirm it.
+- [UB22 campaign -- Metric validity notes (v0.2)](ub22-campaign-metric-validity.md)
+  - The single-variant v0.2 (legacy-bridge) leg on kernel 5.15. Keeps the two
+    senses of "ground truth" apart (v0.2 as the most reproducible V0 vs physical
+    fidelity); documents two published-table defects fixed in-tree (blank
+    throughput-overhead from a stress-ng log-tag mismatch; the fidelity figure's
+    row-index misalignment — `blk` r 0.06→0.70 once aligned by timestamp); which
+    saturation is expected legacy behaviour (`blk`=99, `netp`=99) vs the mixed
+    calibration seam (stap-native legacy constants but autodetected `mbw`/
+    `llcocc` ceilings); and the genuine caveats — `sock` sample loss, app13
+    regime shift vs app14 probe dropout, and 4/7 metrics having no ground truth.
 
 ## Legacy-V0 campaign reports (Ubuntu 22.04 + kernel 5.15)
 
