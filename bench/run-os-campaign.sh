@@ -41,6 +41,12 @@
 #   DURATION           stress-ng seconds per rep (default: 90)
 #   NETNS_NAME         veth guest netns name     (default: intp-net)
 #   HADOOP_PROFILE     Hadoop major for HiBench  (default: 3)
+#   Per-leg BUILD knobs (forwarded into setup-spark-hibench.sh when set; this is
+#   how a leg pins the HiBench Maven/Scala build without changing versions):
+#     SPARK_VERSION HIBENCH_REF HADOOP_VERSION SCALA_FULL_VERSION
+#     KAFKA_VERSION KAFKA_BINARY_VERSION HIBENCH_MVN_EXTRA_ARGS
+#   The launchers (ub22run.sh / ub24run.sh) set these in a per-leg env block;
+#   unset knobs fall back to setup-spark-hibench.sh defaults.
 #   SKIP_KERNEL_CONFIG / SKIP_VETH / SKIP_STRESS / SKIP_HIBENCH_SETUP /
 #   SKIP_HIBENCH / SKIP_PUBLISH
 #                      set any to 1 to skip that stage (resume support)
@@ -262,6 +268,16 @@ else
 
     SPARK_ENV=(HADOOP_PROFILE="$HADOOP_PROFILE" HIBENCH_SCALE="$HIBENCH_SCALE")
     [ "$LEGACY_MVN" -eq 1 ] && SPARK_ENV+=(HIBENCH_MVN_DIRECT_VERSIONS=1)
+    # Forward any per-leg build/Scala knobs the launcher (ub22run.sh / ub24run.sh)
+    # exported. These pin the HiBench Maven/Scala build coordinates -- the
+    # leg-specific surface that keeps the legacy (U22) HiBench compile clean
+    # while both legs share the SAME Hadoop/Spark/HiBench VERSIONS. Each is
+    # forwarded only when actually set, so setup-spark-hibench.sh's documented
+    # defaults still apply when a launcher leaves it unset (U24 leg).
+    for _k in SPARK_VERSION HIBENCH_REF HADOOP_VERSION SCALA_FULL_VERSION \
+              KAFKA_VERSION KAFKA_BINARY_VERSION HIBENCH_MVN_EXTRA_ARGS; do
+        [ -n "${!_k:-}" ] && SPARK_ENV+=("$_k=${!_k}")
+    done
     stage "install + build Spark/HiBench (scale=$HIBENCH_SCALE)" \
         env "${SPARK_ENV[@]}" bash "$SPARK_SETUP" || warn "spark/hibench setup failed"
 

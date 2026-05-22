@@ -42,6 +42,16 @@
 set -uo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+# ---- per-leg BUILD configuration (UB24 / modern v1.1,v2,v3.2) ---------------
+# Same Hadoop/Spark/HiBench VERSIONS as the UB22 leg. The modern leg builds via
+# HiBench's spark<X.Y> profile shortcut (no --legacy-mvn), so the Scala/Kafka
+# coordinates come from that profile and need no explicit pins -- the legacy
+# SCALA_FULL_VERSION/KAFKA_* knobs are intentionally left unset here (they are
+# only consulted in direct-versions mode). Override only if a future
+# HiBench/Spark bump needs it; run-os-campaign.sh forwards whatever is set.
+export SPARK_VERSION="${SPARK_VERSION:-3.5.3}"
+export HIBENCH_MVN_EXTRA_ARGS="${HIBENCH_MVN_EXTRA_ARGS:-}"
+
 exec bash "$SCRIPT_DIR/bench/run-os-campaign.sh" \
     --host-tag ub24 \
     --variants v1.1,v2,v3.2 \

@@ -40,6 +40,24 @@
 set -uo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+# ---- per-leg BUILD configuration (UB22 / legacy v0.2) -----------------------
+# Same Hadoop/Spark/HiBench VERSIONS as the UB24 leg -- only the Maven/Scala
+# BUILD path differs. --legacy-mvn already turns on HIBENCH_MVN_DIRECT_VERSIONS
+# (bypass HiBench's spark<X.Y> profile and pin dep coords directly). These
+# knobs, forwarded by run-os-campaign.sh into setup-spark-hibench.sh, pin the
+# exact Scala/Kafka coordinates the legacy build needs so HiBench compiles
+# cleanly on U22/5.15 (the legacy leg has no matching spark profile, so the
+# missing version properties surface as Scala compile errors otherwise).
+# Each is overridable from the call site:  SCALA_FULL_VERSION=… sudo bash ub22run.sh
+export SPARK_VERSION="${SPARK_VERSION:-3.5.3}"
+export SCALA_FULL_VERSION="${SCALA_FULL_VERSION:-2.12.18}"
+export KAFKA_VERSION="${KAFKA_VERSION:-1.1.1}"
+export KAFKA_BINARY_VERSION="${KAFKA_BINARY_VERSION:-2.12}"
+# Extra -D args for any further deps the missing legacy Spark profile would have
+# pinned. Populate from the actual Maven Scala-compile errors, e.g.:
+#   export HIBENCH_MVN_EXTRA_ARGS="-Dhadoop.version=3.3.6 -Dflume.version=1.9.0"
+export HIBENCH_MVN_EXTRA_ARGS="${HIBENCH_MVN_EXTRA_ARGS:-}"
+
 exec bash "$SCRIPT_DIR/bench/run-os-campaign.sh" \
     --host-tag ub22 \
     --variants v0.2 \
