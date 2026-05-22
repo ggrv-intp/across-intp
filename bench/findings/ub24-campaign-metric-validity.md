@@ -179,9 +179,49 @@ rows. Filtering a single profile is now `stage == "hibench-cpu-extreme"`.
 
 ## 4. v3.2 reads ~0 `blk` and 0 `netp` on the disk/veth pairwise figures
 
+> **CORRECTION (2026-05-22) — the `netp` cause below (GSO/TSO) is SUPERSEDED.**
+> The GSO hypothesis was, in the text's own words, "not confirmed by a live
+> trace." A code+data re-analysis on the consolidated tree
+> (`results/sbac-results-ub24`, see `bench/findings/ub22-campaign-metric-validity.md`)
+> pins the real cause, and it is **not** GSO and **not** a tracepoint-firing gap:
+>
+> - **The campaign ran v3.2 PID/cgroup-scoped, not system-wide.** Every v3.2
+>   `profiler.tsv` header reads `scope=cgroup=…`. The premise below ("the bench
+>   runs V2/V3 SYSTEM-WIDE … so should_monitor_current() is always true") is
+>   therefore false for this campaign — the harness passes `--cgroup` whenever a
+>   cgroup path exists, regardless of `V_USE_PID_FILTER`.
+> - **`netp` is PID-gated; TCP lives in softirq.** `tp_net_dev_xmit` /
+>   `tp_netif_receive_skb` start with `if (!should_monitor_current()) return 0;`,
+>   which tests **`current`'s PID**. TCP xmit/recv runs largely in softirq /
+>   deferred context (TSQ, ACK-clocked) where `current` is unrelated to the
+>   workload cgroup → dropped → `netp=0`. UDP's synchronous `sendto` runs in the
+>   iperf process context → counted → `netp≈99`. That is exactly the observed
+>   0-vs-99 split, and it needs no GSO explanation.
+> - **`nets` was never broken.** Its softirq tracepoints already update
+>   `agg_global` **ungated** (per-PID is impossible in softirq), i.e. already
+>   device-level — and v3.2 `nets` on `tcp_v_tcp_veth` reads **5.88 ≈ v2's 5.24**.
+>   This is the control proving the device-level approach is right.
+> - **v2 captures the veth TCP because its `netp` is device-level** (`/sys/class/net`
+>   non-`lo` byte counters), independent of cgroup. So `netp` is intrinsically a
+>   *device* metric, not a per-process one.
+>
+> **Fix applied (source; needs a host rerun to regenerate data):**
+> `tp_net_dev_xmit` / `tp_netif_receive_skb` now count the global `netp` counter
+> **device-level** (no `should_monitor_current()` gate; `lo` still excluded to
+> avoid the single-host xmit+recv 2× double-count), bringing `netp` into line
+> with `nets` and with v2. The per-PID slot stays best-effort (updated only when
+> `current` matches). The change **builds clean** (`make -C variants/v3.2-ebpf-agg`)
+> but was **not run** here — the consolidated tree keeps v3.2's measured
+> `netp=0` on `tcp_v_tcp_veth`/`app11b_tcp_veth`, now flagged `XVAR_ZERO:netp`
+> in `plots/quality-flags.tsv`, pending a re-run of v3.2 on the measurement host.
+> The `diagnose-netp-veth-coverage.sh` premise (system-wide bpftrace, GSO) is
+> likewise superseded: run it system-wide and it will show the tracepoints fire
+> fine — the gap only appears under the cgroup/PID gate.
+
 In `fig07_pairwise_heatmap_bare`, the v3.2 panel shows an all-black `blk`
 column and a black `netp` column where v1.1/v2 light up. The two have
-**different** explanations, and only one is a real gap:
+**different** explanations, and only one is a real gap *(historical analysis
+below; see the correction above for `netp`)*:
 
 - **`blk` (black) is correct, not a gap.** It is v3.2's production-faithful
   *service-time* definition reading ~0 on fast NVMe (see below). Nothing to fix.

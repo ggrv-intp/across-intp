@@ -62,6 +62,9 @@ def main() -> int:
                     help="Mean sample-loss %% above which a workload is LOW_SAMPLE")
     ap.add_argument("--regime-cpu-reldiff", type=float, default=0.30,
                     help="Relative cpu difference between clusters to call REGIME_SHIFT")
+    ap.add_argument("--xvar-active-thresh", type=float, default=20.0,
+                    help="A metric mean above this counts as 'active' for the "
+                         "cross-variant XVAR_ZERO check")
     args = ap.parse_args()
 
     rd = args.results_dir
@@ -88,6 +91,17 @@ def main() -> int:
     else:
         loss = pd.DataFrame(columns=key + ["sample_loss_mean_pct",
                                            "sample_loss_max_pct", "min_actual_samples"])
+
+    # Cross-variant divergence table: a variant reading ~0 on a metric where
+    # >=2 OTHER variants read it high is structurally blind to that metric
+    # there (e.g. v1.1 llcocc=0 on HiBench; v3.2 netp=0 on TCP-over-veth).
+    # Requiring >=2 high others avoids false-flagging by-design divergence such
+    # as the v2/v3.2 loopback skip on net_v_net (where only v1.1 reads high).
+    xvar = {}  # (stage, workload) -> {metric -> {variant -> mean}}
+    real = am[am["env"] != "overhead"]
+    for (st, wl), gg in real.groupby(["stage", "workload"]):
+        xvar[(st, wl)] = {m: gg.groupby("variant")[m].mean().to_dict()
+                          for m in CORE_METRICS if m in gg}
 
     rows = []
     for k, g in am.groupby(key):
@@ -121,14 +135,27 @@ def main() -> int:
             else:
                 flags.append(f"PROBE_DROPOUT:{m}")
 
+        # Cross-variant structural-zero (informational; does not drive estimator).
+        cov_flags: list[str] = []
+        for m, vmeans in xvar.get((stage, workload), {}).items():
+            mine = vmeans.get(variant)
+            if mine is None or mine >= 0.5:
+                continue
+            highs = sum(1 for v, mu in vmeans.items()
+                        if v != variant and pd.notna(mu) and mu > args.xvar_active_thresh)
+            if highs >= 2:
+                cov_flags.append(f"XVAR_ZERO:{m}")
+
+        est_median = ("LOW_SAMPLE" in flags) or any(f.startswith("BIMODAL") for f in flags)
+        all_flags = flags + cov_flags
         rows.append(dict(
             env=env, variant=variant, stage=stage, workload=workload,
             n_reps=int(len(g)),
             sample_loss_mean_pct=round(sl_mean, 2) if not np.isnan(sl_mean) else "",
             sample_loss_max_pct=round(sl_max, 2) if not np.isnan(sl_max) else "",
             min_actual_samples=int(min_samp) if not np.isnan(min_samp) else "",
-            flags=";".join(flags) if flags else "OK",
-            recommended_estimator="median" if flags else "mean",
+            flags=";".join(all_flags) if all_flags else "OK",
+            recommended_estimator="median" if est_median else "mean",
         ))
 
     out_df = pd.DataFrame(rows).sort_values(

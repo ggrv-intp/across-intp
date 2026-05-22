@@ -5,15 +5,24 @@
 # CONTEXT (UB24 campaign, bench/findings/ub24-campaign-metric-validity.md §4):
 #   V3.2 reports netp=0 for the veth-routed TCP workloads (tcp_v_tcp_veth,
 #   app11b_tcp_veth) but netp~99 for app12b_udp_veth, while V2 reads ~97 for the
-#   same TCP case. Two hypotheses were ALREADY ruled out from the code:
-#     - loopback skip:  veth (intp-veth-h) is NOT 'lo'; V2 and V3 both skip only
-#                       'lo', and UDP-over-veth is counted -- so the veth iface
-#                       is not being filtered.
-#     - PID attribution: the bench runs V2/V3 SYSTEM-WIDE (V_USE_PID_FILTER=0),
-#                       so should_monitor_current() is always true.
-#   What remains: does the veth TCP path (GSO super-frames, GRO on the peer)
-#   actually FIRE the two tracepoints V3.2's netp hooks --
-#   net:net_dev_xmit and net:netif_receive_skb -- with the right byte counts?
+#   same TCP case.
+#
+#   ROOT CAUSE FOUND (2026-05-22, code+data) -- it is NOT GSO and NOT a
+#   tracepoint-firing gap. The campaign ran v3.2 PID/cgroup-scoped
+#   (profiler.tsv header: scope=cgroup), and netp's tracepoints are gated by
+#   should_monitor_current() == current's PID. TCP xmit/recv runs in
+#   softirq/deferred context (TSQ, ACK-clocked) where current != the workload,
+#   so the bytes are dropped; UDP's synchronous sendto runs in process context
+#   and is counted. (The earlier "bench runs SYSTEM-WIDE, so should_monitor is
+#   always true" assumption was wrong for this campaign.) FIX: netp is now
+#   counted device-level (ungated, lo excluded) in intp_agg.bpf.c, matching
+#   nets and v2.
+#
+#   THIS DIAGNOSTIC measures the tracepoints SYSTEM-WIDE (no PID gate), so run
+#   as-is it will show TCP coverage ~100% (tracepoints fire fine) -- which now
+#   CONFIRMS the gate, not GSO, was the cause. To reproduce the gap under the
+#   gate, scope bpftrace to the workload PID/cgroup.
+#   (Original GSO-coverage framing retained below for reference.)
 #
 # WHAT THIS DOES:
 #   For a window, it measures the SAME bytes two ways on a chosen iface:

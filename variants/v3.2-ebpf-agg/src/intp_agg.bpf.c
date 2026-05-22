@@ -204,7 +204,16 @@ static __always_inline int tp_dev_is_lo(void *ctx, unsigned int data_loc)
 SEC("tracepoint/net/net_dev_xmit")
 int tp_net_dev_xmit(struct trace_event_raw_net_dev_xmit *ctx)
 {
-    if (!should_monitor_current()) return 0;
+    /* netp is a DEVICE-level metric (physical NIC utilization) -- the same
+     * thing V2 reads from /sys/class/net non-lo byte counters. Count it
+     * host-wide and do NOT gate on should_monitor_current(): TCP xmit/recv
+     * runs largely in softirq / deferred context (TSQ, ACK-clocked) where the
+     * current task is unrelated to the monitored cgroup, so PID-gating here
+     * silently dropped veth/TSO TCP traffic entirely -- the v3.2
+     * netp=0-on-tcp_v_tcp_veth artifact (UB22/UB24 validity notes). 'lo' stays
+     * excluded to avoid the single-host xmit+recv 2x double-count. nets
+     * (softirq) is already device-level for the same reason; this brings netp
+     * into line with it and with V2. */
     if (tp_dev_is_lo(ctx, ctx->__data_loc_name)) return 0;
 
     struct intp_counters *g = agg_global_slot();
@@ -213,7 +222,10 @@ int tp_net_dev_xmit(struct trace_event_raw_net_dev_xmit *ctx)
     __u32 len = BPF_CORE_READ(ctx, len);
     __sync_fetch_and_add(&g->netp_tx_bytes, len);
 
-    if (!is_system_wide()) {
+    /* Best-effort per-PID slot only when the current task actually matches the
+     * filter (process-context sends, e.g. UDP sendto). Softirq-driven bytes
+     * are still captured host-wide in the global counter above. */
+    if (!is_system_wide() && should_monitor_current()) {
         __u32 tgid = bpf_get_current_pid_tgid() >> 32;
         struct intp_counters *p = agg_per_pid_slot(tgid);
         if (p) __sync_fetch_and_add(&p->netp_tx_bytes, len);
@@ -224,11 +236,11 @@ int tp_net_dev_xmit(struct trace_event_raw_net_dev_xmit *ctx)
 SEC("tracepoint/net/netif_receive_skb")
 int tp_netif_receive_skb(struct trace_event_raw_net_dev_template *ctx)
 {
-    /* netif_receive_skb runs in softirq context; current task is whoever
-     * was interrupted. PID filtering is therefore approximate -- same
-     * caveat as V3. In system-wide mode we count everything; in per-PID
-     * mode the agg_per_pid update is best-effort. */
-    if (!should_monitor_current()) return 0;
+    /* RX always runs in softirq context, so the current task is whoever was
+     * interrupted -- never reliably the monitored workload. netp is therefore
+     * counted DEVICE-level (host-wide, 'lo' excluded), exactly like the TX
+     * side and like V2's non-lo sysfs counters; PID-gating it here is what
+     * dropped veth TCP RX. See tp_net_dev_xmit for the full rationale. */
     if (tp_dev_is_lo(ctx, ctx->__data_loc_name)) return 0;
 
     struct intp_counters *g = agg_global_slot();
@@ -237,7 +249,7 @@ int tp_netif_receive_skb(struct trace_event_raw_net_dev_template *ctx)
     __u32 len = BPF_CORE_READ(ctx, len);
     __sync_fetch_and_add(&g->netp_rx_bytes, len);
 
-    if (!is_system_wide()) {
+    if (!is_system_wide() && should_monitor_current()) {
         __u32 tgid = bpf_get_current_pid_tgid() >> 32;
         struct intp_counters *p = agg_per_pid_slot(tgid);
         if (p) __sync_fetch_and_add(&p->netp_rx_bytes, len);
