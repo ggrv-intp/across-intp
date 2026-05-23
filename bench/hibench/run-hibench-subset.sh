@@ -1413,7 +1413,13 @@ run_subset_for_profile() {
     # produced two <profile>-<size>-<ts> dirs per profile (=> 24 reps) when the
     # campaign was re-run with a shared RESUME_DIR.
     if [ "$RESUME" = "1" ]; then
-        outdir="$(ls -1d "$OUT_ROOT/$mode-$SIZE-"*/ 2>/dev/null | sed 's:/*$::' | sort | tail -n1)"
+        # `ls` exits 2 when the glob matches nothing -- the first profile in a
+        # fresh campaign dir. The `2>/dev/null` hides the message but NOT that
+        # exit code, and under `set -euo pipefail` pipefail propagates the 2 and
+        # set -e kills the script before any profile runs (silent rc=2). The
+        # trailing `|| true` makes a no-match benign so the line below mints a
+        # fresh run-dir instead of resuming a non-existent one.
+        outdir="$(ls -1d "$OUT_ROOT/$mode-$SIZE-"*/ 2>/dev/null | sed 's:/*$::' | sort | tail -n1)" || true
         if [ -n "$outdir" ] && [ -d "$outdir" ]; then
             log "resume: reusing existing run-dir for profile=$mode -> $outdir"
         else
