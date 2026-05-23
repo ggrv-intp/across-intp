@@ -26,9 +26,9 @@
 # runs clean. Skip that stage with SKIP_KERNEL_CONFIG=1.
 #
 # Usage:
-#   sudo bash ub24run.sh                 # full campaign (HiBench size=large)
+#   sudo bash ub24run.sh                 # full campaign (HiBench size=large, profile=all-stress)
 #   sudo bash ub24run.sh --dry-run       # print every step, run nothing
-#   sudo HIBENCH_SIZE=small bash ub24run.sh
+#   sudo HIBENCH_SIZE=small HIBENCH_PROFILE=standard bash ub24run.sh
 #   sudo SKIP_STRESS=1 CAMPAIGN_OUT=results/ub24-campaign-... bash ub24run.sh
 #
 # Resume is idempotent gap-filling: pointing CAMPAIGN_OUT at an existing
@@ -51,6 +51,17 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # HiBench/Spark bump needs it; run-os-campaign.sh forwards whatever is set.
 export SPARK_VERSION="${SPARK_VERSION:-3.5.3}"
 export HIBENCH_MVN_EXTRA_ARGS="${HIBENCH_MVN_EXTRA_ARGS:-}"
+
+# ---- per-leg HiBench RUN configuration (UB24 / modern v1.1,v2,v3.2) ----------
+# The measurement defaults for this leg: the full large-scale dataset under the
+# complete co-runner sweep. run-os-campaign.sh applies the SAME fallback, but
+# pinning it here makes the leg's intent explicit at the launcher and survives
+# any future change to the engine defaults. Override per run from the call site:
+#   sudo HIBENCH_SIZE=small HIBENCH_PROFILE=standard bash ub24run.sh
+# (HIBENCH_SIZE large|medium|small -> HiBench scale large|small|tiny; valid
+#  profiles incl. standard, <res>-extreme, all-stress -- see run-hibench-subset.sh.)
+export HIBENCH_SIZE="${HIBENCH_SIZE:-large}"
+export HIBENCH_PROFILE="${HIBENCH_PROFILE:-all-stress}"
 
 exec bash "$SCRIPT_DIR/bench/run-os-campaign.sh" \
     --host-tag ub24 \

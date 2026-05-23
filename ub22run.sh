@@ -25,9 +25,9 @@
 # perf_event_paranoid = -1, kptr_restrict = 0). Skip with SKIP_KERNEL_CONFIG=1.
 #
 # Usage:
-#   sudo bash ub22run.sh                 # full campaign (HiBench size=large)
+#   sudo bash ub22run.sh                 # full campaign (HiBench size=large, profile=all-stress)
 #   sudo bash ub22run.sh --dry-run       # print every step, run nothing
-#   sudo HIBENCH_SIZE=small bash ub22run.sh
+#   sudo HIBENCH_SIZE=small HIBENCH_PROFILE=standard bash ub22run.sh
 #   sudo CAMPAIGN_OUT=results/ub22-campaign-... bash ub22run.sh   # resume
 #
 # Resume is idempotent gap-filling: pointing CAMPAIGN_OUT at an existing
@@ -57,6 +57,17 @@ export KAFKA_BINARY_VERSION="${KAFKA_BINARY_VERSION:-2.12}"
 # pinned. Populate from the actual Maven Scala-compile errors, e.g.:
 #   export HIBENCH_MVN_EXTRA_ARGS="-Dhadoop.version=3.3.6 -Dflume.version=1.9.0"
 export HIBENCH_MVN_EXTRA_ARGS="${HIBENCH_MVN_EXTRA_ARGS:-}"
+
+# ---- per-leg HiBench RUN configuration (UB22 / legacy v0.2) -----------------
+# The measurement defaults for this leg: the full large-scale dataset under the
+# complete co-runner sweep. run-os-campaign.sh applies the SAME fallback, but
+# pinning it here makes the leg's intent explicit at the launcher and survives
+# any future change to the engine defaults. Override per run from the call site:
+#   sudo HIBENCH_SIZE=small HIBENCH_PROFILE=standard bash ub22run.sh
+# (HIBENCH_SIZE large|medium|small -> HiBench scale large|small|tiny; valid
+#  profiles incl. standard, <res>-extreme, all-stress -- see run-hibench-subset.sh.)
+export HIBENCH_SIZE="${HIBENCH_SIZE:-large}"
+export HIBENCH_PROFILE="${HIBENCH_PROFILE:-all-stress}"
 
 exec bash "$SCRIPT_DIR/bench/run-os-campaign.sh" \
     --host-tag ub22 \
