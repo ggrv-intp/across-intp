@@ -900,20 +900,38 @@ def fig_overhead_bars(results_dir: Path, outdir: Path) -> None:
         return
     df.to_csv(outdir / "overhead_raw.csv", index=False)
 
-    base = (df[df.variant == "_baseline"]
-            .groupby(["env", "ref"])
-            .agg(base_bogo=("bogo_ops_per_s",     "mean"),
-                 base_busy=("cpu_busy_jiffies",   "mean"),
-                 base_cs  =("cs",                 "mean"),
-                 base_mig =("mig",                "mean"),
-                 base_ss  =("sched_switch",       "mean"),
-                 base_sw  =("sched_wakeup",       "mean"))
-            .reset_index())
-    if base.empty:
+    # Baselines: a campaign normally measures one shared "_baseline" in the same
+    # session as its arms, so a single (env, ref) reference is correct. When
+    # variants are fused from different sessions (e.g. a v3.2 re-run on a clean
+    # host), each arm MUST be divided by the baseline from ITS OWN session — the
+    # no-profiler reference drifts across runs (the disk subsystem especially),
+    # so a cross-session ratio fabricates overhead that is pure baseline drift.
+    # Convention: a per-variant directory "_baseline.<variant>" overrides the
+    # shared "_baseline" for that variant; absent it, the shared baseline is
+    # used (backward-compatible with single-session campaigns).
+    is_base = df.variant.str.startswith("_baseline")
+    base_all = (df[is_base]
+                .groupby(["variant", "env", "ref"])
+                .agg(base_bogo=("bogo_ops_per_s",     "mean"),
+                     base_busy=("cpu_busy_jiffies",   "mean"),
+                     base_cs  =("cs",                 "mean"),
+                     base_mig =("mig",                "mean"),
+                     base_ss  =("sched_switch",       "mean"),
+                     base_sw  =("sched_wakeup",       "mean"))
+                .reset_index())
+    if base_all.empty:
         print("[overhead] no _baseline rows; cannot compute deltas — skip")
         return
 
-    arms = df[df.variant != "_baseline"].merge(base, on=["env", "ref"], how="left")
+    available_base = set(base_all["variant"])
+    def _baseline_for(variant: str) -> str:
+        specific = f"_baseline.{variant}"
+        return specific if specific in available_base else "_baseline"
+
+    arms = df[~is_base].copy()
+    arms["base_variant"] = arms["variant"].map(_baseline_for)
+    arms = arms.merge(base_all.rename(columns={"variant": "base_variant"}),
+                      on=["base_variant", "env", "ref"], how="left")
 
     # (A) Throughput overhead %: positive = workload got slower.
     arms["throughput_overhead_pct"] = (
