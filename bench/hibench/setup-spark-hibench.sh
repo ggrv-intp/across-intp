@@ -513,6 +513,14 @@ configure_hibench() {
     _set_prop "$confdir/hibench.conf" "hibench.workload.input"  "file://$JOBS_DIR/input"
     _set_prop "$confdir/hibench.conf" "hibench.workload.output" "file://$JOBS_DIR/output"
     _set_prop "$confdir/hibench.conf" "hibench.workload.scratch" "file://$JOBS_DIR/scratch"
+
+    # HiBench parses every conf/*.conf, including a leftover
+    # hibench.distributed.conf overlay from a prior distributed-mode campaign,
+    # ON TOP of the localmode values just written above — which would silently
+    # aim these prepare jobs at a spark:// / hdfs:// cluster that isn't up yet.
+    # Drop it so local[*] + file:/// win. The campaign's distributed-mode init
+    # re-creates the overlay later, when it actually needs it.
+    rm -f "$confdir/hibench.distributed.conf"
 }
 
 prepare_datasets() {

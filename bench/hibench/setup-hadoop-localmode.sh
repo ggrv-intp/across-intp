@@ -191,6 +191,37 @@ EOF
     log "Hadoop configured for local-mode (fs.defaultFS=file:///, mapreduce.framework.name=local)"
 }
 
+reset_hibench_to_localmode() {
+    # A previous distributed-mode campaign leaves HiBench pointing at
+    # spark://10.42.0.1:7077 / hdfs://10.42.0.1:9000 in three places, all of
+    # which override the localmode values we write below:
+    #   - conf/{hibench,spark,hadoop}.conf  -- edited in place by
+    #     setup-distributed-mode.sh's `switch-distributed`
+    #   - conf/hibench.distributed.conf     -- an overlay HiBench parses ON TOP
+    #     of everything else (written by `init`)
+    # The campaign teardown only stops daemons; it never reverts this config.
+    # So on the next run the daemons are DOWN but the config still says
+    # spark:// / hdfs://, and every prepare/smoke job below hangs on
+    # ConnectException (or HiBench's "Get workers from spark master's web UI
+    # page failed" assertion in probe_masters_slaves_hostnames). Undo it before
+    # we touch any data: restore the localmode snapshots `switch-distributed`
+    # saved, then drop the overlay so file:/// + local[*] win again. This is the
+    # inverse of switch-distributed; it's a no-op on a clean first run.
+    local confdir="$HIBENCH_HOME/conf"
+    [ -d "$confdir" ] || return 0
+    local f
+    for f in hibench.conf spark.conf hadoop.conf; do
+        if [ -f "$confdir/$f.localmode" ]; then
+            cp -f "$confdir/$f.localmode" "$confdir/$f"
+            log "restored $f from localmode snapshot"
+        fi
+    done
+    if [ -f "$confdir/hibench.distributed.conf" ]; then
+        rm -f "$confdir/hibench.distributed.conf"
+        log "removed stale distributed overlay (hibench.distributed.conf)"
+    fi
+}
+
 patch_hibench_for_hadoop_local() {
     local confdir="$HIBENCH_HOME/conf"
     [ -d "$confdir" ] || die "HiBench conf dir missing: $confdir (run setup-spark-hibench.sh first)"
@@ -311,6 +342,12 @@ log "=== Hadoop local-mode setup for HiBench ==="
 install_python2_for_hibench
 install_hadoop_binary
 configure_hadoop_for_localmode
+# Undo any leftover distributed-mode HiBench config from a previous campaign
+# (the in-place edits AND the overlay) so the prepare/smoke jobs below can't
+# try to reach daemons that aren't up yet. Runs regardless of SKIP_HIBENCH_PATCH
+# so it also protects the setup-spark-hibench.sh path (which calls us with
+# SKIP_HIBENCH_PATCH=1 and does its own configure afterward).
+reset_hibench_to_localmode
 # SKIP_HIBENCH_PATCH=1 lets the parent setup-spark-hibench.sh skip this step
 # because its configure_hibench does the same work via the _set_prop helper
 # (replace-or-append) without depending on the template file existing yet.

@@ -693,6 +693,11 @@ cmd_switch_localmode() {
     if [ -f "${hadoopconf}.localmode" ]; then
         cp "${hadoopconf}.localmode" "$hadoopconf"
     fi
+    # Drop the distributed overlay too. HiBench parses it ON TOP of the three
+    # files restored above, so leaving it behind silently re-applies hdfs:// +
+    # spark:// and defeats the restore. Removing it makes switch-localmode a
+    # complete inverse of switch-distributed on its own (teardown also clears it).
+    rm -f "$HIBENCH_HOME/conf/hibench.distributed.conf"
     log "HiBench switched to localmode (file:/// + local[*])"
 }
 
