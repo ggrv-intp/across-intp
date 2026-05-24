@@ -25,8 +25,8 @@ keywords:
   - bpftrace
   - performance monitoring
   - cloud computing
-version: "0.3.0"
-date-released: "2026-05-17"
+version: "0.1.0"
+date-released: "2026-05-24"
 references:
   - type: conference-paper
     title: "IntP: Quantifying Cross-Application Interference via System-Level Instrumentation"
