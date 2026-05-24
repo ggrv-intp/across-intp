@@ -480,6 +480,15 @@ if [ "$RUN_PLOTS" = "1" ]; then
         echo "Skipping HiBench plots: $OUT/hibench not found"
       fi
     fi
+    # Cross-variant correlation + overhead bounds (the §V numbers). Reads the
+    # merged aggregate-means.tsv (bench-full + hibench) and overhead throughput;
+    # writes paper-tables/. No --verify here -- that gates the canonical fused
+    # tree against the paper's cited values, not a fresh campaign's own numbers.
+    if [ -f "$OUT/bench-full/aggregate-means.tsv" ]; then
+      run_step "tabulate cross-variant correlation + overhead bounds" \
+        python3 bench/plot/cross-variant-correlation.py \
+          --campaign "$OUT" --out "$OUT/paper-tables"
+    fi
   fi
 else
   echo "Skipping plots (RUN_PLOTS=$RUN_PLOTS)"

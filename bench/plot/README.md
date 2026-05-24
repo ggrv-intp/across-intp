@@ -19,6 +19,7 @@ covers the **standalone** invocation flow.
 | `plot-pca-correlation-circle.py` | an `aggregate-means.{tsv,csv}` from a single campaign | `fig_pca_correlation_circle.png` | publication-grade single-figure biplot for the SBAC-PAD short paper |
 | `extract-fragility.py`      | a `bench-full/` directory (SystemTap stap.log per run) | `<input>/fragility-summary.tsv` and `fragility-aggregated.tsv` | quantifying probe skips, overload, sample loss for the V0 / V0.1 / V1 / V1.1 stap variants |
 | `plot-cross-environment.py` | a `bench-full/` directory containing `aggregate-means.tsv` (>= 2 envs) | `<input>/cross-env/{summary,availability,stats}.tsv` + `plots/<variant>/<workload>.png` | comparing bare vs container vs vm under the same workload using Kruskal-Wallis + Mann-Whitney (Bonferroni) + Cliff's delta |
+| `cross-variant-correlation.py` | a campaign tree (publication or fused layout) | `--out` dir: `correlation-{4way,per-metric}-<env>.tsv`, `correlation-{family-summary,per-metric-family}.tsv`, `overhead-bounds.tsv` | reproducing the paper's §V cross-variant fingerprint correlations (per-metric + per-family, raw and z-scored) and per-variant throughput-overhead bounds from the merged `aggregate-means.tsv` + overhead `throughput.tsv` |
 
 ## Dependencies
 
@@ -142,6 +143,54 @@ If your campaign was run with a non-default sampling interval, set
 INTP_INTERVAL=0.5 python3 bench/plot/extract-fragility.py \
     results/<campaign>/bench-full
 ```
+
+### cross-variant-correlation.py — §V correlation + overhead tables
+
+```bash
+python3 bench/plot/cross-variant-correlation.py \
+    --campaign results/<campaign> --out paper-tables/ [--verify] [--plot]
+```
+
+Reproduces the numbers the paper cites in §V: how strongly the four
+profiler endpoints agree on their per-application interference
+fingerprints, and the per-variant throughput-overhead bounds. No other
+plotter computes these. It reads the merged wide-format
+`aggregate-means.tsv` (locating it under the campaign root or
+`bench-full/` + per-profile `hibench/`) and the overhead
+`throughput.tsv` files — no re-capture.
+
+Two analysis envs: `bare` = the stress-ng layer (`stage == solo`),
+`hibench` = the HiBench layer (`stage` like `hibench-<profile>`). The
+"application" a fingerprint is built over is a stress-ng solo workload
+(17) or a `(profile, workload)` pair (42). Correlation is Pearson on
+the flattened `[application × metric]` fingerprint (raw and
+per-metric-z-scored) and per single metric across applications. The
+family roll-up splits the endpoints into the SystemTap pair
+`{v0.2, v1.1}` and the production-grade pair `{v2, v3.2}`; the
+**cross-family** rows are where the `llcocc` capability gap and the
+v0.2 overhead surface. Outputs (to `--out`, default `paper-tables/`):
+
+- `correlation-4way-<env>.tsv` — the 6 pairwise r (raw + z-scored).
+- `correlation-per-metric-<env>.tsv` — 7 metrics × 6 pairs.
+- `correlation-family-summary.tsv` — the headline roll-up.
+- `correlation-per-metric-family.tsv` — per-metric family roll-up.
+- `overhead-bounds.tsv` — throughput overhead % per `(variant, ref_load)`,
+  per-variant baseline (`_baseline.<variant>` overrides `_baseline`).
+- `correlation-heatmap-<env>.pdf` — only with `--plot` (a debug sanity
+  check, not a paper figure).
+
+`--verify` checks the produced tables against `EXPECTED_VALUES` (the
+exact numbers the paper cites, with provenance noted in the script) and
+**exits non-zero on any mismatch**, so the artifact and the text cannot
+silently drift. Run it against the canonical fused tree:
+
+```bash
+python3 bench/plot/cross-variant-correlation.py \
+    --campaign results/ub22-and-24-full --out paper-tables/ --verify
+```
+
+`run-big-batch.sh` invokes the script (without `--verify`) in its plot
+segment, writing `<campaign>/paper-tables/`.
 
 ## Output sizing
 
