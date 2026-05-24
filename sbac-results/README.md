@@ -56,6 +56,13 @@ sbac-results/
 │
 ├── aggregate-means.tsv                  # stress-ng + all 7 hibench profiles, merged
 ├── figures/<leg>/                       # rendered PDFs/PNGs for the paper
+├── paper-tables/                        # §V correlation + overhead tables
+│   │                                    # (bench/plot/cross-variant-correlation.py)
+│   ├── correlation-4way-<env>.tsv       # 6 pairwise r (raw + z-scored)
+│   ├── correlation-per-metric-<env>.tsv # 7 metrics × 6 pairs
+│   ├── correlation-family-summary.tsv   # within-/cross-family roll-up
+│   ├── correlation-per-metric-family.tsv# per-metric family roll-up (llcocc gap)
+│   └── overhead-bounds.tsv              # throughput overhead % per variant×ref
 └── logs/                                # per-leg campaign logs
 ```
 
