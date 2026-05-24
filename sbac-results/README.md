@@ -83,3 +83,17 @@ artifact. Per-leg host snapshots land as `capabilities-ub24.env` /
 
 > The result payload is added separately by the maintainers; this README is
 > the scaffold describing the layout evaluators should expect.
+
+## Anonymization (public artifact)
+
+The published payload is anonymized for release: host identifiers are replaced
+with generic placeholders (hostnames → `anon-host`, internal IPs → `10.0.0.x`,
+build paths → `/path/to/across-intp`). See `ANONYMIZATION.md` in the payload for
+the full redaction record.
+
+The v0.2 `stall-monitor/` raw kernel/journal dumps are **omitted for privacy**
+(they captured system journald output, including third-party SSH-spam). The v0.2
+stall evidence is retained as counts in the shipped `fragility-summary.tsv` /
+`fragility-aggregated.tsv` — do **not** regenerate these with
+`extract-fragility.py` against this tree, since the raw dumps needed to recount
+stalls are intentionally absent.
