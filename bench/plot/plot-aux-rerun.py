@@ -149,9 +149,12 @@ def plot_noise_floor_distribution(run_dir, out_dir, label="V3"):
         ax.hlines(i, cp5, cp95, color=col, alpha=0.55, linewidth=1.3,
                   zorder=2)
         # IQR (p25-p75) thick band — visually dominant for distributions
-        # with shape (mbw, llcocc); near-zero for the floor metrics.
+        # with shape (mbw, llcocc); near-zero for the floor metrics. A
+        # display-clipped (off-scale) bar is hatched so it never reads as a
+        # legitimate ~100% measurement.
         ax.barh(i, cp75 - cp25, left=cp25, height=0.46, color=col,
-                alpha=0.85, edgecolor="black", linewidth=0.4, zorder=3)
+                alpha=0.85, edgecolor="black", linewidth=0.4, zorder=3,
+                hatch="///" if clipped else None)
         # Median tick (white slot through the IQR for legibility)
         ax.vlines(cmed, i - 0.30, i + 0.30, color="white", linewidth=2.4,
                   zorder=4)
@@ -160,19 +163,19 @@ def plot_noise_floor_distribution(run_dir, out_dir, label="V3"):
         # Mean: small black diamond
         ax.scatter(cmean, i, marker="D", s=22, color="white",
                    edgecolor="black", linewidth=0.9, zorder=6)
-        if clipped:
-            ax.text(101.5, i, "»", va="center", ha="left", fontsize=12,
-                    color=col, fontweight="bold", zorder=7)
-        # Two-column numeric table on the right margin. Median is always
-        # printed so each row carries its floor value at a glance; the
-        # p5–p95 bracket is suppressed for distributions with no spread
-        # (p5 == p95), which otherwise just restate the median.
-        ax.text(110, i, f"{med:5.1f}", va="center", ha="right",
-                fontsize=8.5, family="DejaVu Sans Mono")
+        # Right-margin numeric column, built as ONE monospace string per row
+        # so its fields cannot overprint each other — the previous multi-anchor
+        # layout collided the median against the p5–p95 bracket once mbw's
+        # broken normaliser pushed the value to four digits. A leading '»'
+        # flags a display-clipped (off-scale) value; the true number follows.
+        # The bracket is suppressed when there is no spread (p5 == p95), which
+        # would otherwise just restate the median.
+        mark = "» " if clipped else "  "
+        s = f"{mark}{med:>7.1f}"
         if (p95 - p5) > 0.05:
-            ax.text(114, i, f"[{p5:4.1f}, {p95:5.1f}]",
-                    va="center", ha="left",
-                    fontsize=8.5, family="DejaVu Sans Mono")
+            s += f"   [{p5:>6.1f}, {p95:>8.1f}]"
+        ax.text(104, i, s, va="center", ha="left", fontsize=8.5,
+                family="DejaVu Sans Mono", clip_on=False)
 
     # Annotate the two metrics whose magnitude needs context.
     for i, m in enumerate(rows):
@@ -193,18 +196,16 @@ def plot_noise_floor_distribution(run_dir, out_dir, label="V3"):
                     ha="center", va="top", fontsize=7.5, style="italic",
                     color="#444")
 
-    # Headers for the right-margin numeric table.
+    # Header for the right-margin numeric column (aligned to the row format:
+    # 2-char mark slot + 7-wide median, then the bracket).
     top_y = len(rows) - 0.45
-    ax.text(110, top_y, "median", va="bottom", ha="right",
-            fontsize=8, style="italic", color="#666",
-            family="DejaVu Sans Mono")
-    ax.text(114, top_y, "p5–p95", va="bottom", ha="left",
-            fontsize=8, style="italic", color="#666",
+    ax.text(104, top_y, f"{'median':>9s}     p5–p95", va="bottom",
+            ha="left", fontsize=8, style="italic", color="#666",
             family="DejaVu Sans Mono")
 
     ax.set_yticks(range(len(rows)))
     ax.set_yticklabels([METRIC_LABEL[m] for m in rows], fontsize=9)
-    ax.set_xlim(-1, 142)
+    ax.set_xlim(-1, 150)
     ax.set_xticks([0, 25, 50, 75, 100])
     ax.set_xlabel("Value (% scale, 0–100)")
     ax.grid(axis="x", alpha=0.30)
@@ -301,29 +302,32 @@ def plot_noise_floor_compare(runs, out_dir):
             col = run_colors[j % len(run_colors)]
             cmed, cmean = min(med, 100.0), min(mean, 100.0)
             cp5, cp95 = min(p5, 100.0), min(p95, 100.0)
+            clipped = med > 100.0 or p95 > 100.0
 
             ax.hlines(y, cp5, cp95, color=col, alpha=0.55, linewidth=1.4,
                       zorder=2)
+            # Off-scale (display-clipped) bars are hatched so a value forced to
+            # the 100 ceiling never reads as a legitimate ~100% measurement.
             ax.barh(y, cmed, height=sub_h * 0.78, left=0, color=col,
-                    alpha=0.85, edgecolor="black", linewidth=0.4, zorder=3)
+                    alpha=0.85, edgecolor="black", linewidth=0.4, zorder=3,
+                    hatch="///" if clipped else None)
             ax.vlines(cmed, y - sub_h * 0.34, y + sub_h * 0.34,
                       color="white", linewidth=2.2, zorder=4)
             ax.vlines(cmed, y - sub_h * 0.34, y + sub_h * 0.34,
                       color="black", linewidth=0.9, zorder=5)
             ax.scatter(cmean, y, marker="D", s=18, color="white",
                        edgecolor="black", linewidth=0.8, zorder=6)
-            if med > 100 or p95 > 100:
-                ax.text(101, y, "»", va="center", ha="left",
-                        fontsize=11, color=col, fontweight="bold", zorder=7)
-            # right-margin numeric table: median + p5-p95, one line per run
-            ax.text(108, y, f"{label:>5s}", va="center", ha="right",
-                    fontsize=7.5, color=col, family="DejaVu Sans Mono")
-            ax.text(112, y, f"{med:9.1f}", va="center", ha="right",
-                    fontsize=7.5, family="DejaVu Sans Mono")
+            # Right-margin numeric column as ONE monospace string per run, so
+            # the label / median / p5–p95 fields can never overprint each other
+            # (they collided once mbw's broken normaliser hit four digits — the
+            # 9-wide median field overlapped the run label). '»' flags a
+            # display-clipped value; the true number follows.
+            mark = "»" if clipped else " "
+            s = f"{label:>4s} {mark}{med:>8.1f}"
             if (p95 - p5) > 0.05:
-                ax.text(116, y, f"[{p5:5.1f}, {p95:8.1f}]",
-                        va="center", ha="left",
-                        fontsize=7.5, family="DejaVu Sans Mono")
+                s += f"   [{p5:>6.1f}, {p95:>8.1f}]"
+            ax.text(103, y, s, va="center", ha="left", fontsize=7.5,
+                    color=col, family="DejaVu Sans Mono", clip_on=False)
 
         if m == "mbw":
             ax.text(50, i - 0.46, "mbw% INVALID in both runs — v3.2 ceiling "
@@ -331,19 +335,17 @@ def plot_noise_floor_compare(runs, out_dir):
                     ha="center", va="top", fontsize=7.0, style="italic",
                     color="#a00")
 
+    # Header aligned to the row format: 4-wide run + mark slot + 8-wide median.
     top_y = len(rows) - 0.40
-    ax.text(112, top_y, "median", va="bottom", ha="right",
-            fontsize=8, style="italic", color="#666",
-            family="DejaVu Sans Mono")
-    ax.text(116, top_y, "p5–p95", va="bottom", ha="left",
-            fontsize=8, style="italic", color="#666",
+    ax.text(103, top_y, f"{'run':>4s}  {'median':>8s}      p5–p95",
+            va="bottom", ha="left", fontsize=8, style="italic", color="#666",
             family="DejaVu Sans Mono")
 
     # per-run legend
     handles = [plt.Rectangle((0, 0), 1, 1, color=run_colors[j % len(run_colors)],
                              alpha=0.85)
                for j in range(k)]
-    leg_labels = [f"{label}  (n={n})"
+    leg_labels = [f"{label}  ({n} samples)"
                   for (label, _), n in zip(collected, n_by_run)]
     ax.legend(handles, leg_labels, fontsize=8, loc="lower left",
               bbox_to_anchor=(0.16, 0.0), framealpha=0.9)
@@ -357,9 +359,10 @@ def plot_noise_floor_compare(runs, out_dir):
     ax.spines["right"].set_visible(False)
     ax.spines["top"].set_visible(False)
     fig.suptitle(
-        "Noise-floor comparison — HiBench stack UP and IDLE   "
-        "(bar = 0→median, line = p5–p95, |=median, ◇=mean)",
-        fontsize=9.5, y=0.99,
+        "Noise-floor comparison — HiBench stack UP and IDLE\n"
+        "n = per-metric samples (12 reps × 90 s @ 1 Hz);  "
+        "bar = 0→median, line = p5–p95, |=median, ◇=mean,  » = clipped",
+        fontsize=9.5, y=0.995,
     )
     fig.tight_layout()
     for ext in ("png", "pdf"):
