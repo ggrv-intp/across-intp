@@ -114,9 +114,9 @@ METRIC_LABEL = {
 VARIANT_COLORS = {
     "v0":   "#7f7f7f",
     "v0.1": "#bcbd22",
-    "v0.2": "#c7c7c7",
+    "v0.2": "#707070",  # medium-strong gray
     "v1":   "#17becf",
-    "v1.1": "#aec7e8",
+    "v1.1": "#9467bd",  # purple (distinct from v2 blue)
     "v2":   "#1f77b4",
     "v3.1": "#ff7f0e",
     "v3":   "#2ca02c",
@@ -153,8 +153,10 @@ RESOURCE_COLORS = {
 # Style helpers
 # ---------------------------------------------------------------------------
 
-MAX_PIXELS = 2600
-SAVE_DPI = 160
+# Raised together so the inch-clamp keeps the same figure proportions while
+# every raster gets ~1.4x more pixels (matches plot-intp-bench.py).
+MAX_PIXELS = 3600
+SAVE_DPI = 220
 
 
 def _clamp_figsize(width: float, height: float) -> tuple[float, float]:
@@ -631,8 +633,7 @@ def fig_per_workload_bars(df: pd.DataFrame, outdir: Path) -> None:
                                  ncol=len(variants), fontsize=8.5,
                                  title="variant", title_fontsize=8.5)
         _centered_suptitle(fig, axes_flat,
-                           f"Per-workload variant fingerprint — profile={profile}  "
-                           f"(IntP Fig. 4 reproduction)",
+                           f"Per-workload variant fingerprint — profile={profile}",
                            fontsize=11, extra_artists=[leg])
         suffix = f"_{profile}" if len(profiles) > 1 else ""
         _save(fig, outdir / f"fig04_per_workload_bars{suffix}.png", f"fig04-{profile}")
@@ -740,7 +741,7 @@ def fig_pca(df: pd.DataFrame, outdir: Path) -> None:
         axes[j // cols][j % cols].axis("off")
     fig.tight_layout()
     _centered_suptitle(fig, axes.ravel().tolist(),
-                       "HiBench workloads in PCA space (IntP Fig. 5 reproduction)")
+                       "HiBench workloads in PCA space")
     _save(fig, outdir / "fig06_pca_workloads.png", "fig06")
 
 
@@ -826,8 +827,7 @@ def fig_timeseries(run_dirs: list[Path], outdir: Path) -> None:
                 fig, flat, handles, labels,
                 ncol=len(METRICS), fontsize=8.5))
         _centered_suptitle(fig, flat,
-                           f"HiBench timeseries — profile={profile}  "
-                           f"(IntP Fig. 3 / IADA Fig. 5 reproduction)",
+                           f"HiBench timeseries — profile={profile}",
                            fontsize=11, extra_artists=extras)
         suffix = f"_{profile}" if len(profiles) > 1 else ""
         _save(fig, outdir / f"fig07_timeseries{suffix}.png", f"fig07-{profile}")
@@ -876,8 +876,8 @@ def fig_idi_bars(df: pd.DataFrame, outdir: Path) -> None:
     ax.set_xticks(x); ax.set_xticklabels(resources)
     ax.axhline(0, color="black", linewidth=0.5)
     ax.set_ylabel("Δ interference (netp-extreme − standard, %)")
-    ax.set_title("Resource-level sensitivity to network interference profile\n"
-                 "(IADA Fig. 6 reproduction)", fontsize=10)
+    ax.set_title("Resource-level sensitivity to network interference profile",
+                 fontsize=10)
     ax.legend(ncol=len(variants), fontsize=8.5,
               loc="upper center", bbox_to_anchor=(0.5, -0.13))
     fig.tight_layout()
@@ -940,7 +940,7 @@ def fig_canonical_intp_fig4(df: pd.DataFrame, outdir: Path) -> None:
                 fig, axes_flat, handles, labels,
                 ncol=len(METRICS), fontsize=9))
         _centered_suptitle(fig, axes_flat,
-                           f"HiBench: IntP Fig. 4 — interference ratios per "
+                           f"HiBench: interference ratios per "
                            f"workload  (profile={profile})",
                            fontsize=11.5, extra_artists=extras)
         _save(fig, outdir / f"fig00_canonical_intp_fig4_{profile}.png",
@@ -1031,8 +1031,7 @@ def fig_resource_timeseries(run_dirs: list[Path], outdir: Path) -> None:
                 fig, flat, handles, labels,
                 ncol=len(handles), fontsize=9))
         _centered_suptitle(fig, flat,
-                           f"HiBench resource-family timeseries — profile={profile}  "
-                           f"(IntP Fig. 8 reproduction)",
+                           f"HiBench resource-family timeseries — profile={profile}",
                            fontsize=11, extra_artists=extras)
         suffix = f"_{profile}" if len(profiles) > 1 else ""
         _save(fig, outdir / f"fig09_resource_timeseries{suffix}.png",

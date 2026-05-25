@@ -107,8 +107,11 @@ def main(csv_path, outdir):
     coords = pd.DataFrame(Y, index=g.index, columns=["PC1", "PC2"])
     pc1_var, pc2_var = pca.explained_variance_ratio_[:2] * 100
 
-    # Ward-linkage on per-workload mean vectors.
-    Z = linkage(means_per_wl.values, method="ward")
+    # Ward-linkage on per-workload mean vectors. optimal_ordering rotates the
+    # tree's branches to minimise the distance between adjacent leaves — it
+    # tidies the leaf layout without altering the cluster structure or which
+    # branch a workload falls in.
+    Z = linkage(means_per_wl.values, method="ward", optimal_ordering=True)
 
     # Dendrogram link colors mirror the K-means cluster colors. We translate
     # each tuple from cluster_color into the hex string scipy expects.
@@ -172,13 +175,16 @@ def main(csv_path, outdir):
               linewidth=0.4, label=cluster_label_of[c])
         for c in sorted(cluster_members.keys()) if cluster_members[c]
     ]
+    # Variant markers stay in the top-left corner (their original spot, clear
+    # of data); only the cluster colour key moves to the top-right corner, so
+    # neither legend covers the scatter.
     leg_var = ax_pca.legend(
         handles=var_handles, loc="upper left", fontsize=7,
         title="variant", title_fontsize=7.5, frameon=True,
     )
     ax_pca.add_artist(leg_var)
     ax_pca.legend(
-        handles=cluster_handles, loc="lower left", fontsize=7,
+        handles=cluster_handles, loc="upper right", fontsize=7,
         title="cluster (dominant resource)", title_fontsize=7.5, frameon=True,
     )
 
@@ -230,7 +236,7 @@ def main(csv_path, outdir):
     pdf_path = pdf_dir / f"{stem}.pdf"
     png_path = png_dir / f"{stem}.png"
     fig.savefig(pdf_path, bbox_inches="tight")
-    fig.savefig(png_path, bbox_inches="tight", dpi=160)
+    fig.savefig(png_path, bbox_inches="tight", dpi=220)
     print(f"wrote {pdf_path}")
     print(f"wrote {png_path}")
     print(f"PC1={pc1_var:.2f}%  PC2={pc2_var:.2f}%  K-means(k={k})")

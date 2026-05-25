@@ -115,9 +115,9 @@ VARIANT_ORDER = ["v0", "v0.1", "v0.2", "v1", "v1.1", "v2", "v3.1", "v3", "v3.2"]
 VARIANT_COLORS = {
     "v0":   "#7f7f7f",  # gray
     "v0.1": "#bcbd22",  # olive
-    "v0.2": "#c7c7c7",  # light gray
+    "v0.2": "#707070",  # medium-strong gray
     "v1":   "#17becf",  # cyan
-    "v1.1": "#aec7e8",  # light blue
+    "v1.1": "#9467bd",  # purple (distinct from v2 blue)
     "v2":   "#1f77b4",  # blue
     "v3":   "#2ca02c",  # green
     "v3.1": "#ff7f0e",  # orange
@@ -169,11 +169,12 @@ ENV_ORDER = [
 # Style
 # ---------------------------------------------------------------------------
 
-# Hard cap on output PNG dimensions (pixels). Set well clear of the legacy
-# ≥ 2000-px threshold but still comfortable for paper viewers and embedded
-# document workflows.
-MAX_PIXELS = 2600
-SAVE_DPI = 160
+# Hard cap on output PNG dimensions (pixels). Raised in tandem with SAVE_DPI
+# so the inch-clamp (max_in = MAX_PIXELS / SAVE_DPI ~= 16.4") keeps the same
+# figure proportions while every raster gets ~1.4x more pixels for sharper
+# paper/embedded output.
+MAX_PIXELS = 3600
+SAVE_DPI = 220
 
 
 def setup_style() -> None:
@@ -439,8 +440,10 @@ def fig_per_workload_bars(means: pd.DataFrame, outdir: Path) -> None:
                    bbox_to_anchor=(0.5, 1.02 if nrows < 4 else 1.005),
                    ncol=len(variants), frameon=False, fontsize=8.5,
                    title="variant", title_fontsize=8.5)
-        fig.suptitle(f"Per-workload variant fingerprint — env={env}  "
-                     f"(IntP Fig. 4 reproduction)", y=1.04, fontsize=11)
+        # Headline: enhanced (larger + bold) but kept to a single wide line so
+        # it leverages the figure width instead of adding vertical height.
+        fig.suptitle(f"Per-workload variant fingerprint — env={env}",
+                     y=1.04, fontsize=13, fontweight="bold")
         fig.tight_layout()
         suffix = f"_{env}" if len(envs) > 1 else ""
         _save(fig, outdir / f"fig01_per_workload_bars{suffix}.png", "fig01")
@@ -743,7 +746,7 @@ def fig_timeseries(results_dir: Path, outdir: Path) -> None:
         fig.legend(handles, labels, loc="upper center",
                    bbox_to_anchor=(0.5, 1.02),
                    ncol=len(METRICS), frameon=False, fontsize=8)
-    fig.suptitle("Long-trace interference profile (IntP Fig. 3 reproduction)",
+    fig.suptitle("Long-trace interference profile",
                  y=1.05, fontsize=11)
     fig.tight_layout()
     _save(fig, outdir / "fig03_timeseries.png", "fig03")
@@ -1368,8 +1371,8 @@ def fig_idi_bars(means: pd.DataFrame, outdir: Path) -> None:
     ax.set_xticks(x); ax.set_xticklabels(resources)
     ax.axhline(0, color="black", linewidth=0.5)
     ax.set_ylabel("Δ interference (pairwise − solo, %)")
-    ax.set_title(f"Interference degradation by resource — env={env}\n"
-                 f"(IADA Fig. 6 reproduction)", fontsize=10)
+    ax.set_title(f"Interference degradation by resource — env={env}",
+                 fontsize=10)
     ax.legend(ncol=len(variants), fontsize=8.5, loc="upper center",
               bbox_to_anchor=(0.5, -0.12))
     fig.tight_layout()
@@ -1423,8 +1426,8 @@ def fig_pairwise_timeseries(results_dir: Path, outdir: Path) -> None:
         fig.legend(handles, labels, loc="upper center",
                    bbox_to_anchor=(0.5, 1.02),
                    ncol=len(handles), frameon=False, fontsize=9)
-    fig.suptitle("Resource-family trace over the mixed-load timeseries "
-                 "(IntP Fig. 8 reproduction)", y=1.05, fontsize=11)
+    fig.suptitle("Resource-family trace over the mixed-load timeseries",
+                 y=1.05, fontsize=11)
     fig.tight_layout()
     _save(fig, outdir / "fig12_pairwise_timeseries.png", "fig12")
 
@@ -1504,8 +1507,8 @@ def fig_iada_segmented(results_dir: Path, outdir: Path, n_segments: int = 4) -> 
         fig.legend(handles, labels, loc="upper center",
                    bbox_to_anchor=(0.5, 1.02),
                    ncol=len(handles), frameon=False, fontsize=9)
-    fig.suptitle("Segmented Loess-smoothed interference trace "
-                 "(IADA Fig. 5 reproduction)", y=1.05, fontsize=11)
+    fig.suptitle("Segmented Loess-smoothed interference trace",
+                 y=1.05, fontsize=11)
     fig.tight_layout()
     _save(fig, outdir / "fig13_iada_segmented.png", "fig13")
 
@@ -1631,8 +1634,8 @@ def fig_canonical_intp_fig4(means: pd.DataFrame, outdir: Path) -> None:
         fig.legend(handles, labels, loc="upper center",
                    bbox_to_anchor=(0.5, 1.02),
                    ncol=len(METRICS), frameon=False, fontsize=8.5)
-    fig.suptitle("IntP Fig. 4 (canonical view) — per-application interference "
-                 "ratios", y=1.06, fontsize=11)
+    fig.suptitle("Per-application interference ratios (canonical view)",
+                 y=1.06, fontsize=11)
     fig.tight_layout()
     _save(fig, outdir / "fig00_canonical_intp_fig4.png", "fig00")
 
