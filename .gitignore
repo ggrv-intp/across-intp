@@ -53,4 +53,9 @@ venv/
 
 # Local Claude Code instructions (kept out of git on purpose)
 /CLAUDE.md
-/.claude/CLAUDE.md
+/.claude
+# Claude local/private
+.claude/settings.local.json
+
+# Generated knowledge graph
+.understand-anything/
