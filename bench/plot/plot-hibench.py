@@ -1087,7 +1087,8 @@ def fig_variant_resource_heatmap(df: pd.DataFrame, outdir: Path) -> None:
         pivot = sub.pivot_table(index="variant", columns="resource", values="mean")
         pivot = pivot.reindex(index=_ordered_variants(pivot.index), columns=resources)
         masked = np.ma.masked_invalid(pivot.values)
-        im = ax.imshow(masked, cmap=cmap, vmin=0, vmax=100, aspect="auto")
+        im = ax.imshow(masked, cmap=cmap, vmin=0, vmax=100, aspect="auto",
+                       interpolation="none")
         ax.set_xticks(range(len(resources)))
         ax.set_xticklabels(resources, fontsize=8.5)
         ax.set_yticks(range(len(pivot.index)))
@@ -1166,7 +1167,8 @@ def fig_hibench_coverage(df: pd.DataFrame, outdir: Path) -> None:
                               values="coverage")
                  .reindex(index=workloads, columns=METRICS))
         masked = np.ma.masked_invalid(pivot.values)
-        im = ax.imshow(masked, cmap=cmap, vmin=0, vmax=1, aspect="auto")
+        im = ax.imshow(masked, cmap=cmap, vmin=0, vmax=1, aspect="auto",
+                       interpolation="none")
         ax.set_xticks(range(len(METRICS)))
         ax.set_xticklabels(METRICS, rotation=40, ha="right", fontsize=8.5)
         if ci == 0:
@@ -1221,7 +1223,8 @@ def fig_metric_availability(df: pd.DataFrame, outdir: Path) -> None:
     fig, ax = plt.subplots(
         figsize=_clamp_figsize(6.4, 0.55 * len(pivot) + 1.4))
     cmap = ListedColormap(["#f4f4f4", "#2ca02c"])
-    ax.imshow(pivot.values, cmap=cmap, vmin=0, vmax=1, aspect="auto")
+    ax.imshow(pivot.values, cmap=cmap, vmin=0, vmax=1, aspect="auto",
+              interpolation="none")
     ax.set_xticks(range(len(pivot.columns))); ax.set_xticklabels(pivot.columns)
     ax.set_yticks(range(len(pivot.index)));   ax.set_yticklabels(pivot.index)
     for (yi, xi), v in np.ndenumerate(pivot.values):
@@ -1273,7 +1276,7 @@ def fig_workload_clustermap(df: pd.DataFrame, outdir: Path) -> None:
             order = np.arange(len(m))
         m = m.iloc[order]
         im = ax.imshow(m.values, aspect="auto", cmap="Blues",
-                       vmin=0, vmax=100)
+                       vmin=0, vmax=100, interpolation="none")
         ax.set_xticks(range(len(METRICS)))
         ax.set_xticklabels(METRICS, rotation=40, ha="right", fontsize=8)
         ax.set_yticks(range(len(m.index)))

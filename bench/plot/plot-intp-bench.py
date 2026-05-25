@@ -481,7 +481,7 @@ def fig_per_variant_bars(means: pd.DataFrame, outdir: Path) -> None:
                .reindex(workloads)[METRICS]
                .fillna(0))
         im = ax.imshow(sub.values, aspect="auto", cmap="Blues",
-                       vmin=0, vmax=100)
+                       vmin=0, vmax=100, interpolation="none")
         # Per-cell numeric overlay so each workload's seven values are
         # readable directly without colour-to-percentage translation.
         # Text colour flips at the colormap midpoint for contrast; cells
@@ -1051,7 +1051,8 @@ def fig_fidelity_matrix(results_dir: Path, outdir: Path) -> None:
     masked = np.ma.masked_invalid(pivot.values)
     cmap = plt.get_cmap("RdBu_r").copy()
     cmap.set_bad(color="#dddddd")
-    im = ax.imshow(masked, vmin=-1, vmax=1, cmap=cmap, aspect="auto")
+    im = ax.imshow(masked, vmin=-1, vmax=1, cmap=cmap, aspect="auto",
+                   interpolation="none")
     ax.set_xticks(range(len(pivot.columns))); ax.set_xticklabels(pivot.columns)
     ax.set_yticks(range(len(pivot.index)));   ax.set_yticklabels(pivot.index)
     for (i, j), v in np.ndenumerate(pivot.values):
@@ -1101,7 +1102,8 @@ def fig_env_heatmap(means: pd.DataFrame, outdir: Path) -> None:
         sub = df[df.env == env]
         pivot = sub.pivot_table(index="variant", columns="metric", values="ratio")
         pivot = pivot.reindex(index=_ordered_variants(pivot.index))
-        im = ax.imshow(pivot.values, cmap="PiYG", vmin=0, vmax=2, aspect="auto")
+        im = ax.imshow(pivot.values, cmap="PiYG", vmin=0, vmax=2, aspect="auto",
+                       interpolation="none")
         ax.set_xticks(range(len(pivot.columns))); ax.set_xticklabels(pivot.columns)
         ax.set_yticks(range(len(pivot.index)));   ax.set_yticklabels(pivot.index)
         ax.set_title(f"{env} / bare")
@@ -1153,7 +1155,8 @@ def fig_pairwise_heatmap(means: pd.DataFrame, outdir: Path) -> None:
             masked = np.ma.masked_invalid(data)
             cmap = plt.get_cmap("Blues").copy()
             cmap.set_bad(color="#cccccc")
-            im = ax.imshow(masked, cmap=cmap, aspect="auto", vmin=0, vmax=100)
+            im = ax.imshow(masked, cmap=cmap, aspect="auto", vmin=0, vmax=100,
+                           interpolation="none")
             ax.set_xticks(range(len(METRICS))); ax.set_xticklabels(METRICS, rotation=45, ha="right", fontsize=7)
             ax.set_yticks(range(len(workloads))); ax.set_yticklabels(workloads, fontsize=7)
             ax.set_title(f"variant={variant}", fontsize=9)
@@ -1184,7 +1187,8 @@ def fig_metric_availability(means: pd.DataFrame, outdir: Path) -> None:
                           columns=METRICS)
     fig, ax = plt.subplots(figsize=_clamp_figsize(6.2, 0.5 * len(pivot) + 1.2))
     cmap = ListedColormap(["#f4f4f4", "#2ca02c"])
-    im = ax.imshow(pivot.values, cmap=cmap, vmin=0, vmax=1, aspect="auto")
+    im = ax.imshow(pivot.values, cmap=cmap, vmin=0, vmax=1, aspect="auto",
+                   interpolation="none")
     ax.set_xticks(range(len(pivot.columns))); ax.set_xticklabels(pivot.columns)
     ax.set_yticks(range(len(pivot.index)));   ax.set_yticklabels(pivot.index)
     for (i, j), v in np.ndenumerate(pivot.values):
@@ -1298,7 +1302,8 @@ def fig_workload_clustermap(means: pd.DataFrame, outdir: Path) -> None:
         except Exception:
             order = np.arange(len(m))
         m = m.iloc[order]
-        im = ax.imshow(m.values, aspect="auto", cmap="Blues", vmin=0, vmax=100)
+        im = ax.imshow(m.values, aspect="auto", cmap="Blues", vmin=0, vmax=100,
+                       interpolation="none")
         ax.set_xticks(range(len(METRICS))); ax.set_xticklabels(METRICS, rotation=45, ha="right", fontsize=7)
         ax.set_yticks(range(len(m.index))); ax.set_yticklabels(m.index, fontsize=7)
         ax.set_title(f"variant={variant} (Ward linkage)", fontsize=9)
@@ -1546,7 +1551,8 @@ def fig_variant_resource_heatmap(means: pd.DataFrame, outdir: Path) -> None:
         masked = np.ma.masked_invalid(pivot.values)
         cmap = plt.get_cmap("Blues").copy()
         cmap.set_bad(color="#cccccc")
-        im = ax.imshow(masked, cmap=cmap, vmin=0, vmax=100, aspect="auto")
+        im = ax.imshow(masked, cmap=cmap, vmin=0, vmax=100, aspect="auto",
+                       interpolation="none")
         ax.set_xticks(range(len(resources))); ax.set_xticklabels(resources)
         ax.set_yticks(range(len(pivot.index))); ax.set_yticklabels(pivot.index)
         ax.set_title(f"env={env}", fontsize=9.5)
