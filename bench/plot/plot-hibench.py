@@ -1078,8 +1078,8 @@ def fig_variant_resource_heatmap(df: pd.DataFrame, outdir: Path) -> None:
     fig = plt.figure(figsize=_clamp_figsize(panel_w * ncols, panel_h * nrows))
     axes_flat, _, _ = _make_axes_grid(fig, n_p, wspace=1.1, hspace=0.45)
 
-    cmap = plt.get_cmap("viridis").copy()
-    cmap.set_bad(color="#dddddd")
+    cmap = plt.get_cmap("Blues").copy()
+    cmap.set_bad(color="#cccccc")
     im = None
     for i, profile in enumerate(profiles):
         ax = axes_flat[i]
@@ -1156,8 +1156,8 @@ def fig_hibench_coverage(df: pd.DataFrame, outdir: Path) -> None:
                              figsize=_clamp_figsize(3.0 + 2.6 * ncols,
                                                     0.5 * len(workloads) + 1.6),
                              squeeze=False, sharey=True)
-    cmap = plt.get_cmap("magma").copy()
-    cmap.set_bad(color="#dddddd")
+    cmap = plt.get_cmap("Blues").copy()
+    cmap.set_bad(color="#cccccc")
     im = None
     for ci, variant in enumerate(variants):
         ax = axes[0][ci]
@@ -1182,9 +1182,9 @@ def fig_hibench_coverage(df: pd.DataFrame, outdir: Path) -> None:
                 # color already says "this is the best capture seen".
                 continue
             else:
-                # magma: low=dark, high=bright; flip text accordingly.
+                # Blues: low=light, high=dark; flip text accordingly.
                 ax.text(xi, yi, f"{v:.2f}", ha="center", va="center",
-                        fontsize=8, color="white" if v < 0.5 else "black")
+                        fontsize=8, color="black" if v < 0.5 else "white")
         ax.grid(False)
     if im is not None:
         fig.colorbar(im, ax=axes.ravel().tolist(), fraction=0.04, shrink=0.85,
@@ -1272,7 +1272,7 @@ def fig_workload_clustermap(df: pd.DataFrame, outdir: Path) -> None:
         except Exception:
             order = np.arange(len(m))
         m = m.iloc[order]
-        im = ax.imshow(m.values, aspect="auto", cmap="viridis",
+        im = ax.imshow(m.values, aspect="auto", cmap="Blues",
                        vmin=0, vmax=100)
         ax.set_xticks(range(len(METRICS)))
         ax.set_xticklabels(METRICS, rotation=40, ha="right", fontsize=8)

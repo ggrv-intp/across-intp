@@ -480,7 +480,7 @@ def fig_per_variant_bars(means: pd.DataFrame, outdir: Path) -> None:
                .set_index("workload")
                .reindex(workloads)[METRICS]
                .fillna(0))
-        im = ax.imshow(sub.values, aspect="auto", cmap="viridis",
+        im = ax.imshow(sub.values, aspect="auto", cmap="Blues",
                        vmin=0, vmax=100)
         # Per-cell numeric overlay so each workload's seven values are
         # readable directly without colour-to-percentage translation.
@@ -491,7 +491,7 @@ def fig_per_variant_bars(means: pd.DataFrame, outdir: Path) -> None:
                 val = sub.values[i, j]
                 if not np.isfinite(val) or val < 0.5:
                     continue
-                txt_color = "white" if val < 55 else "black"
+                txt_color = "black" if val < 55 else "white"
                 ax.text(j, i, f"{val:.0f}", ha="center", va="center",
                         color=txt_color, fontsize=5.8)
         # Thin row separators help the eye tell adjacent workloads apart
@@ -1151,8 +1151,8 @@ def fig_pairwise_heatmap(means: pd.DataFrame, outdir: Path) -> None:
                 else:
                     data[wi] = np.nan
             masked = np.ma.masked_invalid(data)
-            cmap = plt.get_cmap("magma").copy()
-            cmap.set_bad(color="#dddddd")
+            cmap = plt.get_cmap("Blues").copy()
+            cmap.set_bad(color="#cccccc")
             im = ax.imshow(masked, cmap=cmap, aspect="auto", vmin=0, vmax=100)
             ax.set_xticks(range(len(METRICS))); ax.set_xticklabels(METRICS, rotation=45, ha="right", fontsize=7)
             ax.set_yticks(range(len(workloads))); ax.set_yticklabels(workloads, fontsize=7)
@@ -1298,7 +1298,7 @@ def fig_workload_clustermap(means: pd.DataFrame, outdir: Path) -> None:
         except Exception:
             order = np.arange(len(m))
         m = m.iloc[order]
-        im = ax.imshow(m.values, aspect="auto", cmap="viridis", vmin=0, vmax=100)
+        im = ax.imshow(m.values, aspect="auto", cmap="Blues", vmin=0, vmax=100)
         ax.set_xticks(range(len(METRICS))); ax.set_xticklabels(METRICS, rotation=45, ha="right", fontsize=7)
         ax.set_yticks(range(len(m.index))); ax.set_yticklabels(m.index, fontsize=7)
         ax.set_title(f"variant={variant} (Ward linkage)", fontsize=9)
@@ -1544,8 +1544,8 @@ def fig_variant_resource_heatmap(means: pd.DataFrame, outdir: Path) -> None:
         pivot = sub.pivot_table(index="variant", columns="resource", values="mean")
         pivot = pivot.reindex(index=_ordered_variants(pivot.index), columns=resources)
         masked = np.ma.masked_invalid(pivot.values)
-        cmap = plt.get_cmap("viridis").copy()
-        cmap.set_bad(color="#dddddd")
+        cmap = plt.get_cmap("Blues").copy()
+        cmap.set_bad(color="#cccccc")
         im = ax.imshow(masked, cmap=cmap, vmin=0, vmax=100, aspect="auto")
         ax.set_xticks(range(len(resources))); ax.set_xticklabels(resources)
         ax.set_yticks(range(len(pivot.index))); ax.set_yticklabels(pivot.index)
