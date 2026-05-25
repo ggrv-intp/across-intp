@@ -1,0 +1,245 @@
+#!/usr/bin/env python3
+"""
+plot_pca_dendro.py -- Generate the PCA + Ward-dendrogram figure used as Fig. 2
+of the SBAC-PAD paper. Reproduces the two-panel layout of Xavier's thesis
+Fig. 4.5 on the modernized data.
+
+Inputs:
+  aggregate-means.csv  (one row per (env, variant, stage, workload, rep);
+                        columns include the seven canonical metrics)
+
+Outputs:
+  fig02_pca_dendro.pdf (and .png)
+
+Usage:
+  python3 plot_pca_dendro.py [<aggregate-means.csv>] [<outdir>]
+  defaults: ./aggregate-means.csv, ./out
+
+Cluster labels are derived from the *dominant interference resource* of
+each cluster (the metric whose per-cluster mean is highest), not from
+workload-name suffixes. This produces single-resource labels (cache,
+memory, network, disk) that match the five resource families used in
+the HiBench heatmap of the same paper.
+"""
+
+import sys
+from pathlib import Path
+
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+from matplotlib import gridspec
+from matplotlib.lines import Line2D
+from matplotlib.patches import Patch
+from sklearn.decomposition import PCA
+from sklearn.cluster import KMeans
+from scipy.cluster.hierarchy import linkage, dendrogram, set_link_color_palette
+
+METRICS = ["netp", "nets", "blk", "mbw", "llcmr", "llcocc", "cpu"]
+VARIANT_ORDER = ["v0.2", "v1.1", "v2", "v3.2"]
+VARIANT_MARKERS = {"v0.2": "P", "v1.1": "o", "v2": "s", "v3.2": "*"}
+
+# Map a metric to the resource-family label used elsewhere in the paper.
+# Used to label K-means clusters by their dominant metric.
+METRIC_TO_FAMILY = {
+    "llcocc": "cache",
+    "llcmr":  "memory",   # llcmr-dominant = workload thrashes cache, hits DRAM
+    "mbw":    "memory",
+    "netp":   "network",
+    "nets":   "network",
+    "blk":    "disk",
+    "cpu":    "cpu",
+}
+
+
+def load_solo_bare(csv_path):
+    # Canonical campaign data ships as tab-separated `aggregate-means.tsv`
+    # (with "--" for missing metrics); the plots/ copies are comma-separated
+    # `aggregate-means.csv`. Detect the separator from the suffix and treat
+    # "--" as NaN either way.
+    csv_path = Path(csv_path)
+    sep = "\t" if csv_path.suffix.lower() in (".tsv", ".tab") else ","
+    df = pd.read_csv(csv_path, sep=sep, na_values=["--"])
+    df = df[(df.stage == "solo") & (df.env == "bare")].copy()
+    return df
+
+
+def per_workload_variant_means(df):
+    return df.groupby(["workload", "variant"])[METRICS].mean().fillna(0)
+
+
+def main(csv_path, outdir):
+    outdir = Path(outdir)
+    outdir.mkdir(parents=True, exist_ok=True)
+
+    df = load_solo_bare(csv_path)
+    g = per_workload_variant_means(df)
+
+    workloads = sorted(g.index.get_level_values(0).unique())
+    means_per_wl = g.groupby("workload").mean().reindex(workloads)
+
+    # K-means at K=4 (matches Xavier 2022 / Xavier thesis 2019).
+    k = 4
+    km = KMeans(n_clusters=k, n_init=10, random_state=42).fit(means_per_wl.values)
+    cluster_of = dict(zip(means_per_wl.index, km.labels_))
+
+    # Per-cluster mean vector; the dominant metric labels the cluster.
+    cluster_members = {c: [] for c in range(k)}
+    for wl, c in cluster_of.items():
+        cluster_members[c].append(wl)
+
+    cluster_label_of = {}
+    for c, members in cluster_members.items():
+        if not members:
+            cluster_label_of[c] = f"cluster {c+1}"
+            continue
+        per_cluster_mean = means_per_wl.loc[members].mean()
+        dominant_metric = per_cluster_mean.idxmax()
+        cluster_label_of[c] = METRIC_TO_FAMILY.get(dominant_metric, dominant_metric)
+
+    # Color palette: index by cluster id, stable across runs.
+    cluster_palette = plt.cm.Set2
+    cluster_color = {c: cluster_palette(c) for c in range(k)}
+
+    # Joint PCA over (workload, variant) rows.
+    pca = PCA(n_components=2)
+    Y = pca.fit_transform(g.values)
+    coords = pd.DataFrame(Y, index=g.index, columns=["PC1", "PC2"])
+    pc1_var, pc2_var = pca.explained_variance_ratio_[:2] * 100
+
+    # Ward-linkage on per-workload mean vectors.
+    Z = linkage(means_per_wl.values, method="ward")
+
+    # Dendrogram link colors mirror the K-means cluster colors. We translate
+    # each tuple from cluster_color into the hex string scipy expects.
+    set_link_color_palette([
+        "#" + "".join(f"{int(v * 255):02x}" for v in cluster_color[c][:3])
+        for c in range(k)
+    ])
+
+    fig = plt.figure(figsize=(10.0, 4.0))
+    gs = gridspec.GridSpec(1, 2, width_ratios=[1.55, 1.0], wspace=0.15)
+
+    # --- Panel A: PCA scatter ---
+    ax_pca = fig.add_subplot(gs[0, 0])
+    for wl in workloads:
+        for variant in VARIANT_ORDER:
+            try:
+                p = coords.loc[(wl, variant)]
+            except KeyError:
+                continue
+            ax_pca.scatter(
+                p["PC1"], p["PC2"],
+                marker=VARIANT_MARKERS.get(variant, "o"),
+                facecolor=cluster_color[cluster_of[wl]],
+                edgecolor="black", linewidth=0.45,
+                s=55, alpha=0.95, zorder=3,
+            )
+        # thin polygon connecting variants of the same workload
+        pts = []
+        for variant in VARIANT_ORDER:
+            try:
+                p = coords.loc[(wl, variant)]
+                pts.append((p["PC1"], p["PC2"]))
+            except KeyError:
+                continue
+        if len(pts) >= 2:
+            xs, ys = zip(*pts)
+            ax_pca.plot(
+                list(xs) + [xs[0]], list(ys) + [ys[0]],
+                color=cluster_color[cluster_of[wl]],
+                linewidth=0.45, alpha=0.35, zorder=1,
+            )
+
+    ax_pca.axhline(0, color="#cccccc", linewidth=0.5, zorder=0)
+    ax_pca.axvline(0, color="#cccccc", linewidth=0.5, zorder=0)
+    ax_pca.set_xlabel(f"PC1 ({pc1_var:.1f}%)", fontsize=9)
+    ax_pca.set_ylabel(f"PC2 ({pc2_var:.1f}%)", fontsize=9)
+    ax_pca.set_title("(A) PCA + K-means (K=4)", fontsize=10)
+    ax_pca.grid(True, linestyle=":", alpha=0.4)
+    ax_pca.tick_params(labelsize=8)
+
+    # Two-column in-panel legend: variant markers on the left,
+    # cluster colors as patches on the right.
+    var_handles = [
+        Line2D([0], [0], marker=VARIANT_MARKERS[v], color="w",
+               markerfacecolor="lightgray", markeredgecolor="black",
+               markersize=7, label=v)
+        for v in VARIANT_ORDER
+    ]
+    cluster_handles = [
+        Patch(facecolor=cluster_color[c], edgecolor="black",
+              linewidth=0.4, label=cluster_label_of[c])
+        for c in sorted(cluster_members.keys()) if cluster_members[c]
+    ]
+    leg_var = ax_pca.legend(
+        handles=var_handles, loc="upper left", fontsize=7,
+        title="variant", title_fontsize=7.5, frameon=True,
+    )
+    ax_pca.add_artist(leg_var)
+    ax_pca.legend(
+        handles=cluster_handles, loc="lower left", fontsize=7,
+        title="cluster (dominant resource)", title_fontsize=7.5, frameon=True,
+    )
+
+    # --- Panel B: Ward dendrogram ---
+    ax_dn = fig.add_subplot(gs[0, 1])
+    # orientation="left": leaves (and their labels) sit on the right edge of
+    # the panel while the tree opens leftward toward the root. Combined with
+    # tick_right() below, the workload labels live on the figure's outer edge
+    # and can never overlap Panel A's frame.
+    dendrogram(
+        Z,
+        labels=workloads,
+        orientation="left",
+        ax=ax_dn,
+        color_threshold=0,
+        above_threshold_color="#666666",
+        leaf_font_size=7,
+    )
+    ax_dn.set_title("(B) Ward-linkage dendrogram", fontsize=10)
+    ax_dn.set_xlabel("distance", fontsize=8)
+    ax_dn.tick_params(axis="x", labelsize=7)
+    # Move the leaf labels to the outer (right) side, away from Panel A, and
+    # drop the tick marks so only the colored names remain.
+    ax_dn.yaxis.tick_right()
+    ax_dn.yaxis.set_label_position("right")
+    ax_dn.tick_params(axis="y", length=0)
+    ax_dn.spines["top"].set_visible(False)
+    ax_dn.spines["left"].set_visible(False)
+    ax_dn.spines["right"].set_visible(False)
+
+    # Color each leaf label by its K-means cluster color.
+    for tick in ax_dn.get_yticklabels():
+        wl = tick.get_text()
+        if wl in cluster_of:
+            tick.set_color(cluster_color[cluster_of[wl]])
+
+    fig.suptitle(
+        "PCA + K-means + Ward dendrogram (env=bare, joint fit over per-(workload, variant) rows)",
+        fontsize=10, y=1.005,
+    )
+
+    # Mirror plot-intp-bench.py's layout: <outdir>/pdf/ and <outdir>/png/,
+    # so this figure lands beside fig02_pca_kmeans in the same plots/ tree.
+    stem = "fig02_pca_dendro"
+    pdf_dir = outdir / "pdf"
+    png_dir = outdir / "png"
+    pdf_dir.mkdir(parents=True, exist_ok=True)
+    png_dir.mkdir(parents=True, exist_ok=True)
+    pdf_path = pdf_dir / f"{stem}.pdf"
+    png_path = png_dir / f"{stem}.png"
+    fig.savefig(pdf_path, bbox_inches="tight")
+    fig.savefig(png_path, bbox_inches="tight", dpi=160)
+    print(f"wrote {pdf_path}")
+    print(f"wrote {png_path}")
+    print(f"PC1={pc1_var:.2f}%  PC2={pc2_var:.2f}%  K-means(k={k})")
+    for c in sorted(cluster_members.keys()):
+        if cluster_members[c]:
+            print(f"  cluster {c} [{cluster_label_of[c]}]: {cluster_members[c]}")
+
+
+if __name__ == "__main__":
+    csv_path = Path(sys.argv[1]) if len(sys.argv) > 1 else Path("aggregate-means.csv")
+    outdir = Path(sys.argv[2]) if len(sys.argv) > 2 else Path("out")
+    main(csv_path, outdir)
