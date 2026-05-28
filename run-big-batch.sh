@@ -43,7 +43,7 @@
 #     BENCH_WORKLOADS=             comma-separated stress-ng workload IDs to keep
 #                                  (default: empty = all 15 apps from the catalog).
 #                                  Useful to skip workloads that misbehaved in a
-#                                  prior campaign — e.g. drop app15_query_inerge
+#                                  prior campaign — e.g. drop app15_query_merge
 #                                  if V1 stap captured <15% of expected samples.
 #     CONTAINER_IMAGE=ubuntu:24.04  Docker image for container/container-guest envs
 #     VM_IMAGE=                 path to .qcow2 for vm/vm-guest envs (required when set)

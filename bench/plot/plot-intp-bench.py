@@ -472,7 +472,7 @@ def fig_per_variant_bars(means: pd.DataFrame, outdir: Path) -> None:
     panel_h = 0.26 * len(workloads) + 1.4   # per-panel target height in inches
     # Widen the per-panel slot enough that the right-column panels'
     # y-tick labels (the longest are app08/09_classification and
-    # app15_query_inerge — ~19 chars at 7-pt) sit fully in the inter-panel
+    # app15_query_merge — ~19 chars at 7-pt) sit fully in the inter-panel
     # gutter without crossing into the adjacent panel's heatmap.
     fig = plt.figure(figsize=_clamp_figsize(5.6 * ncols, panel_h * nrows))
     axes_flat, _, _ = _make_axes_grid(fig, n, wspace=3.2, hspace=0.30)
@@ -583,7 +583,6 @@ def fig_pca_kmeans(means: pd.DataFrame, outdir: Path) -> None:
         "udp_veth":       "veth",
         "query_scan":     "query",
         "query_join":     "query",
-        "query_inerge":   "query",
         "query_merge":    "query",
     }
     profile_of = {wl: family_to_profile.get(_workload_family(wl),

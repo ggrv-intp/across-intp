@@ -244,7 +244,7 @@ fidelity claim.
   uniquely identify each group, but a reader filtering `env=='bare'` will miss
   overhead rows, and group labels for overhead read oddly (e.g. `stage=v0.2`).
   This is why `quality-flags.tsv` shows an `env=overhead` block.
-- **Real I/O stalls** on `disk_v_disk` / `app15_query_inerge`: the stall monitor
+- **Real I/O stalls** on `disk_v_disk` / `app15_query_merge`: the stall monitor
   logged genuine `drop_caches`-induced stalls (loadavg ~35, ~30 procs in
   D-state). Expected for a cache-dropping disk benchmark; it elevates sample
   loss there modestly (still ≤~4.4%).

@@ -237,7 +237,7 @@ WORKLOADS=(
     "app12_sort_net|network|--udp 16 --udp-port 23430"
     "app13_query_scan|disk|--hdd 8 --hdd-bytes 4G --hdd-write-size 1M"
     "app14_query_join|disk|--hdd 8 --hdd-bytes 2G --hdd-write-size 4K"
-    "app15_query_inerge|disk|--iomix 8 --iomix-bytes 2G"
+    "app15_query_merge|disk|--iomix 8 --iomix-bytes 2G"
 
     # ── veth-routed network workloads (require setup-netns-pair.sh active) ──
     # Args format: VETH:<proto>:<port>:<extra iperf3 client args>

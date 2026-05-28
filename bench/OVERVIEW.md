@@ -100,7 +100,7 @@ metrics.
 | `app12_sort_net` | network | `--udp 16 --udp-port 23430` |
 | `app13_query_scan` | disk | `--hdd 8 --hdd-bytes 4G --hdd-write-size 1M` |
 | `app14_query_join` | disk | `--hdd 8 --hdd-bytes 2G --hdd-write-size 4K` |
-| `app15_query_inerge` | disk | `--iomix 8 --iomix-bytes 2G` |
+| `app15_query_merge` | disk | `--iomix 8 --iomix-bytes 2G` |
 
 Worker counts assume 24 physical cores; stream/matrix workers cap at 12
 because each saturates a memory channel.
@@ -356,7 +356,7 @@ distributed-cluster availability.
 | Hardware | 16 × Dell PowerEdge R810, 2× Xeon X-class (32 vCPUs each), 64 GB, 4× GbE, GbE switch | 1 × Hetzner bare-metal, Xeon Gold 5412U (Sapphire Rapids), 24C/48T, 256 GB, 10 GbE |
 | OS / kernel | Ubuntu 16.04 (kernel 4.x era) | Ubuntu 24.04, kernel 6.8.0-111 |
 | IntP variant runnable | V0 (single SystemTap, all modules in kernel mode) | V0 fails to compile (`cqm_rmid` removed); V0.1 partial; V1 modernized; V2/V3.1/V3 added |
-| Workload catalog | 15 apps from HiBench mapped to resource intensities (Table II) | Same 15-app schema reproduced as `stress-ng` workloads (`app01_ml_llc` … `app15_query_inerge`) plus a 6-workload Spark/HiBench subset |
+| Workload catalog | 15 apps from HiBench mapped to resource intensities (Table II) | Same 15-app schema reproduced as `stress-ng` workloads (`app01_ml_llc` … `app15_query_merge`) plus a 6-workload Spark/HiBench subset |
 | Profiling pattern | 1-after-1 individual runs | 1-after-1 (`solo` stage), plus pairwise, overhead, and timeseries stages |
 | Output schema | 6 metrics: `netp`, `nets`, `blk`, `mbw`, `llocc`, `cpu` | 7 columns: paper's 6 plus `llcmr` (LLC miss ratio) for diagnostic detail |
 | Use of metrics | Per-app interference vector → PCA → K-means (K=4) → scheduler integration in YARN | Per-app interference vector + cross-variant comparison + interference matrix + overhead bound |
