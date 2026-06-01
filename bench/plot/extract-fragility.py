@@ -107,6 +107,32 @@ def count_tsv_samples(prof: Path) -> int:
     return n
 
 
+def expected_from_timestamps(prof: Path, interval: float):
+    """Derive expected sample count from the profiler's own `ts` column.
+
+    Used when run.json carries no duration_target_s (HiBench: the profiler
+    window is bounded by the Spark job, not a fixed --duration). Within the
+    profiler's first..last span, expected ticks = round(span/interval)+1, so a
+    shortfall vs the actual sample count is the dropped-sample (gap) loss. This
+    needs no recorded target and so works unchanged on old result trees.
+    Returns (expected_ticks, span_s) or (0, 0.0) if there are <2 timestamps.
+    """
+    if not prof.exists():
+        return 0, 0.0
+    ts = []
+    with prof.open() as fh:
+        for line in fh:
+            if line[:1].isdigit():
+                try:
+                    ts.append(float(line.split("\t", 1)[0]))
+                except (ValueError, IndexError):
+                    pass
+    if len(ts) < 2:
+        return 0, 0.0
+    span = ts[-1] - ts[0]
+    return round(span / interval) + 1, round(span, 3)
+
+
 def row_for(rep_dir: Path) -> dict | None:
     meta = load_run_json(rep_dir)
     if not meta:
@@ -114,9 +140,17 @@ def row_for(rep_dir: Path) -> dict | None:
     variant = meta.get('variant', '')
     prof = rep_dir / 'profiler.tsv'
     samples = count_tsv_samples(prof)
+    interval = float(meta.get('sample_interval_s') or DEFAULT_INTERVAL_S)
     duration_target = float(meta.get('duration_target_s') or 0)
     duration_observed = float(meta.get('duration_observed_s') or 0)
-    expected = duration_target / DEFAULT_INTERVAL_S if duration_target > 0 else 0
+    span = 0.0
+    if duration_target > 0:
+        # stress-ng / overhead path: fixed --duration recorded in run.json.
+        expected = duration_target / interval
+    else:
+        # HiBench path: no recorded target -> derive expected from the
+        # profiler timestamp column (timestamp-gap loss).
+        expected, span = expected_from_timestamps(prof, interval)
     if expected > 0:
         sample_loss_pct = max(0.0, (expected - samples) / expected * 100.0)
     else:
@@ -131,7 +165,7 @@ def row_for(rep_dir: Path) -> dict | None:
     stall = count_stall_artifacts(rep_dir / 'stall-monitor')
 
     row = {
-        'env': meta.get('env', ''),
+        'env': meta.get('env') or ('hibench' if 'hibench' in rep_dir.parts else ''),
         'variant': variant,
         'stage': meta.get('stage', ''),
         'workload': meta.get('workload', ''),
