@@ -66,17 +66,42 @@ output, then restored the backups (confirmed byte-identical; bare v0.2
   which is why the per-variant mean is ~4.05 here vs the Phase-1 tool's 4.39
   (expected, per the brief).
 
-## D6 — paper text predates this definition (flag for authors)
+## D6 — paper text reconciled to the reproducible HiBench numbers
 
-The paper prose ("67 of 277 reps above 5%, mean 15.19%") is not reproducible
-from the release and predates the timestamp-gap definition; the regenerated
-HiBench figures are v1.1 ~4.0–4.4% mean with 100-of-504 reps >5%. Flagged for
-the authors to reconcile the prose with the regenerated
-`fragility-hibench-aggregated.tsv`. The paper is **not** edited from this repo
-task (out of scope).
+The paper (`main.tex`) has been updated to the reproducible timestamp-gap
+figures — **v1.1: 100 of 504 reps >5%, mean 4.39%, max 73.08%** — i.e. exactly
+the `fragility-hibench-aggregated.tsv` values produced by `hibench-sample-loss.py`
+(an earlier draft predated this definition). The repo task does not modify the
+paper; `main.tex` is maintained separately and already compiles clean.
+Reviewers regenerating via the unified `extract-fragility.py` see a marginally
+lower per-variant mean (~4.05%) for `env=hibench`, because those rows also
+include the 0-loss workload-aggregate `run.json` files; the canonical per-rep
+figure is 4.39% (see D4/D5).
 
 ## D7 — `samples > elapsed_s` in old run.json is expected
 
 The profiler window spans more than the Spark job's own wall-clock `elapsed_s`,
 so `samples` can exceed `elapsed_s`. The timestamp-gap method intentionally
 ignores `elapsed_s` and derives the window from the profiler `ts` column.
+
+## D8 — Phase 3: env + sample_interval_s in both HiBench run.json writers
+
+- Added `"sample_interval_s":$INTERVAL` (the required field) to **both** the
+  per-rep writer (heredoc ~L1251) and the workload-aggregate writer (~L1301).
+  Adding it to the aggregate was trivial, so it was not skipped.
+- Also stamped `"env":"hibench"` into both writers (the brief's optional
+  self-describing-env step), keeping the Phase-2 path-based fallback. Old trees
+  (no field) and new trees (field present) therefore classify identically as
+  `env=hibench` — extractor output is unchanged either way. Extended the stamp
+  to the aggregate writer too (the brief mentioned per-rep) for symmetry.
+- Safe: no consumer depends on `env` being absent from HiBench run.json — plot
+  scripts/tests read the `env` column of derived TSVs (not run.json);
+  `hibench-sample-loss.py` reads only status/elapsed/samples; the script's own
+  `rep_is_complete()` resume check greps for `"status":"ok"` only.
+- Left the rare `profiler_start_failed` per-rep writer (printf, ~L1143)
+  untouched: no profiler.tsv → loss is N/A and the path fallback still
+  classifies it (minimal-change).
+- Validated: `bash -n` clean; both writers emit valid JSON; a synthetic tree
+  proves `extract-fragility.py` honors a recorded `sample_interval_s`
+  (interval=2 → loss 0 vs interval absent/=1 → loss 40 on the same 3-sample,
+  4 s-span profiler.tsv).

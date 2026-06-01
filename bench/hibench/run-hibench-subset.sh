@@ -1248,7 +1248,7 @@ run_workload_with_profiler() {
         [ "$rep_rc" -eq 0 ] && successful_reps=$((successful_reps + 1))
 
         cat > "$rep_outdir/run.json" <<EOF
-{"variant":"$variant","workload":"$workload_name","rep":$r,"elapsed_s":$run_elapsed,"samples":$rep_samples,"status":"$rep_status"}
+{"env":"hibench","variant":"$variant","workload":"$workload_name","rep":$r,"elapsed_s":$run_elapsed,"samples":$rep_samples,"sample_interval_s":$INTERVAL,"status":"$rep_status"}
 EOF
     done
 
@@ -1298,7 +1298,7 @@ EOF
     fi
 
     cat > "$workload_outdir/run.json" <<EOF
-{"variant":"$variant","workload":"$workload_name","elapsed_s":$total_elapsed,"repetitions":$r,"successful_repetitions":$successful_reps,"elapsed_series_s":$elapsed_series_json,"samples_series":$samples_series_json,"status_series":$status_series_json,"elapsed_mean_s":$elapsed_mean_s,"elapsed_stddev_s":$elapsed_stddev_s,"elapsed_cv_pct":$elapsed_cv_pct,"elapsed_min_s":$elapsed_min_s,"elapsed_max_s":$elapsed_max_s,"high_variation":$high_variation,"samples":$total_samples,"status":"$agg_status"}
+{"env":"hibench","variant":"$variant","workload":"$workload_name","elapsed_s":$total_elapsed,"repetitions":$r,"successful_repetitions":$successful_reps,"elapsed_series_s":$elapsed_series_json,"samples_series":$samples_series_json,"status_series":$status_series_json,"elapsed_mean_s":$elapsed_mean_s,"elapsed_stddev_s":$elapsed_stddev_s,"elapsed_cv_pct":$elapsed_cv_pct,"elapsed_min_s":$elapsed_min_s,"elapsed_max_s":$elapsed_max_s,"high_variation":$high_variation,"samples":$total_samples,"sample_interval_s":$INTERVAL,"status":"$agg_status"}
 EOF
     log "  [$variant] $workload_name — done (reps=${r} ok=${successful_reps} elapsed=${total_elapsed}s mean=${elapsed_mean_s}s std=${elapsed_stddev_s}s cv=${elapsed_cv_pct}% samples=${total_samples})"
     if [ "$high_variation" = "true" ]; then
