@@ -20,7 +20,7 @@ apply if you only need stress-ng + profilers.
 |---|---|---|
 | Server | Hetzner Server Auction (SB) | rented by user |
 | CPU | Intel Xeon Gold 5412U, Sapphire Rapids, 24C/48T | `metadata.txt` from any campaign |
-| Memory | 8 × 32 GiB DDR5-4800 ECC = 256 GiB nominal (251 free) | dmidecode |
+| Memory | 8 × 32 GiB DDR5-4800 ECC = 256 GiB nominal | dmidecode |
 | Storage | 2 × 1.92 TB NVMe (datacenter) | Hetzner spec |
 | Network | 2 × 1 GbE Intel X550-AT2; only `eno1` (195.201.193.143) carries traffic | `ip a` on host |
 | RDT support | Full: CMT, MBM, CAT, MBA | `shared/intp-detect.sh` |
