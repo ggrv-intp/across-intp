@@ -105,3 +105,20 @@ ignores `elapsed_s` and derives the window from the profiler `ts` column.
   proves `extract-fragility.py` honors a recorded `sample_interval_s`
   (interval=2 → loss 0 vs interval absent/=1 → loss 40 on the same 3-sample,
   4 s-span profiler.tsv).
+
+## D9 — Phase 4: reader/reviewer-facing data-quality section
+
+Added a "Data-quality / sample loss" section to the repo's tracked
+`sbac-results/README.md` (the scaffold README had none; the detailed copy lives
+only in the gitignored published payload). It gives the stress-ng and HiBench
+loss formulas, states that `extract-fragility.py` now emits real `env=hibench`
+rows, that `hibench-sample-loss.py` is the standalone backfill for old trees,
+and that future runs record `sample_interval_s`. Written for readers/reviewers
+with **no author-only notes** (per user guidance, 2026-06-01): it cites the
+canonical `fragility-hibench-aggregated.tsv` figures (v1.1 4.39% / max 73.08% /
+100-of-504 reps>5%) and explains the unified extractor's ~4.05% nuance for
+reviewers. The existing do-not-regenerate / v0.2-stalls-as-counts caveat (under
+Anonymization) is left intact and cross-referenced rather than duplicated, plus
+a note that `hibench-sample-loss.py` is safe to re-run on the published tree
+(writes only `fragility-hibench-*.tsv`) whereas `extract-fragility.py` would
+rewrite the stall-bearing tables.
