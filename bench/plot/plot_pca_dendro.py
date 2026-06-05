@@ -39,6 +39,29 @@ METRICS = ["netp", "nets", "blk", "mbw", "llcmr", "llcocc", "cpu"]
 VARIANT_ORDER = ["v0.2", "v1.1", "v2", "v3.2"]
 VARIANT_MARKERS = {"v0.2": "P", "v1.1": "o", "v2": "s", "v3.2": "*"}
 
+# Descriptive, paper-facing variant names. Figures show these instead of the
+# bare vN tags so a reader need not consult the variant table to know what a
+# panel measures. Canonical map: VERSIONS.md. The four measured versions are
+# stap-legacy (v0.2), stap-modern (v1.1), hybrid-c (v2) and ebpf-agg (v3.2).
+VARIANT_LABELS = {
+    "v0":   "stap-2022",
+    "v0.1": "stap-nollc",
+    "v0.2": "stap-legacy",
+    "v1":   "stap-nohelper",
+    "v1.1": "stap-modern",
+    "v2":   "hybrid-c",
+    "v2.1": "cgroup-native",
+    "v3":   "ebpf-ring",
+    "v3.1": "bpftrace",
+    "v3.2": "ebpf-agg",
+    "v3.3": "ebpf-cgroup",
+}
+
+
+def variant_label(v):
+    """Paper-facing descriptive name for a dataset variant tag."""
+    return VARIANT_LABELS.get(str(v), str(v))
+
 # Map a metric to the resource-family label used elsewhere in the paper.
 # Used to label K-means clusters by their dominant metric.
 METRIC_TO_FAMILY = {
@@ -162,12 +185,19 @@ def main(csv_path, outdir):
     ax_pca.grid(True, linestyle=":", alpha=0.4)
     ax_pca.tick_params(labelsize=8)
 
+    # Add top headroom so the in-panel legends sit in an empty band above the
+    # scatter. The descriptive variant names (stap-legacy, ebpf-agg, ...) are
+    # wider/taller than the old vN tags, so without this the upper-left
+    # "variant" legend overlaps the top points.
+    y0, y1 = ax_pca.get_ylim()
+    ax_pca.set_ylim(y0, y1 + 0.46 * (y1 - y0))
+
     # Two-column in-panel legend: variant markers on the left,
     # cluster colors as patches on the right.
     var_handles = [
         Line2D([0], [0], marker=VARIANT_MARKERS[v], color="w",
                markerfacecolor="lightgray", markeredgecolor="black",
-               markersize=7, label=v)
+               markersize=7, label=variant_label(v))
         for v in VARIANT_ORDER
     ]
     cluster_handles = [

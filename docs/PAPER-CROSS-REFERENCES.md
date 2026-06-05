@@ -38,8 +38,8 @@ campaign).
 **Where:** `results/<campaign>/bench-full/overhead/bare/<variant>/` after
 the run; `bench/plot/plot-intp-bench.py::fig_overhead_bars` materialises it.
 
-**Status:** partial. The email reports ±3–5% across V1.1/V2/V3/V3.1; final
-campaign should narrow this for V3 and V3.1 specifically.
+**Status:** partial. The email reports ±3–5% across stap-modern/hybrid-c/ebpf-ring/bpftrace; final
+campaign should narrow this for ebpf-ring and bpftrace specifically.
 
 ---
 
@@ -93,17 +93,17 @@ broader interference-measurement evolution.
 > demands debuginfo; eBPF with CO-RE is portable via BTF and verified
 > to terminate. resctrl is the userspace contract for RDT. Note
 > explicitly that the RCU-safe-context constraint on modern kernels is
-> what motivates V1.1's userspace-helper architecture.]
+> what motivates stap-modern's userspace-helper architecture.]
 
 **Source in repo:**
 - SystemTap fragility → `bench/findings/v1-modernization-reliability-findings.md`
   and `docs/KERNEL-6.8-CHANGES.md`.
 - RCU-safe-context constraint → `docs/KERNEL-6.8-CHANGES.md` and
-  `variants/v1.1-stap-helper/DESIGN.md`.
+  `variants/v1.1-stap-modern/DESIGN.md`.
 - eBPF CO-RE portability → `docs/PORTABILITY-ROADMAP.md` and
-  `variants/v3-ebpf-ringbuf/DESIGN.md`.
+  `variants/v3-ebpf-ring/DESIGN.md`.
 - resctrl as RDT contract → `docs/HARDWARE-COMPATIBILITY.md` and
-  `variants/v1-stap-only/docs/RESCTRL-VALIDATION.md`.
+  `variants/v1-stap-nohelper/docs/RESCTRL-VALIDATION.md`.
 
 **Status:** ready. Direct synthesis from the four documents above.
 
@@ -146,8 +146,8 @@ No TODOs in this section.
 **Source in repo:**
 - 281,600 MB/s default →
   `bench/findings/v1-modernization-reliability-findings.md` (host
-  config snapshot), V1.1 helper hardcoded defaults
-  (`variants/v1.1-stap-helper/intp-helper.c`), and the `INTP_MEM_BW_MBPS`
+  config snapshot), stap-modern helper hardcoded defaults
+  (`variants/v1.1-stap-modern/intp-helper.c`), and the `INTP_MEM_BW_MBPS`
   default exposed by `shared/intp-detect.sh`.
 - Cross-validation tool: `bench/calibration/` (Stream-like benchmark
   invoked via `bench/setup/setup-host.sh --calibrate`).
@@ -156,7 +156,7 @@ No TODOs in this section.
 
 **Status:** resolved. 281,600 MB/s is the canonical theoretical
 ceiling for the campaign; the empirical Stream measurement lives in
-`capabilities.env` next to each rep. V3.2 emits both `mbw_pct`
+`capabilities.env` next to each rep. ebpf-agg emits both `mbw_pct`
 (normalised against this ceiling) and `mbw_raw_mbps` (the raw byte
 rate) so consumers can detect either over-clipping or
 under-calibration directly from the TSV.
@@ -225,10 +225,10 @@ subsystems. Discuss directionality (which app is the antagonist) and
 which metric registers the strongest delta.
 
 **Status:** pending data. Note: the pre-fix data (email attachment
-`fig07_pairwise_heatmap_bare.png`) shows V2/V3.1 mbw and V3 llcmr
+`fig07_pairwise_heatmap_bare.png`) shows hybrid-c/bpftrace mbw and ebpf-ring llcmr
 zeroed — that's the bug evidence. The new run should fix all three.
 
-### V.D — Self-overhead (Fig. 4) `[TODO: V3/V3.1 < 1%; V2 1–3%; V1.1 higher]`
+### V.D — Self-overhead (Fig. 4) `[TODO: v3 (ebpf-ring)/v3.1 (bpftrace) < 1%; v2 (hybrid-c) 1–3%; v1.1 (stap-modern) higher]`
 
 **Figure source:** `bench/plot/plot-intp-bench.py::fig_overhead_bars`
 (produces `fig04_overhead_bars.png`).
@@ -237,7 +237,7 @@ zeroed — that's the bug evidence. The new run should fix all three.
 - Volpert et al. ICPE 2025 reports <1% for eBPF, ~2–3% for SystemTap
   on lightweight workloads. Our methodology mirrors theirs.
 - The email attachment `fig04_overhead_throughput.png` shows ±3–5% across
-  all variants on the pre-fix campaign, with V1.1 ref_disk being the
+  all variants on the pre-fix campaign, with stap-modern ref_disk being the
   outlier (5% with larger error bars) due to stap module load/unload
   cost between runs.
 
@@ -249,7 +249,7 @@ zeroed — that's the bug evidence. The new run should fix all three.
 (produces `fig03_timeseries.png`).
 
 **Discussion grounding:** identify any variant with non-trivial warm-up
-or drift over a 600-second window. The V1.1 helper has a 1-second
+or drift over a 600-second window. The stap-modern helper has a 1-second
 polling cadence; mbw and llcocc may show "stairs" early on.
 
 **Status:** pending data.
@@ -276,14 +276,14 @@ pagerank).
 
 ### VI.A — Portability and reliability cliffs
 
-> [TODO: Argue that V0/V0.1's compilation failure and V1's sustained-load
+> [TODO: Argue that stap-2022/stap-nollc's compilation failure and stap-nohelper's sustained-load
 > reliability degradation are themselves results, not missing data.
 > Connect to Volpert et al. on eBPF stability vs. SystemTap. Distinguish
-> portability (V0, V0.1) from reliability (V1) cliffs.]
+> portability (stap-2022, stap-nollc) from reliability (stap-nohelper) cliffs.]
 
 **Source in repo:**
-- V0 compilation failure → `bench/findings/v0-baseline-failure-diagnosis.md`.
-- V1 reliability under sustained load →
+- stap-2022 compilation failure → `bench/findings/v0-baseline-failure-diagnosis.md`.
+- stap-nohelper reliability under sustained load →
   `bench/findings/v1-modernization-reliability-findings.md`.
 - Volpert ICPE 2025 framing → `README.md` references and the
   `docs/PORTABILITY-ROADMAP.md`.
@@ -292,19 +292,19 @@ pagerank).
 
 ### VI.B — Where variants disagree, and why
 
-> [TODO: Identify any metric on which V1.1 and V2/V3/V3.1 systematically
+> [TODO: Identify any metric on which stap-modern and hybrid-c/ebpf-ring/bpftrace systematically
 > differ, and explain the likely cause: helper-side polling cadence
 > (1 s) versus eBPF tracepoint sampling, IMC unit selection on
 > Sapphire Rapids, system-wide vs. per-process attribution semantics
 > where applicable.]
 
 **Source in repo:**
-- 1-second polling cadence in V1.1 → `variants/v1.1-stap-helper/DESIGN.md` and
+- 1-second polling cadence in stap-modern → `variants/v1.1-stap-modern/DESIGN.md` and
   `docs/METRICS-DEEP-DIVE.md` § mbw.
-- IMC unit selection → `variants/v1.1-stap-helper/intp-helper.c` and
+- IMC unit selection → `variants/v1.1-stap-modern/intp-helper.c` and
   `docs/HARDWARE-COMPATIBILITY.md`.
 - @system vs per-process attribution → `docs/EXPERIMENT-STRATEGY.md`
-  § V1.1 dual-mode operation.
+  § stap-modern dual-mode operation.
 
 **Status:** partial. Material exists; the actual data-driven divergence
 will come from V.B (PCA agreement) once the new campaign finishes.

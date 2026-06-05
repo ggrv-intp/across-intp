@@ -1,4 +1,4 @@
-# V1 Modernization -- Reliability Findings on Modern Host
+# V1 (stap-nohelper) Modernization -- Reliability Findings on Modern Host
 
 **Date range:** 2026-05-01
 **Host:** intp-master (Hetzner SB)
@@ -10,13 +10,13 @@
 
 ## Objective
 
-Assess whether the V1 SystemTap path can be considered a reliable modernized
+Assess whether the V1 (stap-nohelper) SystemTap path can be considered a reliable modernized
 equivalent of the original IntP methodology, while preserving the 7-metric
 output contract.
 
 ---
 
-## What was improved in V1
+## What was improved in V1 (stap-nohelper)
 
 1. Build/runtime compatibility restored on kernel 6.8 via SystemTap 5.2 and
    script fixes.
@@ -41,7 +41,7 @@ output contract.
 2. **CPU metric path is the primary contention hotspot on SystemTap**
    - `timer.profile`/cpu-clock based collection causes lock contention under
      modern workloads.
-   - To stabilize V1 execution, CPU metric may need to be disabled (or moved
+   - To stabilize stap-nohelper execution, CPU metric may need to be disabled (or moved
      to userspace side-channel collection) while preserving TSV schema.
 
 3. **blk metric required defensive sanitization**
@@ -75,8 +75,8 @@ output contract.
      or out-of-band reboot access. In a shared-tenant or production
      environment, this is a hard blocker on running the SystemTap-based
      variants for sustained campaigns.
-   - **Implication for the framework comparison:** v2 (procfs polling), v3.1
-     (bpftrace) and v3 (eBPF/CO-RE) cannot reach this failure class by
+   - **Implication for the framework comparison:** hybrid-c (procfs polling),
+     bpftrace and ebpf-ring (eBPF/CO-RE) cannot reach this failure class by
      construction — none of them install kernel probes that can recursively
      enter kernel locks held by the probed code path. eBPF in particular is
      verified to terminate.
@@ -87,20 +87,20 @@ output contract.
 
 This finding supports a two-layer conclusion:
 
-1. **V1 is a successful compatibility bridge** for reproducing the legacy
+1. **stap-nohelper is a successful compatibility bridge** for reproducing the legacy
    methodology on modern kernels/hardware.
-2. **V1 is not the reliability endpoint**: V2/V3.1/V3/V3.2 remain more robust
+2. **stap-nohelper is not the reliability endpoint**: hybrid-c/bpftrace/ebpf-ring/ebpf-agg remain more robust
    for sustained benchmarking because they avoid the high-friction SystemTap
-   kernel instrumentation path. V1.1 (stap + userspace helper) recovers full
+   kernel instrumentation path. stap-modern (stap + userspace helper) recovers full
    7-metric coverage on modern kernels without putting RCU-unsafe operations
    in stap probe context.
 
 In practice:
 
-- Use V1 to preserve historical continuity and document legacy behavior.
-- Use V1.1, V2, or V3.2 as the reliability baseline for final comparative
+- Use stap-nohelper to preserve historical continuity and document legacy behavior.
+- Use stap-modern, hybrid-c, or ebpf-agg as the reliability baseline for final comparative
   claims (these are three of the four "measured result" variants for the
-  paper; the fourth is V0.2 on the U22 / kernel 5.15 leg).
+  paper; the fourth is stap-legacy on the U22 / kernel 5.15 leg).
 
 ---
 
@@ -108,12 +108,12 @@ In practice:
 
 When presenting results, explicitly separate:
 
-1. **Historical comparability** (V0/V1 lineage).
-2. **Operational reliability** (V2/V3.1/V3).
+1. **Historical comparability** (stap-2022/stap-nohelper lineage).
+2. **Operational reliability** (hybrid-c/bpftrace/ebpf-ring).
 
 Recommended phrasing:
 
-> The modernization of the original SystemTap methodology (V1) restored
+> The modernization of the original SystemTap methodology (stap-nohelper) restored
 > functional portability but retained non-negligible runtime fragility under
-> high probe pressure. This gap motivated the framework transition in V2-V3,
+> high probe pressure. This gap motivated the framework transition in hybrid-c/ebpf-ring,
 > which improved repeatability and reduced instrumentation-induced loss.

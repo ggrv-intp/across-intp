@@ -1,4 +1,4 @@
-# V0 Baseline — Compilation failure diagnosis
+# v0 (stap-2022) Baseline — Compilation failure diagnosis
 
 **Diagnosis date:** 2026-04-30
 **Host:** intp-v1-baseline
@@ -10,9 +10,9 @@
 
 ## Context
 
-The V0 baseline campaign was executed on this host with archived data
+The v0 (stap-2022) baseline campaign was executed on this host with archived data
 in `v1-full-campaign-all-envs/`. Reviewing the results showed that
-every V0 run produced `samples=0` and every metric in
+every stap-2022 run produced `samples=0` and every metric in
 `aggregate-means.tsv` was marked as `--`.
 
 Investigation of the profiler logs (`profiler.stap.log`) revealed
@@ -50,12 +50,12 @@ echo 'probe begin { println("stap ok"); exit() }' | sudo stap -
 
 ## Root cause
 
-The `cqm_rmid` field of `struct hw_perf_event`, used by V0 to bind
+The `cqm_rmid` field of `struct hw_perf_event`, used by stap-2022 to bind
 an Intel RDT RMID to a kernel perf event, **was removed or
 refactored** in Ubuntu HWE's
 `linux-headers-6.5.0-45.45~22.04.1`.
 
-V0 assumes direct access to that internal field in two probe
+stap-2022 assumes direct access to that internal field in two probe
 locations:
 
 ```c
@@ -70,7 +70,7 @@ additional **redefinition error** when SystemTap tries to redeclare
 them in the generated code.
 
 The result is four fatal errors at Pass 4, identical across **all**
-logs of every V0 run (bare, container, vm):
+logs of every stap-2022 run (bare, container, vm):
 
 ```
 error: "MSR_IA32_QM_CTR" redefined [-Werror]
@@ -106,7 +106,7 @@ the backport. None of those paths are portable today.
 
 ## Conclusion for the paper
 
-V0 **cannot compile** on this kernel without modifications to the
+stap-2022 **cannot compile** on this kernel without modifications to the
 probe, regardless of how many times it is re-run. The `cqm_rmid`
 field was removed as part of the perf/RDT internal-interface
 refactor that Canonical incorporated into the HWE package
@@ -115,15 +115,15 @@ falls within the documented "supported" range.
 
 This directly motivates:
 
-- **V0.1**: minimal patch that removes the `cqm_rmid` dependency and
+- **v0.1 (stap-nollc)**: minimal patch that removes the `cqm_rmid` dependency and
   the MSR conflict, at the cost of dropping `llcocc`.
-- **V1**: 7-metric coverage restored via `/sys/fs/resctrl`, with no
+- **v1 (stap-nohelper)**: 7-metric coverage restored via `/sys/fs/resctrl`, with no
   dependency on internal `hw_perf_event` fields.
-- **V2/V3.1/V3**: SystemTap-free approaches that are immune to this
+- **v2 (hybrid-c)/v3.1 (bpftrace)/v3 (ebpf-ring)**: SystemTap-free approaches that are immune to this
   kind of ABI drift.
 
 The campaign archived under `v1-full-campaign-all-envs/` should be
-cited in the paper as **evidence of V0 portability breakage**, not
+cited in the paper as **evidence of stap-2022 portability breakage**, not
 as performance data.
 
 ---
@@ -131,8 +131,8 @@ as performance data.
 ## Internal references
 
 - Failure logs: `v1-full-campaign-all-envs/**/profiler.stap.log` (line 19+)
-- Sample index: `v1-full-campaign-all-envs/index.tsv` (every V0 row has `samples=0`)
-- Aggregates: `v1-full-campaign-all-envs/aggregate-means.tsv` (every V0 column is `--`)
+- Sample index: `v1-full-campaign-all-envs/index.tsv` (every stap-2022 row has `samples=0`)
+- Aggregates: `v1-full-campaign-all-envs/aggregate-means.tsv` (every stap-2022 column is `--`)
 - Problem documentation: `docs/KERNEL-6.8-CHANGES.md`
-- Resolving patch: `variants/v0.1-min-patch/intp-6.8.stp`
+- Resolving patch: `variants/v0.1-stap-nollc/intp-6.8.stp`
 - Baseline bootstrap: `bench/setup/setup-host.sh`, function `install_legacy_stack()`

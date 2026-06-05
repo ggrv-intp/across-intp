@@ -1,4 +1,4 @@
-# V2 -- Hybrid procfs / perf_event / resctrl Implementation
+# V2 (hybrid-c) -- Hybrid procfs / perf_event / resctrl Implementation
 
 IntP rebuilt using only stable Linux kernel interfaces. No SystemTap, no
 eBPF, no kernel modules, no debuginfo. The dissertation's claim that all
@@ -7,7 +7,7 @@ proven empirically by this binary.
 
 ## Architecture in one sentence
 
-V2 is a runtime-adaptive hierarchy of backends -- each metric carries an
+V2 (hybrid-c) is a runtime-adaptive hierarchy of backends -- each metric carries an
 ordered list of (probe, init, read, cleanup) backends, the runtime picks
 the first backend that probes successfully on the current host, and the
 output declares which backend supplied each value so consumers can tell

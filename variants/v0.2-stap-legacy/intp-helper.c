@@ -10,7 +10,7 @@
  * the IMC events via perf_event_open(2) and exposing LLC occupancy via
  * the resctrl mon_groups filesystem.
  *
- * The architecture mirrors variants/v1.1-stap-helper/intp-helper.c. The two
+ * The architecture mirrors variants/v1.1-stap-modern/intp-helper.c. The two
  * substantive differences:
  *
  *   - Uncore IMC PMU types are configurable via env (the 2022 paper dev

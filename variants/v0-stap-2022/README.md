@@ -1,7 +1,7 @@
-# V0 -- Original IntP (SystemTap, requires `intel_cqm` driver)
+# v0 (stap-2022) -- Original IntP (SystemTap, requires `intel_cqm` driver)
 
 Reference baseline used for portability and metric-fidelity comparison.
-This directory holds the canonical V0 script (`intp.stp`, 660 lines)
+This directory holds the canonical stap-2022 script (`intp.stp`, 660 lines)
 preserved unchanged from the 2022 IntP paper, plus the template and
 generator that recalibrate it for any host other than the original
 PUCRS dev machine.
@@ -19,18 +19,18 @@ The canonical script also remains useful for:
 
 ## Workflow
 
-V0 is measured on Ubuntu 22.04 + kernel 5.15 in the legacy-V0 campaign:
+stap-2022 is measured on Ubuntu 22.04 + kernel 5.15 in the legacy-V0 campaign:
 
 ```
 shared/intp-detect.sh                  hardware values from sysfs
         │
         ▼
-variants/v0-baseline-2022/intp.stp.template      placeholder script (read-only)
+variants/v0-stap-2022/intp.stp.template      placeholder script (read-only)
         │
         ▼  generate-stp.sh substitutes placeholders + logs KEY=VALUE
         │
         ▼
-variants/v0-baseline-2022/intp.recal.stp         what stap actually loads
+variants/v0-stap-2022/intp.recal.stp         what stap actually loads
                                        (gitignored, regenerated per run)
 ```
 
@@ -44,7 +44,7 @@ profiler and captures forensic snapshots on stall indicators.
 
 ## Files
 
-- `intp.stp` -- the canonical V0 SystemTap script. **Read-only**; do not
+- `intp.stp` -- the canonical stap-2022 SystemTap script. **Read-only**; do not
   modify. Contract with the 2022 paper baseline.
 - `intp.stp.template` -- byte-for-byte copy of `intp.stp` with hardware
   constants replaced by `@@PLACEHOLDER@@` tokens. Edited only when the
@@ -53,7 +53,7 @@ profiler and captures forensic snapshots on stall indicators.
   placeholders, writes `intp.recal.stp`. Prints a `KEY=VALUE` calibration log
   on stdout (captured per-rep as `<rep>/...v0-calibration.kv`).
 - `intp.recal.stp` -- the recalibrated script actually loaded by `stap`.
-  Gitignored; regenerated on every V0 run.
+  Gitignored; regenerated on every stap-2022 run.
 
 ## Recalibration constants
 
@@ -94,11 +94,11 @@ Constants **not** placed via the template:
   `QM_EVTSEL` redefinitions in the embedded C blocks additionally
   conflict with `<asm/msr-index.h>` on any kernel that already
   defines them, which compounds the failure mode on modern headers.
-  For modern kernels use V0.1 (`variants/v0.1-min-patch/`), V1
-  (`variants/v1-stap-only/`), or V1.1 (`variants/v1.1-stap-helper/`).
+  For modern kernels use stap-nollc (`variants/v0.1-stap-nollc/`), stap-nohelper
+  (`variants/v1-stap-nohelper/`), or stap-modern (`variants/v1.1-stap-modern/`).
 - Hardware constants (1 GbE NIC, 34 GB/s memory bandwidth, 34 MB LLC,
   IMC PMU type 14, CMT scale factor 49152) reflect the 2022 PUCRS dev
-  machine. Variants V2/V3/V3.1 autodetect these via
+  machine. Variants hybrid-c/ebpf-ring/bpftrace autodetect these via
   `shared/intp-detect.sh`.
 
 ## See also
@@ -109,4 +109,4 @@ Constants **not** placed via the template:
 - Top-level [README.md](../README.md) -- variant matrix and quick start.
 - [VERSIONS.md](../VERSIONS.md) -- legacy ↔ current naming map.
 - [METRICS-ALIGNMENT.md](../METRICS-ALIGNMENT.md) -- per-metric formulas
-  across all variants, with V0 as reference.
+  across all variants, with stap-2022 as reference.

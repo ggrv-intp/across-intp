@@ -2,9 +2,9 @@
 /results/
 
 # Compiled binaries (one per implementation variant)
-variants/v1.1-stap-helper/intp-helper
+variants/v1.1-stap-modern/intp-helper
 variants/v2-hybrid-c/intp-hybrid
-variants/v3-ebpf-ringbuf/intp-ebpf
+variants/v3-ebpf-ring/intp-ebpf
 variants/v3.2-ebpf-agg/intp-ebpf-agg
 
 # Generic C/C++ build artifacts
@@ -16,9 +16,9 @@ variants/v3.2-ebpf-agg/intp-ebpf-agg
 *.la
 
 # eBPF skeleton headers (generated from .bpf.o)
-variants/v3-ebpf-ringbuf/*.skel.h
-variants/v3-ebpf-ringbuf/**/*.skel.h
-variants/v3-ebpf-ringbuf/build/
+variants/v3-ebpf-ring/*.skel.h
+variants/v3-ebpf-ring/**/*.skel.h
+variants/v3-ebpf-ring/build/
 variants/v3.2-ebpf-agg/*.skel.h
 variants/v3.2-ebpf-agg/**/*.skel.h
 variants/v3.2-ebpf-agg/build/

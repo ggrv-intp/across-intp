@@ -70,6 +70,30 @@ SAVE_DPI = 130
 FORMATS: list[str] = ["png", "pdf"]
 
 
+# Descriptive, paper-facing variant names. Figures show these instead of the
+# bare vN tags so a reader need not consult the variant table to know what a
+# panel measures. Canonical map: VERSIONS.md. The four measured versions are
+# stap-legacy (v0.2), stap-modern (v1.1), hybrid-c (v2) and ebpf-agg (v3.2).
+VARIANT_LABELS = {
+    "v0":   "stap-2022",
+    "v0.1": "stap-nollc",
+    "v0.2": "stap-legacy",
+    "v1":   "stap-nohelper",
+    "v1.1": "stap-modern",
+    "v2":   "hybrid-c",
+    "v2.1": "cgroup-native",
+    "v3":   "ebpf-ring",
+    "v3.1": "bpftrace",
+    "v3.2": "ebpf-agg",
+    "v3.3": "ebpf-cgroup",
+}
+
+
+def variant_label(v):
+    """Paper-facing descriptive name for a dataset variant tag."""
+    return VARIANT_LABELS.get(str(v), str(v))
+
+
 # ---------------------------------------------------------------------------
 # Loading
 # ---------------------------------------------------------------------------
@@ -348,7 +372,7 @@ def render_panels(
     # Hide unused axes
     for j in range(n, nrows * ncols):
         axes[j // ncols][j % ncols].axis("off")
-    fig.suptitle(f"{variant} · {workload}", fontsize=11)
+    fig.suptitle(f"{variant_label(variant)} · {workload}", fontsize=11)
     fig.tight_layout(rect=(0, 0, 1, 0.96))
     if not any_data:
         plt.close(fig)

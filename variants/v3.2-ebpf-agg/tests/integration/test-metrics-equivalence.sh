@@ -16,7 +16,7 @@ set -eu
 
 # Sibling variant under variants/; this test is run with CWD = the v3.2
 # variant root (where ./intp-ebpf-agg sits), so the sibling is one level up.
-V3_BIN=${V3_BIN:-../v3-ebpf-ringbuf/intp-ebpf}
+V3_BIN=${V3_BIN:-../v3-ebpf-ring/intp-ebpf}
 V32_BIN=${V32_BIN:-./intp-ebpf-agg}
 DUR=${DUR:-30}
 REL_TOL=${REL_TOL:-0.15}    # 15% fractional tolerance
@@ -28,7 +28,7 @@ if [ ! -x "$V32_BIN" ]; then
     exit 1
 fi
 if [ ! -x "$V3_BIN" ]; then
-    echo "SKIP: $V3_BIN not built (run 'make' in variants/v3-ebpf-ringbuf first)"
+    echo "SKIP: $V3_BIN not built (run 'make' in variants/v3-ebpf-ring first)"
     exit 77
 fi
 if [ "$(id -u)" -ne 0 ]; then

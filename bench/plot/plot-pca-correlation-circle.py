@@ -97,6 +97,29 @@ VARIANT_COLORS = {
     "v3.2": "#d62728",
 }
 
+# Descriptive, paper-facing variant names. Figures show these instead of the
+# bare vN tags so a reader need not consult the variant table to know what a
+# panel measures. Canonical map: VERSIONS.md. The four measured versions are
+# stap-legacy (v0.2), stap-modern (v1.1), hybrid-c (v2) and ebpf-agg (v3.2).
+VARIANT_LABELS = {
+    "v0":   "stap-2022",
+    "v0.1": "stap-nollc",
+    "v0.2": "stap-legacy",
+    "v1":   "stap-nohelper",
+    "v1.1": "stap-modern",
+    "v2":   "hybrid-c",
+    "v2.1": "cgroup-native",
+    "v3":   "ebpf-ring",
+    "v3.1": "bpftrace",
+    "v3.2": "ebpf-agg",
+    "v3.3": "ebpf-cgroup",
+}
+
+
+def variant_label(v):
+    """Paper-facing descriptive name for a dataset variant tag."""
+    return VARIANT_LABELS.get(str(v), str(v))
+
 
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description=__doc__,
@@ -280,7 +303,7 @@ def plot_scores(ax, centroids: pd.DataFrame, scores: np.ndarray,
         color = VARIANT_COLORS.get(variant, "#333333")
         ax.scatter(sub["pc1"], sub["pc2"],
                    s=42, color=color, edgecolor="black", lw=0.4,
-                   alpha=0.85, label=f"{variant}  (n={len(sub)})",
+                   alpha=0.85, label=f"{variant_label(variant)}  (n={len(sub)})",
                    zorder=2)
 
     ax.axhline(0, color="gray", lw=0.5, linestyle=":")

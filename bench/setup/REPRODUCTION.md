@@ -2,7 +2,7 @@
 
 End-to-end recipe to reproduce the IntP campaign host. Everything in
 **Sections 1-7** is whole-machine setup that applies to **stress-ng,
-profilers (V1.1/V2/V3/V3.1), CloudSim/IADA, and any other workload**.
+profilers (stap-modern/hybrid-c/ebpf-ring/bpftrace), CloudSim/IADA, and any other workload**.
 Section 8 is HiBench/Hadoop-specific and is the only piece that doesn't
 apply if you only need stress-ng + profilers.
 
@@ -58,12 +58,12 @@ boot-order toggle):
 
 | Disk | Distro | Kernel | Used for |
 |---|---|---|---|
-| `nvme0n1` | Ubuntu 22.04 LTS (jammy) + HWE 6.5 | 6.5.x pinned | V0 baseline (kernel must be ≤6.7) |
-| `nvme1n1` | Ubuntu 24.04 LTS (noble) | 6.8.0-111-generic stock | V0.1, V1, V1.1, V2, V3, V3.1 |
+| `nvme0n1` | Ubuntu 22.04 LTS (jammy) + HWE 6.5 | 6.5.x pinned | V0 (stap-2022) baseline (kernel must be ≤6.7) |
+| `nvme1n1` | Ubuntu 24.04 LTS (noble) | 6.8.0-111-generic stock | stap-nollc, stap-nohelper, stap-modern, hybrid-c, ebpf-ring, bpftrace |
 
 The current campaign runs on **noble (nvme1n1)**. Templates:
 
-- `bench/setup/installimage-jammy.conf` — V0 baseline OS
+- `bench/setup/installimage-jammy.conf` — stap-2022 baseline OS
 - `bench/setup/installimage-noble.conf` — modern OS
 
 Reproduction steps (Hetzner Rescue System):
@@ -104,7 +104,7 @@ It auto-detects jammy vs noble and does, in order:
 5. **Profile-specific software**:
    - **jammy**: SystemTap 5.2 from source, intel-cmt-cat, kernel debuginfo via ddebs, `stap-prep`
    - **noble**: systemtap + systemtap-runtime (apt), bpftrace, clang/llvm/libbpf-dev/libelf-dev/pahole, kernel-headers, kernel debuginfo
-6. **Builds V2 and V3** (`make -C variants/v2-hybrid-c`, `make -C variants/v3-ebpf-ringbuf`).
+6. **Builds hybrid-c and ebpf-ring** (`make -C variants/v2-hybrid-c`, `make -C variants/v3-ebpf-ring`).
 7. **Self-tests** for each profiler.
 
 Idempotent — safe to re-run. Logs to stdout.
@@ -131,12 +131,12 @@ deterministic CPU freq.
 ### Why this exists
 
 stress-ng `--sock` and `--udp` default to `127.0.0.1`. Loopback bypasses
-`__dev_queue_xmit` against any real device, so the V3/V3.1 tracepoints
-filter `lo` ([intp.bpf.c:148-161](../../variants/v3-ebpf-ringbuf/src/intp.bpf.c#L148-L161),
-[netp.bt:28-38](../../variants/v3.1-bpftrace/scripts/netp.bt#L28-L38)) and V2's
+`__dev_queue_xmit` against any real device, so the ebpf-ring/bpftrace tracepoints
+filter `lo` ([intp.bpf.c:148-161](../../variants/v3-ebpf-ring/src/intp.bpf.c#L148-L161),
+[netp.bt:28-38](../../variants/v3.1-bpftrace/scripts/netp.bt#L28-L38)) and hybrid-c's
 `/proc/softirqs` NET_RX/TX path is kernel-bypassed for `lo`. **All three
 return zero for `netp`/`nets` on synthetic loopback workloads, by design.**
-V1.1 stap probes higher in the TCP stack and remains sensitive.
+stap-modern stap probes higher in the TCP stack and remains sensitive.
 
 ### What's deployed on `intp-master` right now (verified May 2026)
 
@@ -164,7 +164,7 @@ server (in netns) + client (on host) for any duration. Used as a
 sudo bench/setup/run-net-pair-workload.sh -d 90 -P 16
 ```
 
-This makes V2/V3/V3.1 emit nonzero `netp`/`nets` (since `intp-veth-h`
+This makes hybrid-c/ebpf-ring/bpftrace emit nonzero `netp`/`nets` (since `intp-veth-h`
 is not literal `lo` and `__dev_queue_xmit` fires). It is **not wired
 into the bench WORKLOADS array** — must be invoked manually around a
 profiler run, or extended into a new workload entry.
@@ -308,7 +308,7 @@ which stap && stap -V
 variants/v2-hybrid-c/intp-hybrid --list-backends
 
 # V3 (eBPF/libbpf)
-variants/v3-ebpf-ringbuf/intp-ebpf --list-capabilities
+variants/v3-ebpf-ring/intp-ebpf --list-capabilities
 ls /sys/kernel/btf/vmlinux   # must exist
 
 # V3.1 (bpftrace)
@@ -374,8 +374,8 @@ datanode/master overhead doesn't pollute the profiler signal, and so
 runs are deterministic single-host. Datasets stay readable because Phase
 A wrote them and `file:///` mode reads them from the same paths.
 
-The tradeoff (consequence of this choice): V2/V3/V3.1 see zero `netp`/
-`nets` for HiBench because Spark internal traffic is loopback. V1.1
+The tradeoff (consequence of this choice): hybrid-c/ebpf-ring/bpftrace see zero `netp`/
+`nets` for HiBench because Spark internal traffic is loopback. stap-modern
 captures it because it probes higher in the stack.
 
 ### Reproduction
@@ -404,8 +404,8 @@ by [bench/setup/setup-distributed-mode.sh](setup-distributed-mode.sh):
 - Spark Master + Worker bind to **10.42.0.1**
 - HiBench Spark Driver runs **inside netns intp-app** (10.42.0.2) and
   reaches Master/NameNode by traversing `intp-veth-h ↔ intp-veth-g`
-- All RPC packets cross a real device (not `lo`), so V2/V3/V3.1 detect
-  netp/nets > 0 (V2 via softirq counts, V3/V3.1 via tracepoints that
+- All RPC packets cross a real device (not `lo`), so hybrid-c/ebpf-ring/bpftrace detect
+  netp/nets > 0 (hybrid-c via softirq counts, ebpf-ring/bpftrace via tracepoints that
   filter only literal `lo`)
 
 **Caveat about bind-only solutions**: just binding HDFS/Spark to

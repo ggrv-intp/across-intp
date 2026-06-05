@@ -82,14 +82,14 @@ echo "  hibench_variants=$SMOKE_HIBENCH_VARIANTS  noise_floor_variant=$SMOKE_NF_
 run_step "detect host capabilities" bash shared/intp-detect.sh
 
 # ── Builds — every variant run-big-batch.sh can measure ──────────────────────
-run_step "v0.2 build" make -C variants/v0.2-legacy-bridge clean all
-run_step "v1.1 build" make -C variants/v1.1-stap-helper clean all
+run_step "v0.2 build" make -C variants/v0.2-stap-legacy clean all
+run_step "v1.1 build" make -C variants/v1.1-stap-modern clean all
 run_step "v2 build" make -C variants/v2-hybrid-c clean all
 run_step "v2 unit tests" make -C variants/v2-hybrid-c run-tests
 run_step "v3.1 deps" make -C variants/v3.1-bpftrace deps
 run_step "v3.1 tests" make -C variants/v3.1-bpftrace test
-run_step "v3 build" make -C variants/v3-ebpf-ringbuf clean all
-run_step "v3 load/attach test" make -C variants/v3-ebpf-ringbuf test
+run_step "v3 build" make -C variants/v3-ebpf-ring clean all
+run_step "v3 load/attach test" make -C variants/v3-ebpf-ring test
 run_step "v3.2 build" make -C variants/v3.2-ebpf-agg clean all
 
 run_step "cross-variant modern quick" \

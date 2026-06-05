@@ -6,7 +6,7 @@
  * iface, a kernel version, etc.). Detailed per-platform checks are
  * out of scope.
  *
- * Build (from variants/v3-ebpf-ringbuf/):
+ * Build (from variants/v3-ebpf-ring/):
  *   cc -I detect -I src -o tests/unit/test-detect \
  *      tests/unit/test-detect.c detect/detect.c
  */

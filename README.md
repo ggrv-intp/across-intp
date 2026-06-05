@@ -7,9 +7,9 @@ profiler that collects 7 metrics from the Linux kernel. The variants are
 organized for systematic comparison as part of a Master's dissertation on
 kernel instrumentation for interference profiling (PPGCC/PUCRS, advisor
 Prof. Cesar De Rose). The research compares the original SystemTap-based IntP
-across kernel eras (V0 / V0.1 / V0.2), an RCU-safe stap+helper hybrid (V1.1),
-and modern instrumentation approaches (procfs polling — V2; bpftrace — V3.1;
-eBPF/CO-RE — V3 ring-buffer-streaming; eBPF/CO-RE — V3.2 in-kernel-aggregating)
+across kernel eras (V0 (stap-2022) / V0.1 (stap-nollc) / V0.2 (stap-legacy)), an RCU-safe stap+helper hybrid (V1.1 (stap-modern)),
+and modern instrumentation approaches (procfs polling — V2 (hybrid-c); bpftrace — V3.1 (bpftrace);
+eBPF/CO-RE — V3 (ebpf-ring) ring-buffer-streaming; eBPF/CO-RE — V3.2 (ebpf-agg) in-kernel-aggregating)
 to evaluate portability, safety, and measurement-fidelity trade-offs.
 
 ## About
@@ -33,24 +33,24 @@ the original SystemTap approach across kernel versions and hardware architecture
 
 ### Research Goals
 
-1. Reproduce the original IntP baseline (V0) and document breakage on kernel 6.8+.
-2. Develop minimal patches to restore functionality on current kernels (V0.1, V1) and stap+helper hybrids that recover full metric coverage without RCU-unsafe operations: V0.2 on kernel 5.15 GA (Ubuntu 22.04, paper-faithful V0 semantics) and V1.1 on kernel 6.8+.
-3. Implement kernel-module-free alternatives using procfs/perf_event (V2), bpftrace (V3.1), and eBPF/CO-RE (V3).
+1. Reproduce the original IntP baseline (stap-2022) and document breakage on kernel 6.8+.
+2. Develop minimal patches to restore functionality on current kernels (stap-nollc, stap-nohelper) and stap+helper hybrids that recover full metric coverage without RCU-unsafe operations: stap-legacy on kernel 5.15 GA (Ubuntu 22.04, paper-faithful stap-2022 semantics) and stap-modern on kernel 6.8+.
+3. Implement kernel-module-free alternatives using procfs/perf_event (hybrid-c), bpftrace, and eBPF/CO-RE (ebpf-ring).
 4. Compare all nine variants across portability, safety, deployment complexity, and measurement fidelity dimensions.
 
 ### Status
 
 | Variant | Status |
 | --------- | -------- |
-| V0 -- Original (SystemTap, needs `intel_cqm` driver — mainline removed it in 4.14) | Original baseline; in practice runs only on kernel < 4.4 or custom compiled for cqm_rmid field comaptibility) |
-| V0.1 -- Updated (SystemTap, 6.8+, LLC disabled) | Complete |
-| V0.2 -- Stap + userspace helper (SystemTap, 5.15 GA, V0-faithful, RCU-safe) | Complete; validated on Hetzner Sapphire Rapids for Phase 3 experiments (UB22 boot) |
-| V1 -- Stap-native (SystemTap, 6.8+, mbw/llcocc disabled) | Complete |
-| V1.1 -- Stap + userspace helper (SystemTap, 6.8+, full metrics, RCU-safe) | Complete (helper, `.stp`, and bench integration done; HiBench distributed-mode limitation documented in METRICS-ALIGNMENT.md) |
-| V2 -- C / procfs / perf_event / resctrl | Complete; validated on Hetzner Sapphire Rapids for Phase 3 experiments |
-| V3.1 -- bpftrace + Python orchestrator | Complete; validated on Hetzner Sapphire Rapids for Phase 3 experiments |
-| V3 -- eBPF/CO-RE (libbpf, ring-buffer-streaming) | Complete; validated on Hetzner Sapphire Rapids for Phase 3 experiments |
-| V3.2 -- eBPF/CO-RE (libbpf, in-kernel-aggregating, paper section VIII) | Complete; validated on Hetzner Sapphire Rapids for Phase 3 experiments |
+| V0 (stap-2022) -- Original (SystemTap, needs `intel_cqm` driver — mainline removed it in 4.14) | Original baseline; in practice runs only on kernel < 4.4 or custom compiled for cqm_rmid field comaptibility) |
+| V0.1 (stap-nollc) -- Updated (SystemTap, 6.8+, LLC disabled) | Complete |
+| V0.2 (stap-legacy) -- Stap + userspace helper (SystemTap, 5.15 GA, stap-2022-faithful, RCU-safe) | Complete; validated on Hetzner Sapphire Rapids for Phase 3 experiments (UB22 boot) |
+| V1 (stap-nohelper) -- Stap-native (SystemTap, 6.8+, mbw/llcocc disabled) | Complete |
+| V1.1 (stap-modern) -- Stap + userspace helper (SystemTap, 6.8+, full metrics, RCU-safe) | Complete (helper, `.stp`, and bench integration done; HiBench distributed-mode limitation documented in METRICS-ALIGNMENT.md) |
+| V2 (hybrid-c) -- C / procfs / perf_event / resctrl | Complete; validated on Hetzner Sapphire Rapids for Phase 3 experiments |
+| V3.1 (bpftrace) -- bpftrace + Python orchestrator | Complete; validated on Hetzner Sapphire Rapids for Phase 3 experiments |
+| V3 (ebpf-ring) -- eBPF/CO-RE (libbpf, ring-buffer-streaming) | Complete; validated on Hetzner Sapphire Rapids for Phase 3 experiments |
+| V3.2 (ebpf-agg) -- eBPF/CO-RE (libbpf, in-kernel-aggregating, paper section VIII) | Complete; validated on Hetzner Sapphire Rapids for Phase 3 experiments |
 
 ### Citation
 
@@ -107,13 +107,13 @@ x = supported, ~ = polling approximation, - = disabled in this build
 |   |-- intp-detect.sh         Hardware capability detection
 |   |-- intp-resctrl-helper.sh resctrl companion daemon
 |-- variants/                  One directory per IntP implementation variant
-|   |-- v0-baseline-2022/      Unmodified 2022 IntP (SystemTap, kernel <=6.6)
-|   |-- v0.1-min-patch/        Kernel 6.8 patch (LLC occupancy disabled)
-|   |-- v0.2-legacy-bridge/    Kernel 5.15 GA, V0-faithful stap + userspace helper (RCU-safe)
-|   |-- v1-stap-only/          Kernel 6.8+, stap-native probes (mbw/llcocc disabled)
-|   |-- v1.1-stap-helper/      Kernel 6.8+, stap + userspace helper (full 7 metrics, RCU-safe)
+|   |-- v0-stap-2022/      Unmodified 2022 IntP (SystemTap, kernel <=6.6)
+|   |-- v0.1-stap-nollc/        Kernel 6.8 patch (LLC occupancy disabled)
+|   |-- v0.2-stap-legacy/    Kernel 5.15 GA, V0-faithful stap + userspace helper (RCU-safe)
+|   |-- v1-stap-nohelper/          Kernel 6.8+, stap-native probes (mbw/llcocc disabled)
+|   |-- v1.1-stap-modern/      Kernel 6.8+, stap + userspace helper (full 7 metrics, RCU-safe)
 |   |-- v2-hybrid-c/           Pure C: procfs / perf_event_open / resctrl
-|   |-- v3-ebpf-ringbuf/       Full eBPF/CO-RE with libbpf (ring-buffer-streaming)
+|   |-- v3-ebpf-ring/       Full eBPF/CO-RE with libbpf (ring-buffer-streaming)
 |   |-- v3.1-bpftrace/         bpftrace scripts + Python orchestrator + resctrl
 |   |-- v3.2-ebpf-agg/         Full eBPF/CO-RE with libbpf (in-kernel-aggregating, paper section VIII)
 |-- VERSIONS.md                Variant-naming map (current vs legacy pre-2026-05-05)
@@ -121,28 +121,28 @@ x = supported, ~ = polling approximation, - = disabled in this build
 
 ## Quick Start
 
-### V0 -- Original IntP (kernel <= 6.6)
+### V0 (stap-2022) -- Original IntP (kernel <= 6.6)
 
 ```bash
-cd variants/v0-baseline-2022
+cd variants/v0-stap-2022
 sudo stap -g intp.stp <PID> <interval_ms>
 ```
 
 Requires: SystemTap, kernel debuginfo, kernel <= 6.6.
 
-### V0.1 -- Updated for Kernel 6.8 (LLC disabled)
+### V0.1 (stap-nollc) -- Updated for Kernel 6.8 (LLC disabled)
 
 ```bash
-cd variants/v0.1-min-patch
+cd variants/v0.1-stap-nollc
 sudo stap -g intp-6.8.stp <PID> <interval_ms>
 ```
 
 Requires: SystemTap, kernel debuginfo, kernel 6.8+. Note: llcocc returns 0.
 
-### V0.2 -- V0-faithful + userspace helper (kernel 5.15 GA / Ubuntu 22.04)
+### V0.2 (stap-legacy) -- stap-2022-faithful + userspace helper (kernel 5.15 GA / Ubuntu 22.04)
 
 ```bash
-cd variants/v0.2-legacy-bridge
+cd variants/v0.2-stap-legacy
 make
 sudo INTP_HELPER_IMC_PMU_TYPE=14 \
      INTP_HELPER_DRAM_BW_MBPS=34000 \
@@ -155,26 +155,26 @@ sudo stap -g intp.recal.stp <comm-pattern>
 
 Requires: SystemTap, kernel debuginfo, **kernel 5.15 GA (Ubuntu 22.04)**,
 Intel RDT (resctrl) for `llcocc`, uncore IMC PMU for `mbw`. Same helper
-pattern as V1.1, but the SystemTap script keeps the paper-faithful V0
+pattern as stap-modern, but the SystemTap script keeps the paper-faithful stap-2022
 probes (no softirq tapset switch). The helper isolates the two RCU-unsafe
 operations (uncore IMC perf events, cqm_rmid LLC occupancy) from probe
-context, eliminating V0's fragility cliff on the Canonical RCU-backport
+context, eliminating stap-2022's fragility cliff on the Canonical RCU-backport
 kernel.
 
-### V1 -- Stap-native (5/7 metrics; no helper, no embedded I/O)
+### V1 (stap-nohelper) -- Stap-native (5/7 metrics; no helper, no embedded I/O)
 
 ```bash
-cd variants/v1-stap-only
+cd variants/v1-stap-nohelper
 sudo stap -g intp-resctrl.stp <comm-pattern>
 ```
 
 Requires: SystemTap 5.x, kernel debuginfo, kernel 6.8+. mbw and llcocc are
-reported as 0 (deferred to V1.1).
+reported as 0 (deferred to stap-modern).
 
-### V1.1 -- Stap + userspace helper (full 7/7 metrics, RCU-safe)
+### V1.1 (stap-modern) -- Stap + userspace helper (full 7/7 metrics, RCU-safe)
 
 ```bash
-cd variants/v1.1-stap-helper
+cd variants/v1.1-stap-modern
 make
 sudo ./intp-helper <comm-pattern> &
 sudo stap -g intp-v1.1.stp <comm-pattern>
@@ -185,7 +185,7 @@ Requires: SystemTap 5.x, kernel debuginfo, kernel 6.8+, Intel RDT (resctrl)
 for `llcocc`, uncore IMC PMU for `mbw`. mbw/llcocc gracefully degrade to 0
 if hardware is unavailable.
 
-### V2 -- C: procfs / perf_event / resctrl
+### V2 (hybrid-c) -- C: procfs / perf_event / resctrl
 
 ```bash
 cd variants/v2-hybrid-c
@@ -195,7 +195,7 @@ sudo ./intp-hybrid -p <PID> -i <interval_ms>
 
 No framework dependencies. Requires: resctrl for mbw/llcocc.
 
-### V3.1 -- bpftrace
+### V3.1 (bpftrace) -- bpftrace
 
 ```bash
 cd variants/v3.1-bpftrace
@@ -204,17 +204,17 @@ sudo ./run-intp-bpftrace.sh <PID> <interval_ms>
 
 Requires: bpftrace, kernel BTF, resctrl for mbw/llcocc.
 
-### V3 -- eBPF/CO-RE
+### V3 (ebpf-ring) -- eBPF/CO-RE
 
 ```bash
-cd variants/v3-ebpf-ringbuf
+cd variants/v3-ebpf-ring
 make
 sudo ./intp-ebpf -p <PID> -i <interval_ms>
 ```
 
 Requires: libbpf, clang, kernel BTF, resctrl for mbw/llcocc.
 
-### V3.2 -- eBPF/CO-RE in-kernel aggregating
+### V3.2 (ebpf-agg) -- eBPF/CO-RE in-kernel aggregating
 
 ```bash
 cd variants/v3.2-ebpf-agg
@@ -225,17 +225,17 @@ sudo ./intp-ebpf-agg --pids <PID> --interval <seconds>
 sudo make test-amplification
 ```
 
-V3.2 is the in-kernel-aggregating variant specified in paper section
-VIII: same probe set as V3, but the 16 MiB ring buffer is replaced
+ebpf-agg is the in-kernel-aggregating variant specified in paper section
+VIII: same probe set as ebpf-ring, but the 16 MiB ring buffer is replaced
 with per-CPU + per-PID counter maps polled once per `--interval`.
 The userspace consumer is no longer draining a continuous event
 stream, which is supposed to eliminate the 188-390x context-switch
 amplification documented in paper section V-D.
 
 Requires: libbpf, clang, kernel BTF, resctrl for mbw/llcocc (same as
-V3). Adds a trailing `mbw_raw_mbps` diagnostic column to the TSV
+ebpf-ring). Adds a trailing `mbw_raw_mbps` diagnostic column to the TSV
 output (suppressible via `--no-raw-mbw`); the first 7 columns stay
-byte-compatible with V3.
+byte-compatible with ebpf-ring.
 
 ### Full per-OS campaign (one command)
 
@@ -263,7 +263,7 @@ Both wrap `bench/run-os-campaign.sh` (`--help` for all knobs and the
 - [Variant Comparison](docs/VARIANT-COMPARISON.md) -- Detailed rationale for each variant
 - [Experiment Strategy](docs/EXPERIMENT-STRATEGY.md) -- Operational gotchas, run discipline, workload→metric stress map
 - [Paper Cross-References](docs/PAPER-CROSS-REFERENCES.md) -- Maps each `[TODO: ...]` in the paper draft to the repo doc carrying the material
-- [Bench Findings Index](bench/findings/README.md) -- Centralized empirical findings (V0 baseline diagnosis, V1 reliability notes)
+- [Bench Findings Index](bench/findings/README.md) -- Centralized empirical findings (stap-2022 baseline diagnosis, stap-nohelper reliability notes)
 
 ## References
 

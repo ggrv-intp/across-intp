@@ -1,16 +1,16 @@
-# v1.1 -- SystemTap with userspace helper for hardware metrics
+# v1.1 (stap-modern) -- SystemTap with userspace helper for hardware metrics
 
 Status: implemented. Both userspace helper (`intp-helper`) and the
 matching SystemTap script (`intp-v1.1.stp`) are in this directory and
 integrated into `bench/run-intp-bench.sh`. This document records the
 design rationale; cross-reference `METRICS-ALIGNMENT.md` for the
 metric-by-metric formulas as actually shipped (notably nets switched
-to the softirq tapset rather than V0's per-packet kprobes).
+to the softirq tapset rather than stap-2022's per-packet kprobes).
 
 ## Why a helper
 
-Both v0 and the legacy `v3-updated-resctrl` lineage (the predecessor
-of today's v1; see `VERSIONS.md` for the rename map) tried to read
+Both stap-2022 and the legacy `v3-updated-resctrl` lineage (the predecessor
+of today's stap-nohelper; see `VERSIONS.md` for the rename map) tried to read
 uncore IMC counters and resctrl files from SystemTap embedded C in
 probe context. On kernel >= 5.15 this triggers "voluntary context
 switch within RCU read-side critical section" (see
@@ -19,10 +19,10 @@ because `perf_event_create_kernel_counter`, `mutex_lock`, `kmalloc(GFP_KERNEL)`,
 `filp_open`, `kernel_write` and `kernel_read` can sleep, and probes hold an
 RCU read lock. The system hangs hard and only power-cycle recovers.
 
-v1 (the restored stap-only build) avoids all of these calls; it reports
+stap-nohelper (the restored stap-only build) avoids all of these calls; it reports
 mbw=0 and llcocc=0 because those metrics need exactly those operations.
 
-v1.1 reintroduces mbw and llcocc by moving every RCU-unsafe operation out
+stap-modern reintroduces mbw and llcocc by moving every RCU-unsafe operation out
 of the kernel module and into a separate userspace process (`intp-helper`)
 that owns:
 
@@ -145,17 +145,17 @@ stap and tears it down after, in a single bracketed lifecycle.
 
 ## Why this is safe
 
-| RCU-unsafe operation | Where it ran in legacy v3 (now removed) | Where it runs in v1.1 |
+| RCU-unsafe operation | Where it ran in legacy v3 (now removed) | Where it runs in stap-modern |
 |----------------------|--------------------|-----------------------|
 | `perf_event_create_kernel_counter` (sleeps in `mutex_lock`) | stap embedded C from `probe begin` | helper, in main(), once |
 | `filp_open` + `kernel_write` to `mon_groups/intp/tasks` | stap embedded C from `process(@1).begin` | helper, in poll loop, in main() |
-| `filp_open` + `kernel_read` of `llc_occupancy` | stap embedded C from procfs read probe (this one was safe; kept in v1.1 as `kernel_read` of `/tmp/intp-hw-data`) | helper reads `llc_occupancy` itself; stap only reads `/tmp/intp-hw-data` from procfs probe |
+| `filp_open` + `kernel_read` of `llc_occupancy` | stap embedded C from procfs read probe (this one was safe; kept in stap-modern as `kernel_read` of `/tmp/intp-hw-data`) | helper reads `llc_occupancy` itself; stap only reads `/tmp/intp-hw-data` from procfs probe |
 
 procfs read probes run in user-task context (the user is running
 `cat /proc/systemtap/.../intestbench`); embedded C `kernel_read` of a
 small file in `/tmp` from there is the supported pattern for stap-side
 data ingest and matches what legacy v3 did for occupancy (the only place
-the legacy v3 build got right). v1.1 keeps that pattern and removes the rest.
+the legacy v3 build got right). stap-modern keeps that pattern and removes the rest.
 
 ## Decisions taken at implementation time
 
@@ -188,10 +188,10 @@ for a 1Hz-loop daemon.
 
 ## Comparison vs v3.1 (bpftrace) helper script
 
-v3.1 uses a userspace orchestrator written in Python. v1.1's helper is
+bpftrace uses a userspace orchestrator written in Python. stap-modern's helper is
 similar in spirit but written in C and serves a different consumer
 (SystemTap kernel module, via file IPC).
 
 The two helpers do not share code today. If both stabilize, we may
 extract a small "intp-rdt" library, but that is out of scope for the
-initial v1.1 implementation.
+initial stap-modern implementation.

@@ -11,7 +11,7 @@ On a single-host bare-metal setup the bench's stress-ng `--sock` and
 
 - The `lo` device deliberately bypasses driver-level transmit
   accounting in some kernels.
-- Even when `lo` does fire `__dev_queue_xmit`, V3's BPF probe filters
+- Even when `lo` does fire `__dev_queue_xmit`, ebpf-ring's BPF probe filters
   loopback explicitly (`tp_dev_is_lo()` in `intp.bpf.c`) because
   including loopback double-counts (sender xmit + receiver xmit on the
   same packet) and breaks correlation with the per-NIC sysfs
@@ -25,7 +25,7 @@ those same workloads.
 
 Route the workload through a **veth pair into a network namespace**.
 Traffic crossing veth hits real `dev_queue_xmit` accounting and is
-**not** loopback, so it survives V3's lo filter and registers on
+**not** loopback, so it survives ebpf-ring's lo filter and registers on
 `netp` for every variant.
 
 ```
@@ -68,8 +68,8 @@ sudo bench/setup/run-net-pair-workload.sh -d 90 -P 16 &
 WL_PID=$!
 
 # Attach any IntP variant to that PID and read the netp column.
-sudo variants/v1.1-stap-helper/intp-helper "$WL_PID" &
-sudo stap -g variants/v1.1-stap-helper/intp-v1.1.stp "$WL_PID"
+sudo variants/v1.1-stap-modern/intp-helper "$WL_PID" &
+sudo stap -g variants/v1.1-stap-modern/intp-v1.1.stp "$WL_PID"
 ```
 
 Or, with the in-bench profilers (after enabling `V46_USE_PID_FILTER=1`
@@ -77,7 +77,7 @@ so they accept `--pids`):
 
 ```bash
 sudo INTP_BENCH_V46_PID_FILTER=1 \
-    variants/v3-ebpf-ringbuf/intp-ebpf --pids "$WL_PID" --duration 90 --output tsv
+    variants/v3-ebpf-ring/intp-ebpf --pids "$WL_PID" --duration 90 --output tsv
 ```
 
 ### 3. Tear down
@@ -106,9 +106,9 @@ so integration is **deliberately not automatic** — three options:
    case.
 
 3. **Use stress-ng `--rawudp`** with `--rawudp-if intp-veth-h` — fits
-   the existing dispatch and registers on `netp` for v0/v1/v1.1 because
+   the existing dispatch and registers on `netp` for stap-2022/stap-nohelper/stap-modern because
    raw UDP packets traverse the IP layer (and thus
-   `netfilter.ip.local_out`). Caveats: V3's loopback filter excludes
+   `netfilter.ip.local_out`). Caveats: ebpf-ring's loopback filter excludes
    `lo` only by interface *name*, so `intp-veth-h` is fine; but
    `--rawudp` sends to a self-bound socket, so packets don't actually
    leave the host even with `--rawudp-if`. Less semantically clean than

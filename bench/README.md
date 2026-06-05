@@ -22,9 +22,9 @@ each metric across environments.
 All benchmark diagnoses and reliability notes are centralized in
 `bench/findings/`.
 
-- V0 baseline compilation diagnosis:
+- v0 (stap-2022) baseline compilation diagnosis:
     `bench/findings/v0-baseline-failure-diagnosis.md`
-- V1 modernization reliability findings:
+- v1 (stap-nohelper) modernization reliability findings:
     `bench/findings/v1-modernization-reliability-findings.md`
 
 ## Quick start
@@ -77,7 +77,7 @@ python3 bench/generate-iada-tree.py \
 | Stage        | What it does                                                  | Maps to                       |
 | ------------ | ------------------------------------------------------------- | ----------------------------- |
 | `detect`     | Hardware/kernel snapshot, capabilities.env, variants.manifest | preflight                     |
-| `build`      | `make` for v2 / v3                                            | preflight                     |
+| `build`      | `make` for hybrid-c / ebpf-ring                               | preflight                     |
 | `solo`       | 15 workloads x reps, one variant at a time, no co-runner      | legacy IntP-style figures (per-app + PCA) |
 | `pairwise`   | victim + antagonist co-located; profiler attached to victim   | cross-interference analysis   |
 | `overhead`   | reference workload with vs without each profiler              | Volpert et al. 2025           |
@@ -136,9 +136,9 @@ If `intp-detect.sh` reports a memory bandwidth figure significantly lower
 than ~300 GB/s, half the channels are likely unpopulated -- DDR5
 single-channel can artificially inflate `mbw`.
 
-V0 requires kernel <= 6.7. The script refuses to run V0 on newer kernels
+v0 (stap-2022) requires kernel <= 6.7. The script refuses to run stap-2022 on newer kernels
 unless `--allow-v0` is passed; the recommended flow is to dual-boot
-Ubuntu 22.04 for the V0 baseline and Ubuntu 24.04 for V0.1..V3, then run
+Ubuntu 22.04 for the stap-2022 baseline and Ubuntu 24.04 for stap-nollc..ebpf-ring, then run
 the script under each boot and keep the two output directories side by
 side -- the plotter will merge them if you point it at a parent dir.
 

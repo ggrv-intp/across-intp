@@ -342,9 +342,9 @@ build_variants() {
         make -C "$REPO_ROOT/variants/v2-hybrid-c" || warn "v2 build failed"
     fi
 
-    if [ "$PROFILE" = "modern" ] && [ -d "$REPO_ROOT/variants/v3-ebpf-ringbuf" ]; then
+    if [ "$PROFILE" = "modern" ] && [ -d "$REPO_ROOT/variants/v3-ebpf-ring" ]; then
         log "building v3 (eBPF/CO-RE)"
-        make -C "$REPO_ROOT/variants/v3-ebpf-ringbuf" || warn "v3 build failed"
+        make -C "$REPO_ROOT/variants/v3-ebpf-ring" || warn "v3 build failed"
     fi
 }
 
@@ -378,8 +378,8 @@ selftest() {
         else
             warn "  bpftrace    missing"
         fi
-        if [ -x "$REPO_ROOT/variants/v3-ebpf-ringbuf/intp-ebpf" ]; then
-            if "$REPO_ROOT/variants/v3-ebpf-ringbuf/intp-ebpf" --list-capabilities >/dev/null 2>&1; then
+        if [ -x "$REPO_ROOT/variants/v3-ebpf-ring/intp-ebpf" ]; then
+            if "$REPO_ROOT/variants/v3-ebpf-ring/intp-ebpf" --list-capabilities >/dev/null 2>&1; then
                 log "  v3          OK"
             else
                 warn "  v3          FAIL"

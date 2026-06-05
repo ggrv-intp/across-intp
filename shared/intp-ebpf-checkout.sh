@@ -23,15 +23,15 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="${REPO_ROOT:-$(cd "$SCRIPT_DIR/.." && pwd)}"
 # Variant under test for this noise-floor / composite-mechanism rerun.
-#   v3   → variants/v3-ebpf-ringbuf/intp-ebpf         (per-event ring buffer)
+#   v3   → variants/v3-ebpf-ring/intp-ebpf         (per-event ring buffer)
 #   v3.2 → variants/v3.2-ebpf-agg/intp-ebpf-agg (in-kernel aggregation)
 # Both are ring-buffer eBPF variants, so the same noise-floor / pidstat
 # experiment applies. For any other binary, set INTP_EBPF_BIN explicitly.
 INTP_AUX_VARIANT="${INTP_AUX_VARIANT:-v3}"
 case "$INTP_AUX_VARIANT" in
-    v3)   _aux_default_bin="$REPO_ROOT/variants/v3-ebpf-ringbuf/intp-ebpf" ;;
+    v3)   _aux_default_bin="$REPO_ROOT/variants/v3-ebpf-ring/intp-ebpf" ;;
     v3.2) _aux_default_bin="$REPO_ROOT/variants/v3.2-ebpf-agg/intp-ebpf-agg" ;;
-    *)    _aux_default_bin="$REPO_ROOT/variants/v3-ebpf-ringbuf/intp-ebpf" ;;
+    *)    _aux_default_bin="$REPO_ROOT/variants/v3-ebpf-ring/intp-ebpf" ;;
 esac
 INTP_EBPF_BIN="${INTP_EBPF_BIN:-$_aux_default_bin}"
 unset _aux_default_bin

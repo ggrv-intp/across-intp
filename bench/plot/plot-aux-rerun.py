@@ -40,6 +40,29 @@ METRIC_LABEL = {
     "cpu":    "cpu (sched_switch)",
 }
 
+# Descriptive, paper-facing variant names. Figures show these instead of the
+# bare vN tags so a reader need not consult the variant table to know what a
+# panel measures. Canonical map: VERSIONS.md. The four measured versions are
+# stap-legacy (v0.2), stap-modern (v1.1), hybrid-c (v2) and ebpf-agg (v3.2).
+VARIANT_LABELS = {
+    "v0":   "stap-2022",
+    "v0.1": "stap-nollc",
+    "v0.2": "stap-legacy",
+    "v1":   "stap-nohelper",
+    "v1.1": "stap-modern",
+    "v2":   "hybrid-c",
+    "v2.1": "cgroup-native",
+    "v3":   "ebpf-ring",
+    "v3.1": "bpftrace",
+    "v3.2": "ebpf-agg",
+    "v3.3": "ebpf-cgroup",
+}
+
+
+def variant_label(v):
+    """Paper-facing descriptive name for a dataset variant tag."""
+    return VARIANT_LABELS.get(str(v), str(v))
+
 
 def read_profiler_tsv(path):
     """Return a dict {metric: list[float]} from one profiler.tsv (skips '# ...' lines)."""
@@ -330,8 +353,8 @@ def plot_noise_floor_compare(runs, out_dir):
                     color=col, family="DejaVu Sans Mono", clip_on=False)
 
         if m == "mbw":
-            ax.text(50, i - 0.46, "mbw% INVALID in both runs — v3.2 ceiling "
-                    "= 0 (raw, unbounded); v3 clipped/saturated at 100",
+            ax.text(50, i - 0.46, "mbw% INVALID in both runs — ebpf-agg ceiling "
+                    "= 0 (raw, unbounded); ebpf-ring clipped/saturated at 100",
                     ha="center", va="top", fontsize=7.0, style="italic",
                     color="#a00")
 
@@ -466,7 +489,7 @@ def main():
     if not variant:
         marker = run_dir / "variant.txt"
         variant = marker.read_text().strip() if marker.exists() else "v3"
-    label = variant.upper()
+    label = variant_label(variant)
 
     print(f"run_dir: {run_dir}")
     print(f"out_dir: {out_dir}")
@@ -478,8 +501,8 @@ def main():
     if args.compare_with:
         def _label(rd):
             marker = rd / "variant.txt"
-            return (marker.read_text().strip() if marker.exists()
-                    else rd.name).upper()
+            return variant_label(marker.read_text().strip() if marker.exists()
+                                 else rd.name)
 
         runs = [(label, run_dir)]
         for extra in args.compare_with:

@@ -8,7 +8,7 @@
 #
 # Why this variant exists
 #
-#   The original V0 (variants/v0-baseline-2022/intp.stp) opens uncore IMC events and
+#   The original V0 (variants/v0-stap-2022/intp.stp) opens uncore IMC events and
 #   reads cqm_rmid LLC occupancy from inside stap probe context, using
 #   perf_event_create_kernel_counter() and on_each_cpu_mask(). On the
 #   Ubuntu 22.04 5.15 GA kernel, RCU-checking backports from Canonical
@@ -21,7 +21,7 @@
 #   V0.2 keeps the V0 semantics for the RCU-safe
 #   metrics and moves the two RCU-unsafe operations into a userspace
 #   helper that talks to the kernel via perf_event_open(2) and the
-#   resctrl mon_groups filesystem. Architecture mirrors variants/v1.1-stap-helper
+#   resctrl mon_groups filesystem. Architecture mirrors variants/v1.1-stap-modern
 #   but the target kernel is 5.15 GA, not 6.8+.
 #
 # Failure modes
@@ -40,7 +40,7 @@
 # factor) now live on the helper side and are passed to the helper as
 # environment variables (INTP_HELPER_DRAM_BW_MBPS, INTP_HELPER_L3_SIZE_KB,
 # INTP_HELPER_IMC_PMU_TYPE) so they can be recalibrated per host without
-# rebuilding the stap script. variants/v0-baseline-2022/intp.stp stays read-only.
+# rebuilding the stap script. variants/v0-stap-2022/intp.stp stays read-only.
 # -----------------------------------------------------------------------------
 
 global interval = 1
@@ -53,7 +53,7 @@ probe begin
 	 * accounting state here: initial_time anchors `runtime`, and nprocs=1 /
 	 * started=1 open any nprocs-gated logic that V0 carried over. mpids stays
 	 * empty; the netfilter / cpu probes drop their pid filter in @system mode
-	 * (mirrors variants/v1.1-stap-helper/intp-v1.1.stp). */
+	 * (mirrors variants/v1.1-stap-modern/intp-v1.1.stp). */
 	initial_time = gettimeofday_ns()
 	nprocs = 1
 	started = 1

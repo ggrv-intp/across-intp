@@ -1,4 +1,4 @@
-# V0.1 -- Updated IntP for Kernel 6.8+ (LLC Disabled)
+# V0.1 (stap-nollc) -- Updated IntP for Kernel 6.8+ (LLC Disabled)
 
 This is the minimal kernel 6.8 adaptation of IntP. It patches the original
 SystemTap script to compile on kernel 6.8+ by:
@@ -51,6 +51,6 @@ sudo stap -g intp-6.8.stp <PID> <interval_ms>
 - Still requires SystemTap, debuginfo, and guru mode
 - Still loads a kernel module (crash risk remains)
 
-For the full 7/7 metric stack on kernel 6.8+, see `variants/v1.1-stap-helper/`
+For the full 7/7 metric stack on kernel 6.8+, see `variants/v1.1-stap-modern/`
 (SystemTap + userspace helper) or the eBPF/procfs variants
-(`variants/v3-ebpf-ringbuf/`, `variants/v3.1-bpftrace/`, `variants/v2-hybrid-c/`).
+(`variants/v3-ebpf-ring/`, `variants/v3.1-bpftrace/`, `variants/v2-hybrid-c/`).

@@ -129,11 +129,29 @@ VARIANT_COLORS = {
 # marker lookup stays keyed on the dataset value, so renaming the label
 # preserves the existing marker (v3 → triangle "^").
 VARIANT_DISPLAY = {"v3": "v3.2"}
+# Descriptive, paper-facing variant names. Figures show these instead of the
+# bare vN tags so a reader need not consult the variant table to know what a
+# panel measures. Canonical map: VERSIONS.md. The four measured versions are
+# stap-legacy (v0.2), stap-modern (v1.1), hybrid-c (v2) and ebpf-agg (v3.2).
+VARIANT_LABELS = {
+    "v0":   "stap-2022",
+    "v0.1": "stap-nollc",
+    "v0.2": "stap-legacy",
+    "v1":   "stap-nohelper",
+    "v1.1": "stap-modern",
+    "v2":   "hybrid-c",
+    "v2.1": "cgroup-native",
+    "v3":   "ebpf-ring",
+    "v3.1": "bpftrace",
+    "v3.2": "ebpf-agg",
+    "v3.3": "ebpf-cgroup",
+}
 
 
 def _variant_label(v: str) -> str:
-    """Article-facing label for a dataset variant value."""
-    return VARIANT_DISPLAY.get(v, v)
+    """Article-facing descriptive label for a dataset variant value."""
+    tag = VARIANT_DISPLAY.get(v, v)        # campaign remap: v3 -> v3.2
+    return VARIANT_LABELS.get(tag, tag)    # descriptive paper-facing name
 
 
 # Default plotted-variant set — the 4 variants that go into the article:
@@ -425,7 +443,7 @@ def fig_per_workload_bars(means: pd.DataFrame, outdir: Path) -> None:
                 ax.bar(x + offset, np.nan_to_num(vals), width=bar_w,
                        color=VARIANT_COLORS.get(variant, f"C{vi}"),
                        edgecolor="white", linewidth=0.3,
-                       label=variant if i == 0 else None)
+                       label=_variant_label(variant) if i == 0 else None)
             ax.set_xticks(x)
             ax.set_xticklabels(METRICS, rotation=45, ha="right", fontsize=7)
             ax.set_title(wl, fontsize=8.5)
@@ -436,7 +454,7 @@ def fig_per_workload_bars(means: pd.DataFrame, outdir: Path) -> None:
                 ax.set_ylabel("interference (%)", fontsize=8)
         handles = [plt.Rectangle((0, 0), 1, 1, color=VARIANT_COLORS.get(v, "C0"))
                    for v in variants]
-        fig.legend(handles, variants, loc="upper center",
+        fig.legend(handles, [_variant_label(v) for v in variants], loc="upper center",
                    bbox_to_anchor=(0.5, 1.02 if nrows < 4 else 1.005),
                    ncol=len(variants), frameon=False, fontsize=8.5,
                    title="variant", title_fontsize=8.5)
@@ -506,7 +524,7 @@ def fig_per_variant_bars(means: pd.DataFrame, outdir: Path) -> None:
                            rotation=45, ha="right", fontsize=7)
         ax.set_yticks(range(len(workloads)))
         ax.set_yticklabels(workloads, fontsize=7)
-        ax.set_title(f"{env} / {variant}", fontsize=9.5)
+        ax.set_title(f"{env} / {_variant_label(variant)}", fontsize=9.5)
         ax.grid(False)
     if im is not None:
         fig.colorbar(im, ax=axes_flat, shrink=0.6, label="interference (%)")
@@ -734,7 +752,7 @@ def fig_timeseries(results_dir: Path, outdir: Path) -> None:
                 y = _smooth(df[m].fillna(0).values, window=7)
                 ax.plot(t, y, label=METRIC_LABEL[m],
                         color=METRIC_COLORS[m], linewidth=1.1, alpha=0.9)
-        ax.set_title(f"{env} / {variant} — mixed_long")
+        ax.set_title(f"{env} / {_variant_label(variant)} — mixed_long")
         ax.set_xlabel("time (s)")
         ax.set_ylabel("interference level")
         ax.set_ylim(-2, 105)
@@ -880,13 +898,13 @@ def _render_overhead_bars(summary: pd.DataFrame, mean_col: str, std_col: str | N
                    row[mean_col].values,
                    yerr=errs, width=width,
                    color=VARIANT_COLORS.get(v, f"C{j}"),
-                   label=v if i == 0 else None, capsize=2)
+                   label=_variant_label(v) if i == 0 else None, capsize=2)
         ax.set_xticks(x); ax.set_xticklabels(refs, rotation=15)
         ax.set_ylabel(ylabel); ax.set_title(f"env={env}")
         ax.axhline(0, color="black", linewidth=0.5)
     handles = [plt.Rectangle((0, 0), 1, 1, color=VARIANT_COLORS.get(v, "C0"))
                for v in all_variants]
-    fig.legend(handles, all_variants, loc="upper center",
+    fig.legend(handles, [_variant_label(v) for v in all_variants], loc="upper center",
                bbox_to_anchor=(0.5, 1.04),
                ncol=max(1, len(all_variants)), frameon=False, fontsize=9,
                title="variant", title_fontsize=9)
@@ -1056,7 +1074,7 @@ def fig_fidelity_matrix(results_dir: Path, outdir: Path) -> None:
     im = ax.imshow(masked, vmin=-1, vmax=1, cmap=cmap, aspect="auto",
                    interpolation="none")
     ax.set_xticks(range(len(pivot.columns))); ax.set_xticklabels(pivot.columns)
-    ax.set_yticks(range(len(pivot.index)));   ax.set_yticklabels(pivot.index)
+    ax.set_yticks(range(len(pivot.index)));   ax.set_yticklabels([_variant_label(v) for v in pivot.index])
     for (i, j), v in np.ndenumerate(pivot.values):
         if np.isnan(v):
             ax.text(j, i, "n/a", ha="center", va="center", fontsize=8, color="#666")
@@ -1107,7 +1125,7 @@ def fig_env_heatmap(means: pd.DataFrame, outdir: Path) -> None:
         im = ax.imshow(pivot.values, cmap="PiYG", vmin=0, vmax=2, aspect="auto",
                        interpolation="none")
         ax.set_xticks(range(len(pivot.columns))); ax.set_xticklabels(pivot.columns)
-        ax.set_yticks(range(len(pivot.index)));   ax.set_yticklabels(pivot.index)
+        ax.set_yticks(range(len(pivot.index)));   ax.set_yticklabels([_variant_label(v) for v in pivot.index])
         ax.set_title(f"{env} / bare")
         for (yi, xi), v in np.ndenumerate(pivot.values):
             if not np.isnan(v):
@@ -1161,7 +1179,7 @@ def fig_pairwise_heatmap(means: pd.DataFrame, outdir: Path) -> None:
                            interpolation="none")
             ax.set_xticks(range(len(METRICS))); ax.set_xticklabels(METRICS, rotation=45, ha="right", fontsize=7)
             ax.set_yticks(range(len(workloads))); ax.set_yticklabels(workloads, fontsize=7)
-            ax.set_title(f"variant={variant}", fontsize=9)
+            ax.set_title(f"variant={_variant_label(variant)}", fontsize=9)
             ax.grid(False)
         if im is not None:
             fig.colorbar(im, ax=axes_flat, shrink=0.8, label="interference (%)")
@@ -1192,7 +1210,7 @@ def fig_metric_availability(means: pd.DataFrame, outdir: Path) -> None:
     im = ax.imshow(pivot.values, cmap=cmap, vmin=0, vmax=1, aspect="auto",
                    interpolation="none")
     ax.set_xticks(range(len(pivot.columns))); ax.set_xticklabels(pivot.columns)
-    ax.set_yticks(range(len(pivot.index)));   ax.set_yticklabels(pivot.index)
+    ax.set_yticks(range(len(pivot.index)));   ax.set_yticklabels([_variant_label(v) for v in pivot.index])
     for (i, j), v in np.ndenumerate(pivot.values):
         ax.text(j, i, "✓" if v else "—", ha="center", va="center",
                 fontsize=10, color="white" if v else "#666")
@@ -1241,7 +1259,7 @@ def fig_radar_fingerprint(means: pd.DataFrame, outdir: Path) -> None:
             vals += vals[:1]
             color = VARIANT_COLORS.get(variant, "C0")
             ax.plot(angles, vals, color=color, linewidth=1.9, alpha=0.95,
-                    label=variant)
+                    label=_variant_label(variant))
             ax.fill(angles, vals, color=color, alpha=0.06)
         ax.set_xticks(angles[:-1])
         ax.set_xticklabels(METRICS, fontsize=7.5)
@@ -1257,7 +1275,7 @@ def fig_radar_fingerprint(means: pd.DataFrame, outdir: Path) -> None:
         ax.tick_params(axis="x", pad=2)
         ax.grid(linewidth=0.4, alpha=0.5)
     handles = [plt.Line2D([0], [0], color=VARIANT_COLORS.get(v, "C0"),
-                          linewidth=2.4, label=v) for v in variants]
+                          linewidth=2.4, label=_variant_label(v)) for v in variants]
     fig.legend(handles=handles, loc="upper center",
                bbox_to_anchor=(0.5, 1.02),
                ncol=len(variants), frameon=False, fontsize=9.5,
@@ -1297,7 +1315,7 @@ def fig_workload_clustermap(means: pd.DataFrame, outdir: Path) -> None:
         m = (sub[sub.variant == variant]
              .groupby("workload")[METRICS].mean().fillna(0))
         if m.shape[0] < 2:
-            ax.set_title(f"variant={variant} — too few"); ax.axis("off"); continue
+            ax.set_title(f"variant={_variant_label(variant)} — too few"); ax.axis("off"); continue
         try:
             Z = linkage(m.values, method="ward")
             order = leaves_list(Z)
@@ -1308,7 +1326,7 @@ def fig_workload_clustermap(means: pd.DataFrame, outdir: Path) -> None:
                        interpolation="none")
         ax.set_xticks(range(len(METRICS))); ax.set_xticklabels(METRICS, rotation=45, ha="right", fontsize=7)
         ax.set_yticks(range(len(m.index))); ax.set_yticklabels(m.index, fontsize=7)
-        ax.set_title(f"variant={variant} (Ward linkage)", fontsize=9)
+        ax.set_title(f"variant={_variant_label(variant)} (Ward linkage)", fontsize=9)
         ax.grid(False)
     if im is None:
         print("[fig10] no variant had ≥2 workloads — skip clustermap")
@@ -1366,7 +1384,7 @@ def fig_idi_bars(means: pd.DataFrame, outdir: Path) -> None:
                 for r in resources]
         ax.bar(x + offsets, vals, width=width,
                color=VARIANT_COLORS.get(variant, f"C{vi}"),
-               edgecolor="white", linewidth=0.4, label=variant)
+               edgecolor="white", linewidth=0.4, label=_variant_label(variant))
     ax.set_xticks(x); ax.set_xticklabels(resources)
     ax.axhline(0, color="black", linewidth=0.5)
     ax.set_ylabel("Δ interference (pairwise − solo, %)")
@@ -1414,7 +1432,7 @@ def fig_pairwise_timeseries(results_dir: Path, outdir: Path) -> None:
             y = _smooth(mean_series, window=11)
             ax.plot(t, y, color=RESOURCE_COLORS[fam], linewidth=1.3,
                     label=fam.capitalize(), alpha=0.95)
-        ax.set_title(f"{env} / {variant}")
+        ax.set_title(f"{env} / {_variant_label(variant)}")
         ax.set_xlabel("time (s)")
         ax.set_ylabel("interference (%)")
         ax.set_ylim(-2, 105)
@@ -1495,7 +1513,7 @@ def fig_iada_segmented(results_dir: Path, outdir: Path, n_segments: int = 4) -> 
                 xpos = tmax * (s + 0.5) / n_segments
                 ax.text(xpos, 102, f"seg {s+1}", ha="center", va="bottom",
                         fontsize=7, color="#333")
-        ax.set_title(f"{env} / {variant}")
+        ax.set_title(f"{env} / {_variant_label(variant)}")
         ax.set_xlabel("time (s)")
         ax.set_ylabel("interference (%)")
         ax.set_ylim(-2, 110)
@@ -1556,7 +1574,7 @@ def fig_variant_resource_heatmap(means: pd.DataFrame, outdir: Path) -> None:
         im = ax.imshow(masked, cmap=cmap, vmin=0, vmax=100, aspect="auto",
                        interpolation="none")
         ax.set_xticks(range(len(resources))); ax.set_xticklabels(resources)
-        ax.set_yticks(range(len(pivot.index))); ax.set_yticklabels(pivot.index)
+        ax.set_yticks(range(len(pivot.index))); ax.set_yticklabels([_variant_label(v) for v in pivot.index])
         ax.set_title(f"env={env}", fontsize=9.5)
         for (yi, xi), v in np.ndenumerate(pivot.values):
             if not np.isnan(v):
@@ -1623,7 +1641,7 @@ def fig_canonical_intp_fig4(means: pd.DataFrame, outdir: Path) -> None:
         ax.set_xticks(x)
         ax.set_xticklabels(sub["workload"].values, rotation=35, ha="right",
                            fontsize=7)
-        ax.set_title(f"env={env} · variant={variant}", fontsize=9.5)
+        ax.set_title(f"env={env} · variant={_variant_label(variant)}", fontsize=9.5)
         ax.set_ylabel("interference (%)")
         ax.set_ylim(0, max(1.0, sub[METRICS].max().max() * 1.10))
     for j in range(last + 1, rows * cols):

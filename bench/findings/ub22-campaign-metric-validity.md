@@ -1,20 +1,20 @@
-# UB22 Campaign — Metric Validity Notes (v0.2)
+# UB22 Campaign — Metric Validity Notes (v0.2 (stap-legacy))
 
 **Date:** 2026-05-22
 **Campaign:** `results/ub22-campaign-20260521_162957`
 **Host:** `intp-v1-baseline` — Intel Xeon Gold 5412U (Sapphire Rapids), 48 CPU,
 1 socket, 8 IMC channels, **Ubuntu 22.04.5 LTS, kernel 5.15.0-177-generic**
-**Variant:** v0.2 (legacy-bridge: paper-faithful V0 SystemTap + userspace helper)
+**Variant:** v0.2 (stap-legacy) (legacy-bridge: paper-faithful stap-2022 SystemTap + userspace helper)
 **Detection snapshot:** `capabilities.env` (`INTP_NIC_SPEED_MBPS=1000`,
 `INTP_MEM_BW_MBPS=281600`, `INTP_LLC_SIZE_KB=46080`, resctrl mounted, RDT
 CQM/CAT/MBA present)
 
-This campaign is the **single-variant v0.2 leg** — the "historical portability"
-exhibit of the dissertation's V0.2 / V1.1 / V2 / V3.2 comparison. Where the
+This campaign is the **single-variant stap-legacy leg** — the "historical portability"
+exhibit of the dissertation's stap-legacy / stap-modern / hybrid-c / ebpf-agg comparison. Where the
 [UB24 notes](ub24-campaign-metric-validity.md) explain cross-variant magnitude
 differences, this leg has only one variant, so these notes instead cover:
-(1) the framing every evaluator must keep straight — **v0.2 as the most
-reproducible embodiment of V0 on a modern kernel, which is *not* the same as
+(1) the framing every evaluator must keep straight — **stap-legacy as the most
+reproducible embodiment of stap-2022 on a modern kernel, which is *not* the same as
 physical ground truth**; (2) two **defects in the published tables that this
 pass fixed** (throughput-overhead was blank; the fidelity figure was
 mis-aligned); (3) which metric behaviours are **expected legacy artefacts, not
@@ -29,28 +29,28 @@ failures, all 17 solo workloads × 12 reps complete, 0 empty profiler outputs,
 
 ## 0. Two senses of "ground truth" — keep them separate
 
-v0 (the original 2022 IntP, classic SystemTap kprobes, kernel ≤4.18) **cannot
+stap-2022 (the original 2022 IntP, classic SystemTap kprobes, kernel ≤4.18) **cannot
 run** on kernel ≥6.8 and is *destabilising* even on 5.15: the Canonical
-RCU-checking backports break V0's in-probe `perf_event_create_kernel_counter()`
+RCU-checking backports break stap-2022's in-probe `perf_event_create_kernel_counter()`
 path, producing stapio orphans, `stap_*` module accumulation, and eventually
-systemd-logind deadlock (see [v0.2 README](../../variants/v0.2-legacy-bridge/README.md)
+systemd-logind deadlock (see [v0.2 README](../../variants/v0.2-stap-legacy/README.md)
 and [V1 modernization findings](v1-modernization-reliability-findings.md)).
-**v0.2 is the variant that runs V0's probe set paper-faithfully on 5.15 GA
+**stap-legacy is the variant that runs stap-2022's probe set paper-faithfully on 5.15 GA
 without that fragility cascade.** So:
 
-- **Axis A — fidelity to V0 (reproducibility).** On this axis v0.2 *is* the
-  reference: it is the most reachable, reproducible realisation of V0's design
+- **Axis A — fidelity to stap-2022 (reproducibility).** On this axis stap-legacy *is* the
+  reference: it is the most reachable, reproducible realisation of stap-2022's design
   on current hardware. The legacy quirks below (saturating `blk`, loopback
   `netp`) are *features* of that fidelity, not regressions.
 - **Axis B — fidelity to the physical system (`groundtruth.tsv`).** The
   `groundtruth.tsv` files are an **independent** measurement of physical reality
-  (cpu/disk/net from `/proc`). v0.2's legacy formulas deliberately *depart* from
-  physical truth (e.g. `blk` is ~100× over-amplified by design). v0.2 can be
-  simultaneously a faithful reproduction of V0 **and** a low-physical-fidelity
+  (cpu/disk/net from `/proc`). stap-legacy's legacy formulas deliberately *depart* from
+  physical truth (e.g. `blk` is ~100× over-amplified by design). stap-legacy can be
+  simultaneously a faithful reproduction of stap-2022 **and** a low-physical-fidelity
   estimator — and that duality is the actual finding the leg demonstrates.
 
-**Do not collapse these.** "v0.2 reproduces V0" (true) must never be read as
-"v0.2's amplified `blk` is the correct disk-busy number" (false). The paper's
+**Do not collapse these.** "stap-legacy reproduces stap-2022" (true) must never be read as
+"stap-legacy's amplified `blk` is the correct disk-busy number" (false). The paper's
 historical-portability claim lives on Axis A; the modern-reliability claim
 (why the successors exist) lives on Axis B.
 
@@ -61,7 +61,7 @@ historical-portability claim lives on Axis A; the modern-reliability claim
 `plots/overhead_summary.csv` shipped with an **empty `throughput_overhead_pct`**
 column, and every `overhead/**/throughput.tsv` recorded `bogo_ops_total=NA`
 (72/72 overhead runs), so `plots/overhead_raw.csv`'s `bogo_ops_per_s` was also
-empty. The headline "how much does v0.2 slow the workload" number was therefore
+empty. The headline "how much does stap-legacy slow the workload" number was therefore
 unreadable from the published tree.
 
 ### Root cause — a stress-ng log-tag mismatch, not lost data
@@ -90,7 +90,7 @@ with the same logic, and `overhead_raw.csv` / `overhead_summary.csv` /
 
 ### Result — VALID, and recovered
 
-Throughput overhead (v0.2 vs `_baseline`, bogo-ops/s real-time, n=12 each):
+Throughput overhead (stap-legacy vs `_baseline`, bogo-ops/s real-time, n=12 each):
 
 | ref         | overhead %         | note |
 |-------------|--------------------|------|
@@ -105,10 +105,10 @@ having no data).
 
 ---
 
-## 2. The fidelity figure understated v0.2 — FIXED (timestamp alignment)
+## 2. The fidelity figure understated v0.2 (stap-legacy) — FIXED (timestamp alignment)
 
 `plots/fidelity_matrix.csv` / `fig05` reported near-zero profiler-vs-ground-truth
-Pearson r (cpu 0.06, blk 0.06, netp 0.01), which reads as "v0.2 has no fidelity."
+Pearson r (cpu 0.06, blk 0.06, netp 0.01), which reads as "stap-legacy has no fidelity."
 That was an **analysis artefact**.
 
 ### Root cause — row-index alignment against time-shifted series
@@ -126,7 +126,7 @@ made it worse.
 
 Alignment is now by **timestamp** (`pd.merge_asof(direction="nearest",
 tolerance=0.75)`) after dropping the first few ground-truth rows. Result (solo,
-v0.2):
+stap-legacy):
 
 | metric | published (index) | timestamp-aligned | reading |
 |--------|-------------------|-------------------|---------|
@@ -154,35 +154,35 @@ checked at all** — see §4 (ground-truth coverage gap).
 
 ## 3. Expected legacy behaviour — NOT bugs (Axis A)
 
-All seven v0.2 metric formulas are `≡ V0` (see
+All seven stap-legacy metric formulas are `≡ V0` (see
 [METRICS-ALIGNMENT.md](../../METRICS-ALIGNMENT.md)). The saturation an evaluator
 sees is the documented price of that fidelity:
 
-- **`blk` pinned at 99 on disk workloads** (48/276 solo+pairwise rows). V0's
+- **`blk` pinned at 99 on disk workloads** (48/276 solo+pairwise rows). stap-2022's
   `blk = svctm_us × ops/s / 100` is **~100× over-amplified** and "saturates
   easily on modern hardware" — preserved deliberately for paper fidelity. On
   this NVMe it pins. This is the canonical Axis-A-vs-Axis-B exhibit: faithful to
-  V0, far from physical disk-busy fraction. (V1.1/V3.2 drop the quirk; V2 uses
+  stap-2022, far from physical disk-busy fraction. (stap-modern/ebpf-agg drop the quirk; hybrid-c uses
   io_ticks — see the UB24 notes.)
-- **`netp`/`nets` at 99 on sock/loopback/veth** (netp 60/276, nets 24/276). V0
+- **`netp`/`nets` at 99 on sock/loopback/veth** (netp 60/276, nets 24/276). stap-2022
   uses a **125 MB/s (1 Gbps)** ceiling and counts loopback; the `sock`/`udp`
   stressors (`app11/app12_sort_net`) and veth iperf push past 1 Gbps-equivalent
   and peg. The host's real NIC is 1 Gbps, so the legacy 125 MB/s constant is
   *coincidentally* also physically correct for external traffic.
 - **`mbw`/`llcocc` are NOT clipped and use MODERN ceilings.** Unlike netp/blk,
   the two helper-fed metrics were calibrated with **autodetected** ceilings
-  (`profiler.helper.log`: `dram_bw=281600 MB/s`, `l3=46080 KB`), **not** V0's
+  (`profiler.helper.log`: `dram_bw=281600 MB/s`, `l3=46080 KB`), **not** stap-2022's
   hardcoded 34 GB/s / 34 MB. `mbw` ranges 0–32% with **0 rows clipped**;
   `llcocc` maxes at 93.9%; both have healthy dynamic range.
 
-  > **Calibration seam (important).** v0.2's calibration is therefore *mixed*:
+  > **Calibration seam (important).** stap-legacy's calibration is therefore *mixed*:
   > the stap-native metrics (`netp`, `nets`, `blk`, `llcmr`, `cpu`) are
-  > V0-faithful (legacy constants + amplification), but the helper-fed
+  > stap-2022-faithful (legacy constants + amplification), but the helper-fed
   > `mbw`/`llcocc` are modernised (autodetected ceilings). Consequence:
-  > `mbw`/`llcocc` magnitudes are **comparable to v1.1/v2/v3.2** (all
-  > autodetect) but are **not** on the legacy-V0 scale a true-V0 run would
+  > `mbw`/`llcocc` magnitudes are **comparable to stap-modern/hybrid-c/ebpf-agg** (all
+  > autodetect) but are **not** on the legacy-stap-2022 scale a true-stap-2022 run would
   > produce (which would read much higher and likely clip). When the paper
-  > says "v0.2 reproduces V0", scope it to the stap-native metrics.
+  > says "stap-legacy reproduces stap-2022", scope it to the stap-native metrics.
 
 - **`mbw`/`llcmr`/`llcocc`/`cpu` never saturate** (max 32 / 97.4 / 93.9 / 64.6) —
   these columns carry real dynamic range across workloads.
@@ -200,7 +200,7 @@ sees is the documented price of that fidelity:
 
 Everything else is ≤~6%. The cause is the SystemTap probe failing to keep up
 with the `stress-ng --sock` event flood (6 s gaps between samples; `netp` pegged
-at 99). This is exactly v0.2's *reason for existing as the fragility exhibit* —
+at 99). This is exactly stap-legacy's *reason for existing as the fragility exhibit* —
 it is a finding, not corruption — but the **per-rep means for these two
 workloads rest on 22–45 samples and must be reported as low-confidence**
 (see `quality-flags.tsv`, §5). Prefer the median; do not present app11_sort_net

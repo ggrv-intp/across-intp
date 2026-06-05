@@ -2,7 +2,7 @@
 /*
  * V3.1 netp -- Network Physical Utilization
  *
- * Equivalent to V0 print_netphy_report() in variants/v0-baseline-2022/intp.stp.
+ * Equivalent to V0 print_netphy_report() in variants/v0-stap-2022/intp.stp.
  * Uses stable tracepoints: net:net_dev_xmit, net:netif_receive_skb.
  *
  * Output format (JSON, one line per interval):

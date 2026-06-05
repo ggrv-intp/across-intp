@@ -276,14 +276,14 @@ run_step "preflight detect" bash shared/intp-detect.sh
 if _variant_requested v1; then
   run_step "v1 deps check" bash -lc '
     command -v stap >/dev/null 2>&1 \
-    && test -f variants/v1-stap-only/intp-resctrl.stp \
+    && test -f variants/v1-stap-nohelper/intp-resctrl.stp \
     && test -x shared/intp-resctrl-helper.sh
   '
 fi
-_variant_requested v0.2 && run_step "build v0.2" make -C variants/v0.2-legacy-bridge all
-_variant_requested v1.1 && run_step "build v1.1" make -C variants/v1.1-stap-helper all
+_variant_requested v0.2 && run_step "build v0.2" make -C variants/v0.2-stap-legacy all
+_variant_requested v1.1 && run_step "build v1.1" make -C variants/v1.1-stap-modern all
 _variant_requested v2   && run_step "build v2"   make -C variants/v2-hybrid-c all
-_variant_requested v3   && run_step "build v3"   make -C variants/v3-ebpf-ringbuf all
+_variant_requested v3   && run_step "build v3"   make -C variants/v3-ebpf-ring all
 _variant_requested v3.2 && run_step "build v3.2" make -C variants/v3.2-ebpf-agg all
 _variant_requested v3.1 && run_step "v3.1 deps check" make -C variants/v3.1-bpftrace deps
 true   # keep exit status clean after the short-circuit && chains above

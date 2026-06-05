@@ -1,4 +1,4 @@
-# v1.1 -- SystemTap with userspace helper for hardware metrics
+# v1.1 (stap-modern) -- SystemTap with userspace helper for hardware metrics
 
 Status: complete. Helper, matching `.stp` script, and bench integration
 all done; nets switched to softirq tapset for kernel-6.8/veth fidelity
@@ -78,7 +78,7 @@ missing or stale, both metrics report 0.
     wait "$HELPER_PID"
 
 The bench harness (`bench/run-intp-bench.sh`) launches the helper for
-v1.1 only and tears it down after the run completes.
+stap-modern only and tears it down after the run completes.
 
 ## Limitations / known issues
 

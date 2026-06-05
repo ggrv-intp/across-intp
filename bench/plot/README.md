@@ -17,7 +17,7 @@ covers the **standalone** invocation flow.
 | `plot-intp-bench.py`        | a `bench-full/` directory (one campaign) | `<input>/plots/{png,pdf}/fig*.{png,pdf}` + `aggregate-means.csv` | re-rendering the cross-variant figure set (fig00 - fig14, plus fig01b / fig04b / fig04c) from solo / pairwise / overhead / timeseries data |
 | `plot-hibench.py`           | a `hibench/` directory (one or more workload sweeps) | `<input>/plots/fig*.png` | rendering the HiBench-specific resource-family figures |
 | `plot-pca-correlation-circle.py` | an `aggregate-means.{tsv,csv}` from a single campaign | `fig_pca_correlation_circle.png` | publication-grade single-figure biplot for the SBAC-PAD short paper |
-| `extract-fragility.py`      | a `bench-full/` directory (SystemTap stap.log per run) | `<input>/fragility-summary.tsv` and `fragility-aggregated.tsv` | quantifying probe skips, overload, sample loss for the V0 / V0.1 / V1 / V1.1 stap variants |
+| `extract-fragility.py`      | a `bench-full/` directory (SystemTap stap.log per run) | `<input>/fragility-summary.tsv` and `fragility-aggregated.tsv` | quantifying probe skips, overload, sample loss for the stap-2022 / stap-nollc / stap-nohelper / stap-modern stap variants |
 | `plot-cross-environment.py` | a `bench-full/` directory containing `aggregate-means.tsv` (>= 2 envs) | `<input>/cross-env/{summary,availability,stats}.tsv` + `plots/<variant>/<workload>.png` | comparing bare vs container vs vm under the same workload using Kruskal-Wallis + Mann-Whitney (Bonferroni) + Cliff's delta |
 | `cross-variant-correlation.py` | a campaign tree (publication or fused layout) | `--out` dir: `correlation-{4way,per-metric}-<env>.tsv`, `correlation-{family-summary,per-metric-family}.tsv`, `overhead-bounds.tsv` | reproducing the paper's §V cross-variant fingerprint correlations (per-metric + per-family, raw and z-scored) and per-variant throughput-overhead bounds from the merged `aggregate-means.tsv` + overhead `throughput.tsv` |
 
@@ -124,7 +124,7 @@ python3 bench/plot/extract-fragility.py results/<campaign>/bench-full
 ```
 
 Walks every `rep<R>/` under the campaign, parses
-`profiler.stap.log` (only emitted by V0/V0.1/V1/V1.1) and the
+`profiler.stap.log` (only emitted by stap-2022/stap-nollc/stap-nohelper/stap-modern) and the
 sibling `run.json`, and writes:
 
 - `fragility-summary.tsv` — one row per
@@ -166,9 +166,9 @@ Two analysis envs: `bare` = the stress-ng layer (`stage == solo`),
 the flattened `[application × metric]` fingerprint (raw and
 per-metric-z-scored) and per single metric across applications. The
 family roll-up splits the endpoints into the SystemTap pair
-`{v0.2, v1.1}` and the production-grade pair `{v2, v3.2}`; the
+`{stap-legacy, stap-modern}` and the production-grade pair `{hybrid-c, ebpf-agg}`; the
 **cross-family** rows are where the `llcocc` capability gap and the
-v0.2 overhead surface. Outputs (to `--out`, default `paper-tables/`):
+stap-legacy overhead surface. Outputs (to `--out`, default `paper-tables/`):
 
 - `correlation-4way-<env>.tsv` — the 6 pairwise r (raw + z-scored).
 - `correlation-per-metric-<env>.tsv` — 7 metrics × 6 pairs.

@@ -46,6 +46,31 @@ except ImportError:
 
 
 VARIANT_ORDER = ["v0", "v0.1", "v0.2", "v1", "v1.1", "v2", "v3", "v3.1", "v3.2"]
+
+# Descriptive, paper-facing variant names. Figures show these instead of the
+# bare vN tags so a reader need not consult the variant table to know what a
+# panel measures. Canonical map: VERSIONS.md. The four measured versions are
+# stap-legacy (v0.2), stap-modern (v1.1), hybrid-c (v2) and ebpf-agg (v3.2).
+VARIANT_LABELS = {
+    "v0":   "stap-2022",
+    "v0.1": "stap-nollc",
+    "v0.2": "stap-legacy",
+    "v1":   "stap-nohelper",
+    "v1.1": "stap-modern",
+    "v2":   "hybrid-c",
+    "v2.1": "cgroup-native",
+    "v3":   "ebpf-ring",
+    "v3.1": "bpftrace",
+    "v3.2": "ebpf-agg",
+    "v3.3": "ebpf-cgroup",
+}
+
+
+def variant_label(v):
+    """Paper-facing descriptive name for a dataset variant tag."""
+    return VARIANT_LABELS.get(str(v), str(v))
+
+
 ENV_ORDER = [
     "bare",
     "container", "container-guest", "container-full",
@@ -100,9 +125,9 @@ def fig_variant_ranking(df: pd.DataFrame, baseline: tuple[str, float], out: Path
     ax.barh(y, grouped["mean"], xerr=grouped["sem"].fillna(0),
             capsize=4, color="#3a7", edgecolor="black")
     ax.axvline(value, color="#c33", linestyle="--", linewidth=1.5,
-               label=f"baseline: {name} ({value:.1f})")
+               label=f"baseline: {variant_label(name)} ({value:.1f})")
     ax.set_yticks(y)
-    ax.set_yticklabels(grouped.index)
+    ax.set_yticklabels([variant_label(v) for v in grouped.index])
     ax.invert_yaxis()
     ax.set_xlabel("IDI (avg per simulation, lower = better)")
     ax.set_title("Variant ranking — IDI mean ± stderr")
@@ -124,7 +149,7 @@ def fig_migrations_vs_idi(df: pd.DataFrame, out: Path) -> None:
         if sub.empty:
             continue
         ax.scatter(sub["migrations_total"], sub["idi_avg"],
-                   label=str(v), alpha=0.7, s=44)
+                   label=variant_label(v), alpha=0.7, s=44)
     ax.set_xlabel("Total migrations")
     ax.set_ylabel("IDI (avg)")
     ax.set_title("Migrations vs IDI — trade-off per variant")
@@ -145,7 +170,7 @@ def fig_wallclock(df: pd.DataFrame, out: Path) -> None:
     ax.bar(x, g["mean"], yerr=g["sem"].fillna(0), capsize=4,
            color="#69c", edgecolor="black")
     ax.set_xticks(x)
-    ax.set_xticklabels(g.index)
+    ax.set_xticklabels([variant_label(v) for v in g.index])
     ax.set_ylabel("Wallclock (min)")
     ax.set_title("Simulation wallclock per variant")
     for i, n in enumerate(g["count"]):
@@ -178,7 +203,7 @@ def fig_transfer_heatmap(df: pd.DataFrame, out: Path) -> None:
     ax.set_xticks(range(len(ratio.columns)))
     ax.set_xticklabels(ratio.columns)
     ax.set_yticks(range(len(ratio.index)))
-    ax.set_yticklabels(ratio.index)
+    ax.set_yticklabels([variant_label(v) for v in ratio.index])
     ax.set_title(
         "IDI ratio vs aligned env (container=1.0)\n"
         "container = aligned (training-domain) — bare/vm = domain transfer"
@@ -218,7 +243,7 @@ def fig_transfer_degradation(df: pd.DataFrame, out: Path) -> None:
     ax.axhline(1.0, color="#888", linewidth=1, linestyle="--",
                label="aligned (container)")
     ax.set_xticks(x + (len(other_envs) - 1) * width / 2)
-    ax.set_xticklabels(ratio.index)
+    ax.set_xticklabels([variant_label(v) for v in ratio.index])
     ax.set_ylabel("IDI ratio (env / container)")
     ax.set_title("Transfer degradation: IDI ratio bar by env")
     ax.legend(fontsize=8)
@@ -247,7 +272,7 @@ def fig_fragility_vs_idi(df: pd.DataFrame, fragility_tsv: Path, out: Path) -> No
     ax.scatter(merged[score_col], merged["idi_avg"], s=60,
                color="#a35", edgecolor="black")
     for _, r in merged.iterrows():
-        ax.annotate(str(r["variant"]),
+        ax.annotate(variant_label(r["variant"]),
                     (r[score_col], r["idi_avg"]),
                     fontsize=8, xytext=(4, 4), textcoords="offset points")
     ax.set_xlabel(score_col)

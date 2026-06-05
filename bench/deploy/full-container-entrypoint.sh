@@ -74,9 +74,9 @@ profiler_cmd() {
     local variant="$1" pid="$2" duration="$3"
     case "$variant" in
         v2)   echo "$INTP_ROOT/variants/v2-hybrid-c/intp-hybrid --pid $pid --interval $INTERVAL --duration $duration --no-prom" ;;
-        v3)   echo "$INTP_ROOT/variants/v3-ebpf-ringbuf/intp-ebpf --pid $pid --interval $INTERVAL --duration $duration" ;;
+        v3)   echo "$INTP_ROOT/variants/v3-ebpf-ring/intp-ebpf --pid $pid --interval $INTERVAL --duration $duration" ;;
         v3.1) echo "bash $INTP_ROOT/variants/v3.1-bpftrace/run-intp-bpftrace.sh --pid $pid --interval $INTERVAL --duration $duration" ;;
-        v1.1) echo "stap -DMAXACTION=8192 -DSTP_NO_OVERLOAD --suppress-handler-errors $INTP_ROOT/variants/v1.1-stap-helper/intp-v1.1.stp -x $pid --target-pid=$pid -F" ;;
+        v1.1) echo "stap -DMAXACTION=8192 -DSTP_NO_OVERLOAD --suppress-handler-errors $INTP_ROOT/variants/v1.1-stap-modern/intp-v1.1.stp -x $pid --target-pid=$pid -F" ;;
         *) echo ""; return 1 ;;
     esac
 }

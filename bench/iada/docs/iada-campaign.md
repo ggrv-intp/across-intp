@@ -36,7 +36,7 @@ training set, the correlation between resources probably will have
 different behavior" — Meyer 2021 §5.2.1).
 
 **What is interpretable from M1:** instrumentation-fidelity comparisons
-between V0…V3.1 with the scheduler held fixed. This is the contribution
+between stap-2022…bpftrace with the scheduler held fixed. This is the contribution
 that anchors Section V of the dissertation. Retraining is optional and
 planned with Meyer's assistance.
 
@@ -144,8 +144,10 @@ the classifier lives inside `CloudSimInterference/R/`.
 
 The IntP dissertation is structured in two phases:
 
-1. **Phase 1 (IntP):** seven instrumentation variants (V0, V0.1, V1,
-   V1.1, V2, V3, V3.1) collect the same seven interference metrics
+1. **Phase 1 (IntP):** seven instrumentation variants (v0 (stap-2022),
+   v0.1 (stap-nollc), v1 (stap-nohelper), v1.1 (stap-modern),
+   v2 (hybrid-c), v3 (ebpf-ring), v3.1 (bpftrace)) collect the same
+   seven interference metrics
    under controlled workloads. Phase 1 quantifies how the
    *instrumentation choice* affects measurement fidelity, deployment
    complexity, and runtime overhead. Outputs land in
@@ -178,7 +180,7 @@ Test the central hypothesis:
 > **Do interference profiles collected with higher-fidelity
 > instrumentation produce better scheduling decisions?**
 
-The IntP campaign varies the *source* of the profiles (V0–V3.1 ×
+The IntP campaign varies the *source* of the profiles (stap-2022–bpftrace ×
 bare/container/vm). This campaign feeds each profile set into the
 **same** scheduler (IADA SAO + SVM classifier trained on synthetic
 stressors), isolating instrumentation fidelity as the independent
@@ -370,11 +372,11 @@ no arguments to print usage). Notable defaults:
       `parse-cloudsim-output.py`, `run-iada-campaign.sh`
 
 ### Phase 1 — Cross-validation (next)
-Once IntP Phase 2 has run HiBench on V3.1 / V3 and produced the first
+Once IntP Phase 2 has run HiBench on bpftrace / ebpf-ring and produced the first
 real Meyer set:
 - [ ] Run `generate-iada-tree.py` against `bench-full/`
 - [ ] Run one smoke simulation:
-      `run-iada-experiment.sh` with V3.1 / bare
+      `run-iada-experiment.sh` with bpftrace / bare
 - [ ] Confirm IDI and migrations are plausible vs. the paper baseline
 
 ### Phase 2 — Full campaign

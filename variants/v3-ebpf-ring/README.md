@@ -1,45 +1,45 @@
-# V3 -- Full eBPF/CO-RE IntP Implementation (predecessor of V3.2)
+# V3 (ebpf-ring) -- Full eBPF/CO-RE IntP Implementation (predecessor of V3.2 (ebpf-agg))
 
 The dissertation's Phase 2 prototype: IntP implemented in C with libbpf
-and CO-RE (Compile Once, Run Everywhere). V3 was the original eBPF
-endpoint; **V3.2 (`variants/v3.2-ebpf-agg/`) supersedes it as the
+and CO-RE (Compile Once, Run Everywhere). ebpf-ring was the original eBPF
+endpoint; **ebpf-agg (`variants/v3.2-ebpf-agg/`) supersedes it as the
 measured eBPF endpoint** for the SBAC-PAD 2026 campaign by replacing
-V3's 16 MiB ring buffer with in-kernel counter aggregation. V3 is
+ebpf-ring's 16 MiB ring buffer with in-kernel counter aggregation. ebpf-ring is
 retained in the repository as the empirical-evidence predecessor and
 the introspection profiler; see `docs/V3-OVERHEAD-FINDINGS.md` for
 the measurement record (188-390x context-switch amplification, mbw
-silent clip) that motivated V3.2.
+silent clip) that motivated ebpf-agg.
 
-V3 is still evaluated head-to-head against the SystemTap lineage
-(V0 original, V1 stap-native, V1.1 stap+helper), the framework-free V2,
-and the bpftrace-based V3.1, since the comparison is structural, not
-about the V3 vs V3.2 trade-off.
+ebpf-ring is still evaluated head-to-head against the SystemTap lineage
+(stap-2022 original, stap-nohelper stap-native, stap-modern stap+helper), the framework-free hybrid-c,
+and the bpftrace-based bpftrace, since the comparison is structural, not
+about the ebpf-ring vs ebpf-agg trade-off.
 
 ## Architecture
 
-V3 uses eBPF programs written in C, compiled once to portable bytecode,
+ebpf-ring uses eBPF programs written in C, compiled once to portable bytecode,
 and loaded via libbpf with BTF-based runtime relocation. Software
 metrics flow through a single ring buffer; hardware metrics (mbw,
 llcocc) use the resctrl filesystem.
 
 Comparison across variants in the repo:
 
-- V0 / V0.1 / V1: SystemTap DSL + embedded C, compiled to kernel `.ko`,
+- V0 (stap-2022) / V0.1 (stap-nollc) / V1 (stap-nohelper): SystemTap DSL + embedded C, compiled to kernel `.ko`,
   requires debuginfo. Differ in kernel-version coverage and metric set.
-- V1.1: SystemTap + userspace helper (`variants/v1.1-stap-helper/intp-helper`)
+- V1.1 (stap-modern): SystemTap + userspace helper (`variants/v1.1-stap-modern/intp-helper`)
   for RCU-unsafe operations; full 7 metrics.
-- V2: no framework, pure C / procfs / `perf_event_open` / resctrl polling.
-- V3.1: bpftrace DSL (interpreted) + Python orchestrator + resctrl.
-- **V3: native C eBPF + libbpf skeleton + resctrl (this variant).**
+- V2 (hybrid-c): no framework, pure C / procfs / `perf_event_open` / resctrl polling.
+- V3.1 (bpftrace): bpftrace DSL (interpreted) + Python orchestrator + resctrl.
+- **V3 (ebpf-ring): native C eBPF + libbpf skeleton + resctrl (this variant).**
 
-## Key advantages of V3 over V3.1 (bpftrace)
+## Key advantages of V3 (ebpf-ring) over V3.1 (bpftrace)
 
 - Lower startup overhead: skeleton load, no DSL parse.
 - Full control over ring buffer handling and event aggregation.
 - Lower per-event overhead: no DSL runtime dispatch per probe.
 - Production-grade: matches the architecture of BCC tools, Cilium, Pixie.
 
-## Key advantages of V3 over V1 / V1.1 (SystemTap)
+## Key advantages of V3 (ebpf-ring) over V1 (stap-nohelper) / V1.1 (stap-modern) (SystemTap)
 
 - No kernel module: the verifier guarantees safety in userspace.
 - No debuginfo dependency: BTF provides kernel type information.
@@ -80,13 +80,13 @@ sudo ./intp-ebpf --interval 1
 # Monitor specific PIDs for 60 seconds.
 sudo ./intp-ebpf --pids 1234,5678 --interval 1 --duration 60
 
-# Monitor a cgroup v0.1 path.
+# Monitor a cgroup v2 path.
 sudo ./intp-ebpf --cgroup /sys/fs/cgroup/myservice --interval 0.5
 ```
 
 ## Output format
 
-Byte-compatible with V0's `intp.stp` for downstream IADA integration.
+Byte-compatible with stap-2022's `intp.stp` for downstream IADA integration.
 The leading header line documents which backend supplied each column.
 
 ```text

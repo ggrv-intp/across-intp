@@ -42,7 +42,7 @@
 #                           enrollment; only the stap side switches.
 #
 # Build/Usage:
-#   1. cd variants/v1.1-stap-helper && make
+#   1. cd variants/v1.1-stap-modern && make
 #   2. sudo ./intp-helper <comm-pattern> &       # helper always uses comm
 #   3. # per-process (stress-ng):
 #      sudo stap -g -B CONFIG_MODVERSIONS=y intp-v1.1.stp <comm-pattern>

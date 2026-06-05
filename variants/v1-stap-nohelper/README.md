@@ -1,4 +1,4 @@
-# V1 -- IntP stap-native (no helper, no embedded I/O)
+# V1 (stap-nohelper) -- IntP stap-native (no helper, no embedded I/O)
 
 This variant targets Linux 6.8+ and is the *restored* SystemTap-only build
 after the predecessor lineage (legacy `v3-updated-resctrl`, preserved at
@@ -10,10 +10,10 @@ stalls the system unrecoverably).
 V1 keeps the SystemTap engine but drops every embedded-C operation that
 required RCU-unsafe context: no `perf_event_create_kernel_counter()`, no
 `filp_open`/`kernel_write` of resctrl files, no userspace helper. The
-result is a single self-contained script with the V0-faithful metric set
+result is a single self-contained script with the stap-2022-faithful metric set
 minus the two columns that *cannot* be collected without leaving the
 probe context: memory bandwidth (mbw) and LLC occupancy (llcocc). Both
-are recovered in V1.1 via a userspace helper.
+are recovered in stap-modern via a userspace helper.
 
 ## What This Variant Does
 
@@ -21,7 +21,7 @@ are recovered in V1.1 via a userspace helper.
   no embedded C touching `/sys` or `/proc`)
 - LLC miss ratio comes from
   `probe perf.type(3).config(0x000002).process(@1)` and `0x010002` --
-  the same idiom V0 uses
+  the same idiom stap-2022 uses
 - Output columns preserved (7-column TSV) so downstream tooling is
   unchanged; mbw and llcocc are reported as `00`
 
@@ -32,14 +32,14 @@ are recovered in V1.1 via a userspace helper.
 | netp   | Working  | SystemTap kernel probes (netfilter)         |
 | nets   | Working  | SystemTap kernel probes (netif/napi)        |
 | blk    | Working  | SystemTap kernel.trace(`block_rq_complete`) |
-| mbw    | Disabled | requires uncore IMC -- see V1.1             |
+| mbw    | Disabled | requires uncore IMC -- see stap-modern      |
 | llcmr  | Working  | stap-native `probe perf.type(3)...`         |
-| llcocc | Disabled | requires resctrl helper -- see V1.1         |
+| llcocc | Disabled | requires resctrl helper -- see stap-modern  |
 | cpu    | Working  | SystemTap `scheduler.ctxswitch`             |
 
 ## Quick Start
 
-Run from this directory (`variants/v1-stap-only/`).
+Run from this directory (`variants/v1-stap-nohelper/`).
 
 ```bash
 sudo stap -g -B CONFIG_MODVERSIONS=y intp-resctrl.stp <comm-pattern>
@@ -68,16 +68,16 @@ No userspace helper, no resctrl, no uncore PMU access required.
 
 - `intp-resctrl.stp` -- the stap-native IntP script (432 lines)
 - `docs/LLC-OCCUPANCY-RESCTRL.md` -- historical notes from the legacy
-  resctrl-helper design (informational; that path now lives in V1.1)
+  resctrl-helper design (informational; that path now lives in stap-modern)
 - `docs/RESCTRL-VALIDATION.md` -- historical validation record
 - `install/install_ubuntu24_desktop.md` -- Ubuntu 24.04 setup guide
 
-## When to use V1 vs V1.1
+## When to use V1 (stap-nohelper) vs V1.1 (stap-modern)
 
-- Use **V1** when you need SystemTap-only deployment (no extra process,
+- Use **stap-nohelper** when you need SystemTap-only deployment (no extra process,
   no resctrl, simpler ops) and can accept losing `mbw` / `llcocc`.
-- Use **V1.1** when you need 7/7 metrics on kernel 6.8+ and can afford
+- Use **stap-modern** when you need 7/7 metrics on kernel 6.8+ and can afford
   the userspace `intp-helper` daemon.
 
 For environments where the entire SystemTap stack is undesirable, use
-V2 (procfs/perf/resctrl), V3.1 (bpftrace), or V3 (eBPF/CO-RE) instead.
+hybrid-c (procfs/perf/resctrl), bpftrace, or ebpf-ring (eBPF/CO-RE) instead.

@@ -2,7 +2,7 @@
 
 This directory holds the result tree behind the SBAC-PAD 2026 paper: the
 profiler TSVs, raw logs, and figures for the four reported variants —
-**v0.2, v1.1, v2, v3.2**.
+**v0.2 (stap-legacy), v1.1 (stap-modern), v2 (hybrid-c), v3.2 (ebpf-agg)**.
 
 It is the input consumed by the fragility extractor cited in the paper:
 
@@ -100,9 +100,9 @@ So `extract-fragility.py` emits real `env=hibench` rows (the timestamp-gap path
 is taken whenever `run.json` carries no `duration_target_s`), and
 `bench/plot/hibench-sample-loss.py` is a standalone backfill that writes
 `fragility-hibench-samples.tsv` (per rep) and `fragility-hibench-aggregated.tsv`
-(per variant) for any tree. Measured HiBench sample loss: **v0.2 mean 3.03% /
-max 55.0% (68 of 504 reps > 5%), v1.1 mean 4.39% / max 73.08% (100 of 504 reps
-> 5%), v2 and v3.2 ~0% (max < 2.4%)** — the same SystemTap-vs-modern split seen
+(per variant) for any tree. Measured HiBench sample loss: **stap-legacy mean 3.03% /
+max 55.0% (68 of 504 reps > 5%), stap-modern mean 4.39% / max 73.08% (100 of 504 reps
+> 5%), hybrid-c and ebpf-agg ~0% (max < 2.4%)** — the same SystemTap-vs-modern split seen
 on stress-ng. (`fragility-hibench-aggregated.tsv` holds these per-rep figures;
 the unified extractor's `env=hibench` means read marginally lower, ~4.05%,
 because that pass also walks the 0-loss per-workload aggregate `run.json` files.)
@@ -116,7 +116,7 @@ interval.
 `hibench-sample-loss.py` only writes the `fragility-hibench-*.tsv` files, so it
 is safe to re-run on this published tree. `extract-fragility.py`, by contrast,
 rewrites `fragility-summary.tsv` / `fragility-aggregated.tsv` — do not run it
-against this published tree, per the v0.2 stall-count caveat under
+against this published tree, per the stap-legacy stall-count caveat under
 **Anonymization** below.
 
 ## How this tree is produced
@@ -148,8 +148,8 @@ with generic placeholders (hostnames → `anon-host`, internal IPs → `10.0.0.x
 build paths → `/path/to/across-intp`). See `ANONYMIZATION.md` in the payload for
 the full redaction record.
 
-The v0.2 `stall-monitor/` raw kernel/journal dumps are **omitted for privacy**
-(they captured system journald output, including third-party SSH-spam). The v0.2
+The stap-legacy `stall-monitor/` raw kernel/journal dumps are **omitted for privacy**
+(they captured system journald output, including third-party SSH-spam). The stap-legacy
 stall evidence is retained as counts in the shipped `fragility-summary.tsv` /
 `fragility-aggregated.tsv` — do **not** regenerate these with
 `extract-fragility.py` against this tree, since the raw dumps needed to recount

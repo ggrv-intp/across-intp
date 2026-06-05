@@ -75,17 +75,28 @@ except ImportError:
 # ---------------------------------------------------------------------------
 
 VARIANT_ORDER = ["v0", "v0.1", "v0.2", "v1", "v1.1", "v2", "v3.1", "v3", "v3.2"]
+# Descriptive, paper-facing variant names. Figures show these instead of the
+# bare vN tags so a reader need not consult the variant table to know what a
+# panel measures. Canonical map: VERSIONS.md. The four measured versions are
+# stap-legacy (v0.2), stap-modern (v1.1), hybrid-c (v2) and ebpf-agg (v3.2).
 VARIANT_LABELS = {
-    "v0":   "v0 (stap classic)",
-    "v0.1": "v0.1 (stap k68)",
-    "v0.2": "v0.2 (stap helper)",
-    "v1":   "v1 (stap native)",
-    "v1.1": "v1.1 (stap helper)",
-    "v2":   "v2 (C99)",
-    "v3.1": "v3.1 (eBPF-py)",
-    "v3":   "v3 (eBPF CO-RE)",
-    "v3.2": "v3.2 (eBPF aggregate)",
+    "v0":   "stap-2022",
+    "v0.1": "stap-nollc",
+    "v0.2": "stap-legacy",
+    "v1":   "stap-nohelper",
+    "v1.1": "stap-modern",
+    "v2":   "hybrid-c",
+    "v2.1": "cgroup-native",
+    "v3":   "ebpf-ring",
+    "v3.1": "bpftrace",
+    "v3.2": "ebpf-agg",
+    "v3.3": "ebpf-cgroup",
 }
+
+
+def variant_label(v):
+    """Paper-facing descriptive name for a dataset variant tag."""
+    return VARIANT_LABELS.get(str(v), str(v))
 # Profiles accepted by run-hibench-subset.sh. Keep "standard" first (it is the
 # baseline reference for the sensitivity figure); the rest are co-runner
 # pressure variants the all-stress sweep emits.
@@ -617,7 +628,7 @@ def fig_per_workload_bars(df: pd.DataFrame, outdir: Path) -> None:
                 ax.bar(x + offset, np.nan_to_num(vals), width=bar_w,
                        color=VARIANT_COLORS.get(variant, f"C{vi}"),
                        edgecolor="white", linewidth=0.3,
-                       label=variant if i == 0 else None)
+                       label=variant_label(variant) if i == 0 else None)
             ax.set_xticks(x)
             ax.set_xticklabels(METRICS, rotation=45, ha="right", fontsize=7)
             ax.set_title(wl, fontsize=8.5)
@@ -629,7 +640,8 @@ def fig_per_workload_bars(df: pd.DataFrame, outdir: Path) -> None:
         handles = [plt.Rectangle((0, 0), 1, 1, color=VARIANT_COLORS.get(v, "C0"))
                    for v in variants]
         fig.tight_layout()
-        leg = _legend_above_axes(fig, axes_flat, handles, variants,
+        leg = _legend_above_axes(fig, axes_flat, handles,
+                                 [variant_label(v) for v in variants],
                                  ncol=len(variants), fontsize=8.5,
                                  title="variant", title_fontsize=8.5)
         _centered_suptitle(fig, axes_flat,
@@ -669,7 +681,7 @@ def fig_radar(df: pd.DataFrame, outdir: Path) -> None:
             vals += vals[:1]
             color = VARIANT_COLORS.get(variant, "C0")
             ax.plot(angles, vals, color=color, linewidth=1.9, alpha=0.95,
-                    label=variant)
+                    label=variant_label(variant))
             ax.fill(angles, vals, color=color, alpha=0.06)
         ax.set_xticks(angles[:-1])
         ax.set_xticklabels(METRICS, fontsize=7.5)
@@ -683,9 +695,10 @@ def fig_radar(df: pd.DataFrame, outdir: Path) -> None:
         ax.set_title(wl, fontsize=9, pad=10)
         ax.grid(linewidth=0.4, alpha=0.5)
     handles = [plt.Line2D([0], [0], color=VARIANT_COLORS.get(v, "C0"),
-                          linewidth=2.4, label=v) for v in variants]
+                          linewidth=2.4, label=variant_label(v)) for v in variants]
     fig.tight_layout()
-    leg = _legend_above_axes(fig, axes_flat, handles, variants,
+    leg = _legend_above_axes(fig, axes_flat, handles,
+                             [variant_label(v) for v in variants],
                              ncol=len(variants), fontsize=9.5,
                              title="variant", title_fontsize=9.5)
     _centered_suptitle(fig, axes_flat,
@@ -733,7 +746,7 @@ def fig_pca(df: pd.DataFrame, outdir: Path) -> None:
                         xytext=(4, 4), textcoords="offset points")
         ax.axhline(0, color="gray", linewidth=0.5, linestyle=":")
         ax.axvline(0, color="gray", linewidth=0.5, linestyle=":")
-        ax.set_title(f"{variant} / {profile}\n"
+        ax.set_title(f"{variant_label(variant)} / {profile}\n"
                      f"PC1={pca.explained_variance_ratio_[0]*100:.1f}%  "
                      f"PC2={pca.explained_variance_ratio_[1]*100:.1f}%", fontsize=9.5)
         ax.set_xlabel("PC1"); ax.set_ylabel("PC2")
@@ -808,7 +821,7 @@ def fig_timeseries(run_dirs: list[Path], outdir: Path) -> None:
                 if ri == 0:
                     ax.set_title(wl, fontsize=8.5)
                 if ci == 0:
-                    ax.set_ylabel(f"{variant}\nlevel", fontsize=8)
+                    ax.set_ylabel(f"{variant_label(variant)}\nlevel", fontsize=8)
                 if ri == nrows - 1:
                     ax.set_xlabel("time (s)", fontsize=8)
                 ax.tick_params(labelsize=7)
@@ -1012,7 +1025,7 @@ def fig_resource_timeseries(run_dirs: list[Path], outdir: Path) -> None:
                 if ri == 0:
                     ax.set_title(wl, fontsize=8.5)
                 if ci == 0:
-                    ax.set_ylabel(f"{variant}\nlevel (%)", fontsize=8)
+                    ax.set_ylabel(f"{variant_label(variant)}\nlevel (%)", fontsize=8)
                 if ri == nrows - 1:
                     ax.set_xlabel("time (s)", fontsize=8)
                 ax.tick_params(labelsize=7)
@@ -1091,7 +1104,7 @@ def fig_variant_resource_heatmap(df: pd.DataFrame, outdir: Path) -> None:
         ax.set_xticks(range(len(resources)))
         ax.set_xticklabels(resources, fontsize=8.5)
         ax.set_yticks(range(len(pivot.index)))
-        ax.set_yticklabels(pivot.index, fontsize=8.5)
+        ax.set_yticklabels([variant_label(v) for v in pivot.index], fontsize=8.5)
         ax.set_title(f"profile={profile}", fontsize=10)
         for (yi, xi), v in np.ndenumerate(pivot.values):
             if not np.isnan(v):
@@ -1225,7 +1238,7 @@ def fig_metric_availability(df: pd.DataFrame, outdir: Path) -> None:
     ax.imshow(pivot.values, cmap=cmap, vmin=0, vmax=1, aspect="auto",
               interpolation="none")
     ax.set_xticks(range(len(pivot.columns))); ax.set_xticklabels(pivot.columns)
-    ax.set_yticks(range(len(pivot.index)));   ax.set_yticklabels(pivot.index)
+    ax.set_yticks(range(len(pivot.index)));   ax.set_yticklabels([variant_label(v) for v in pivot.index])
     for (yi, xi), v in np.ndenumerate(pivot.values):
         ax.text(xi, yi, "✓" if v else "—", ha="center", va="center",
                 fontsize=11, color="white" if v else "#666")

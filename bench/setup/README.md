@@ -178,7 +178,7 @@ pointed at a parent directory.
 | `--no-build`        | Skip `make` of v2 / v3.                                             |
 | `--no-debuginfo`    | Skip the ddebs repo and matching dbgsym package. SystemTap probes
                        lose access to a lot of internal symbols; only use this if you
-                       intend to run V2/V3.1/V3 only.                                    |
+                       intend to run hybrid-c/bpftrace/ebpf-ring only.                  |
 
 ## Sanity check after step 4 / step 6
 
@@ -193,7 +193,7 @@ The script's self-test prints a summary like:
 ```
 
 Anything reporting `FAIL` or `missing` will narrow the variant set you
-can run -- e.g. no BTF means v3.1 / v3 will refuse to attach.
+can run -- e.g. no BTF means bpftrace / ebpf-ring will refuse to attach.
 
 ## Legacy U22 host (legacy-V0 campaign)
 
@@ -223,7 +223,7 @@ INTP_BENCH_V0_DEEP_CLEANUP_EVERY=1 \
 ```
 
 What `setup-host-legacy.sh` deliberately does not do: touch GRUB or
-boot order, install bpftrace / libbpf-dev (V3 / V3.1 are not in scope
+boot order, install bpftrace / libbpf-dev (ebpf-ring / bpftrace are not in scope
 on the legacy host), or build any of the modern variants. It is safe
 to re-run; every step is a check-then-apply.
 

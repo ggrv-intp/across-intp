@@ -95,7 +95,7 @@ netp    nets    blk     mbw     llcmr   llcocc  cpu
 
 ### What Changed
 
-The Intel RDT / Cache QoS Monitoring (CQM) refactor that breaks V0 on
+The Intel RDT / Cache QoS Monitoring (CQM) refactor that breaks stap-2022 on
 kernel 6.8 was actually completed in **kernel 4.14** (November 2017,
 commit `c39a0e2c8850`). 6.8 is just the kernel on which Ubuntu
 ships no vendor backport at all:
@@ -261,14 +261,14 @@ If perf events are available, this might be simpler than resctrl.
 
 ## Files Modified
 
-- `variants/v0.1-min-patch/intp-6.8.stp` -- Patched version (new file).
-- `variants/v0-baseline-2022/intp.stp` -- Original version (unchanged).
+- `variants/v0.1-stap-nollc/intp-6.8.stp` -- Patched version (new file).
+- `variants/v0-stap-2022/intp.stp` -- Original version (unchanged).
 - `docs/KERNEL-6.8-CHANGES.md` -- this file (cross-variant root copy).
-- `variants/v0.1-min-patch/docs/KERNEL-6.8-NOTES.md` -- per-variant V0.1 changelog (kept verbatim from the V0.1 working notes).
+- `variants/v0.1-stap-nollc/docs/KERNEL-6.8-NOTES.md` -- per-variant stap-nollc changelog (kept verbatim from the stap-nollc working notes).
 
 ## References
 
 - [Linux kernel resctrl documentation](https://docs.kernel.org/filesystems/resctrl.html) (current canonical URL; the `/x86/resctrl.html` path returns 404).
 - [Intel Resource Director Technology overview](https://www.intel.com/content/www/us/en/architecture-and-technology/resource-director-technology.html)
 - [Kernel 6.8 changelog](https://kernelnewbies.org/Linux_6.8)
-- Sohal, P. et al. (2022). *A Closer Look at Intel Resource Director Technology (RDT)*. RTNS 2022. (DOI: 10.1145/3534879.3534882) -- documents MBM accuracy errata on Skylake-class hardware that motivate the dual `resctrl_mbm` / `perf_uncore_imc` backend in V2.
+- Sohal, P. et al. (2022). *A Closer Look at Intel Resource Director Technology (RDT)*. RTNS 2022. (DOI: 10.1145/3534879.3534882) -- documents MBM accuracy errata on Skylake-class hardware that motivate the dual `resctrl_mbm` / `perf_uncore_imc` backend in hybrid-c.

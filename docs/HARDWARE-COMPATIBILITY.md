@@ -53,7 +53,7 @@ cat /sys/fs/resctrl/info/L3_MON/num_rmids
 ls /sys/devices/uncore_imc_*/
 ```
 
-### 2.3 IntP Backend Priority (V2)
+### 2.3 IntP Backend Priority (hybrid-c)
 
 ```
 mbw:   resctrl_mbm > perf_uncore_imc
@@ -69,9 +69,9 @@ llcmr:  perf_hwcache > perf_raw (0x4F2E / 0x412E)
   `c39a0e2c8850`) together with the `intel_cqm` perf PMU driver.
   Vendor backports kept it usable on some enterprise LTS kernels
   until roughly 2019-2020; today no mainstream distro ships the
-  backport, so V0 will fail to compile on any current kernel
+  backport, so stap-2022 will fail to compile on any current kernel
   (Ubuntu 22.04's stock 5.15 already lacks the field; 6.8 is
-  simply when the failure becomes inescapable). V0.1+ handle this.
+  simply when the failure becomes inescapable). stap-nollc+ handle this.
   SystemTap's `perf_rmid_read()` is no longer available.
 - **RMID budget:** Each resctrl `mon_group` consumes 1 RMID.
   Haswell has 32, Broadwell+ has 128-256. IntP uses 1 group per run.
@@ -136,7 +136,7 @@ ls /sys/devices/amd_df*/
 grep AuthenticAMD /proc/cpuinfo
 ```
 
-### 3.3 IntP Backend Priority (V2)
+### 3.3 IntP Backend Priority (hybrid-c)
 
 ```texts
 mbw:    resctrl_mbm > perf_amd_df (DRAM beats, 64B granularity)
@@ -205,7 +205,7 @@ cat /sys/fs/resctrl/info/MB_MON/mon_features 2>/dev/null
 ls /sys/devices/arm_cmn*/
 ```
 
-### 4.3 IntP Backend Priority (V2)
+### 4.3 IntP Backend Priority (hybrid-c)
 
 ```text
 mbw:    resctrl_mbm > perf_arm_cmn (HN-F memory traffic, 64B)
@@ -278,17 +278,17 @@ sudo mount -t resctrl resctrl /sys/fs/resctrl
 
 # Build all
 cd variants/v2-hybrid-c && make && cd ..
-cd variants/v3-ebpf-ringbuf && make && cd ..
+cd variants/v3-ebpf-ring && make && cd ..
 
 # Validate 7/7
 ./shared/intp-detect.sh | grep INTP_
 sudo ./variants/v2-hybrid-c/intp-hybrid --list-backends
-sudo ./variants/v3-ebpf-ringbuf/intp-ebpf --list-capabilities
+sudo ./variants/v3-ebpf-ring/intp-ebpf --list-capabilities
 
 # Run
 sudo ./variants/v2-hybrid-c/intp-hybrid --interval 1 --duration 60
 sudo ./variants/v3.1-bpftrace/run-intp-bpftrace.sh --interval 1 --duration 60
-sudo ./variants/v3-ebpf-ringbuf/intp-ebpf --interval 1 --duration 60
+sudo ./variants/v3-ebpf-ring/intp-ebpf --interval 1 --duration 60
 
 # Cross-variant comparison
 sudo ./shared/validate-cross-variant.sh --start-workload --duration 30
@@ -305,7 +305,7 @@ sudo mount -t resctrl resctrl /sys/fs/resctrl
 
 # Build
 cd variants/v2-hybrid-c && make && cd ..
-cd variants/v3-ebpf-ringbuf && make && cd ..
+cd variants/v3-ebpf-ring && make && cd ..
 
 # Verify — look for amd_df and resctrl features
 ls /sys/devices/amd_df*/ 2>/dev/null && echo "AMD DF: available"
@@ -314,7 +314,7 @@ cat /sys/fs/resctrl/info/L3_MON/mon_features
 # Run (identical commands)
 sudo ./variants/v2-hybrid-c/intp-hybrid --interval 1 --duration 60
 sudo ./variants/v3.1-bpftrace/run-intp-bpftrace.sh --interval 1 --duration 60
-sudo ./variants/v3-ebpf-ringbuf/intp-ebpf --interval 1 --duration 60
+sudo ./variants/v3-ebpf-ring/intp-ebpf --interval 1 --duration 60
 ```
 
 ### 6.3 ARM64 (Neoverse N2/V0.1, Graviton 4)
@@ -329,7 +329,7 @@ sudo mount -t resctrl resctrl /sys/fs/resctrl 2>/dev/null
 
 # Build (native on ARM64)
 cd variants/v2-hybrid-c && make && cd ..
-cd variants/v3-ebpf-ringbuf && make && cd ..
+cd variants/v3-ebpf-ring && make && cd ..
 
 # Verify
 cat /sys/fs/resctrl/info/L3_MON/mon_features 2>/dev/null || echo "No MPAM — mbw/llcocc will be proxy/unavailable"
@@ -338,7 +338,7 @@ ls /sys/devices/arm_cmn*/ 2>/dev/null && echo "ARM CMN: available"
 # Run
 sudo ./variants/v2-hybrid-c/intp-hybrid --interval 1 --duration 60
 sudo ./variants/v3.1-bpftrace/run-intp-bpftrace.sh --interval 1 --duration 60
-sudo ./variants/v3-ebpf-ringbuf/intp-ebpf --interval 1 --duration 60
+sudo ./variants/v3-ebpf-ring/intp-ebpf --interval 1 --duration 60
 ```
 
 ---
@@ -351,7 +351,7 @@ sudo ./variants/v3-ebpf-ringbuf/intp-ebpf --interval 1 --duration 60
 | `llcmr=--` | perf_event_paranoid too high | `sudo sysctl -w kernel.perf_event_paranoid=-1` |
 | `netp` value seems wrong | NIC speed misdetected | Use `--nic-speed-bps` override |
 | `mbw` always 0 | mem_bw_max autodetect failed | Use `--mem-bw-max-bps` override (check dmidecode) |
-| V3 build fails: "vmlinux.h not found" | BTF absent | `apt install linux-image-$(uname -r)-dbg` or check `CONFIG_DEBUG_INFO_BTF` |
-| V3.1: "bpftrace: failed to load BTF" | Kernel lacks BTF | Need kernel 5.8+ with `CONFIG_DEBUG_INFO_BTF=y` |
-| V3: "failed to attach" in container | Missing capabilities | `docker run --privileged` or add `CAP_BPF,CAP_PERFMON,CAP_SYS_RESOURCE` |
+| ebpf-ring build fails: "vmlinux.h not found" | BTF absent | `apt install linux-image-$(uname -r)-dbg` or check `CONFIG_DEBUG_INFO_BTF` |
+| bpftrace: "bpftrace: failed to load BTF" | Kernel lacks BTF | Need kernel 5.8+ with `CONFIG_DEBUG_INFO_BTF=y` |
+| ebpf-ring: "failed to attach" in container | Missing capabilities | `docker run --privileged` or add `CAP_BPF,CAP_PERFMON,CAP_SYS_RESOURCE` |
 | resctrl mount fails | Kernel lacks RDT/PQoS/MPAM | Hardware doesn't support it; mbw/llcocc degrade |

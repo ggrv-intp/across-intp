@@ -1,17 +1,17 @@
 # IntP root Makefile — orchestrates per-variant builds.
 #
 # Compileable variants (C helpers and/or eBPF binaries):
-#   variants/v0.2-legacy-bridge   — C helper for V0 stap script (target kernel 5.15 GA)
-#   variants/v1.1-stap-helper   — C helper for V1 stap module (target kernel 6.8+)
+#   variants/v0.2-stap-legacy   — C helper for V0 stap script (target kernel 5.15 GA)
+#   variants/v1.1-stap-modern   — C helper for V1 stap module (target kernel 6.8+)
 #   variants/v2-hybrid-c    — hybrid procfs/perf_event_open/resctrl backends
-#   variants/v3-ebpf-ringbuf     — libbpf+CO-RE BPF program (needs clang, libbpf-dev)
+#   variants/v3-ebpf-ring     — libbpf+CO-RE BPF program (needs clang, libbpf-dev)
 #   variants/v3.2-ebpf-agg— in-kernel-aggregating libbpf+CO-RE BPF program
 #
 # Validate-only variants (no compile, runtime interpreters):
 #   variants/v3.1-bpftrace      — bpftrace .bt scripts (deps + parse check)
-#   variants/v0-baseline-2022    — original SystemTap script (parse check only)
-#   variants/v0.1-min-patch      — kernel-6.8 SystemTap port (parse check only)
-#   variants/v1-stap-only     — native stap module (parse check only)
+#   variants/v0-stap-2022    — original SystemTap script (parse check only)
+#   variants/v0.1-stap-nollc      — kernel-6.8 SystemTap port (parse check only)
+#   variants/v1-stap-nohelper     — native stap module (parse check only)
 #
 # Common targets:
 #   make all        build every compileable variant + validate the rest
@@ -28,16 +28,16 @@
 
 ROOT := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 
-V02_DIR := $(ROOT)/variants/v0.2-legacy-bridge
-V11_DIR := $(ROOT)/variants/v1.1-stap-helper
+V02_DIR := $(ROOT)/variants/v0.2-stap-legacy
+V11_DIR := $(ROOT)/variants/v1.1-stap-modern
 V2_DIR  := $(ROOT)/variants/v2-hybrid-c
-V3_DIR  := $(ROOT)/variants/v3-ebpf-ringbuf
+V3_DIR  := $(ROOT)/variants/v3-ebpf-ring
 V31_DIR := $(ROOT)/variants/v3.1-bpftrace
 V32_DIR := $(ROOT)/variants/v3.2-ebpf-agg
-V0_STP  := $(ROOT)/variants/v0-baseline-2022/intp.stp
-V01_STP := $(ROOT)/variants/v0.1-min-patch/intp-6.8.stp
-V1_STP  := $(ROOT)/variants/v1-stap-only/intp-resctrl.stp
-V02_STP_TMPL := $(ROOT)/variants/v0.2-legacy-bridge/intp.stp.template
+V0_STP  := $(ROOT)/variants/v0-stap-2022/intp.stp
+V01_STP := $(ROOT)/variants/v0.1-stap-nollc/intp-6.8.stp
+V1_STP  := $(ROOT)/variants/v1-stap-nohelper/intp-resctrl.stp
+V02_STP_TMPL := $(ROOT)/variants/v0.2-stap-legacy/intp.stp.template
 
 .PHONY: all clean smoke help preflight \
         v0.2 v1.1 v2 v3 v3.1 v3.2 \

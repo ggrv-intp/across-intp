@@ -13,9 +13,9 @@ accumulation, and eventually systemd-logind deadlock.
 `v0.2` runs paper-faithfully on kernel 5.15 *without* triggering that
 fragility cascade. It coexists with:
 
-- `variants/v0-baseline-2022/` — the read-only paper-original (preserved by contract);
-- `variants/v0.1-min-patch/` — the minimal kernel-6.8 patch (LLC occupancy disabled);
-- `variants/v1.1-stap-helper/` — the same helper pattern but on kernel ≥ 6.8.
+- `variants/v0-stap-2022/` — the read-only paper-original (preserved by contract);
+- `variants/v0.1-stap-nollc/` — the minimal kernel-6.8 patch (LLC occupancy disabled);
+- `variants/v1.1-stap-modern/` — the same helper pattern but on kernel ≥ 6.8.
 
 See `DESIGN.md` for the architecture and the rationale.
 
@@ -35,8 +35,8 @@ the operator selects `--variants v0.2`; for ad-hoc use:
          INTP_HELPER_L3_SIZE_KB=35840 \
          ./intp-helper stress-ng &
     # in another terminal: generate the recalibrated .stp and load it
-    sudo bash variants/v0.2-legacy-bridge/generate-stp.sh
-    sudo stap -g variants/v0.2-legacy-bridge/intp.recal.stp stress-ng
+    sudo bash variants/v0.2-stap-legacy/generate-stp.sh
+    sudo stap -g variants/v0.2-stap-legacy/intp.recal.stp stress-ng
 
 The pattern is matched as a substring against `/proc/<pid>/comm`.
 
@@ -45,7 +45,7 @@ The helper:
 1. opens uncore IMC perf events via `perf_event_open(2)` for the PMU
    type range you pass via env;
 2. creates `/sys/fs/resctrl/mon_groups/intp-v02-<pid>/` (PID-suffixed
-   so parallel campaigns and the v1.1 helper don't collide);
+   so parallel campaigns and the stap-modern helper don't collide);
 3. polls `/proc` once per second; each new matching PID joins the
    mon_group's `tasks` file;
 4. reads counters and writes a single line atomically to
@@ -66,7 +66,7 @@ The helper:
 | `INTP_HELPER_IMC_PMU_TYPE_FIRST`  | = IMC_PMU_TYPE     | First PMU type in a range (used on hosts that expose multiple uncore_imc_N) |
 | `INTP_HELPER_IMC_PMU_TYPE_LAST`   | = FIRST            | Last PMU type in the range (single-type by default)                     |
 | `INTP_HELPER_INTERVAL_S`          | 1                  | Polling interval in seconds                                             |
-| `INTP_HELPER_DATA_FILE`           | /tmp/intp-v0.2-hw-data | Output path (separate from v1.1 to avoid collision)                 |
+| `INTP_HELPER_DATA_FILE`           | /tmp/intp-v0.2-hw-data | Output path (separate from stap-modern to avoid collision)          |
 
 `bench/run-intp-bench.sh` derives all of these from `shared/intp-detect.sh`
 at run time and passes them through; the defaults above are the 2022 paper
@@ -75,12 +75,12 @@ detection fails.
 
 ## intp.stp.template
 
-`intp.stp.template` is the v0.2 stap script with a placeholder for the
+`intp.stp.template` is the stap-legacy stap script with a placeholder for the
 host NIC bandwidth (`@@NIC_BYTES_PER_SEC@@`). `generate-stp.sh` sources
 `shared/intp-detect.sh`, substitutes the placeholder, writes
 `intp.recal.stp`, and that is what `stap` loads. The template itself is
 checked in; `intp.recal.stp` is generated per-host and is in
-`.gitignore`. The paper-original `variants/v0-baseline-2022/intp.stp` is untouched.
+`.gitignore`. The paper-original `variants/v0-stap-2022/intp.stp` is untouched.
 
 ## Failure modes (designed-in graceful degradation)
 

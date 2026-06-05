@@ -1,4 +1,4 @@
-# V2 Design -- Hybrid procfs / perf_event / resctrl
+# v2 (hybrid-c) Design -- Hybrid procfs / perf_event / resctrl
 
 ## 1. Architectural rationale
 
@@ -6,11 +6,11 @@ The dissertation's contribution rests on a portability survey of the seven
 IntP interference dimensions. That survey concluded that, for the
 seconds-resolution interference characterisation IntP targets, every
 dimension can be observed through stable kernel ABIs already shipped by
-mainstream distributions. V2 is the empirical proof of that finding: a
+mainstream distributions. v2 (hybrid-c) is the empirical proof of that finding: a
 binary that collects all seven metrics, on all major server architectures,
 without SystemTap, without eBPF, and without compiling against debuginfo.
 
-V2 is **not** "one implementation with one code path". It is a
+hybrid-c is **not** "one implementation with one code path". It is a
 runtime-adaptive hierarchy of backends. Each metric carries an ordered
 list; at startup the runtime probes them in order and binds the first one
 that succeeds. The output declares the chosen backend per metric so
@@ -38,7 +38,7 @@ Both backends compute `(rx+tx)/interval / nic_speed_bps * 100`. NIC speed
 unknown -> assume 1Gbps and report status=DEGRADED.
 
 What we lose vs SystemTap: nothing meaningful for utilisation; per-packet
-latency is out of scope for V2.
+latency is out of scope for hybrid-c.
 
 ### nets -- network stack utilisation
 
@@ -47,10 +47,10 @@ latency is out of scope for V2.
 | 1     | procfs_softirq      | `/proc/softirqs` NET_TX+NET_RX + `/proc/stat` softirq  | none     |
 | 2     | procfs_throughput   | `/proc/net/dev` packets * fixed 1us per-packet cost    | none     |
 
-V0 measures real per-packet kernel service time via kprobes on
-`__dev_queue_xmit` and `napi_complete_done`. V2 cannot replicate that
+stap-2022 measures real per-packet kernel service time via kprobes on
+`__dev_queue_xmit` and `napi_complete_done`. hybrid-c cannot replicate that
 without kprobes; both backends report `status=DEGRADED` and a `note`
-identifying the approximation. This is the metric where V2 honestly loses
+identifying the approximation. This is the metric where hybrid-c honestly loses
 the most fidelity, and the `note` makes that explicit at consumption time.
 
 ### blk -- block I/O utilisation
@@ -75,7 +75,7 @@ backend skips loop / ram / zram / dm-* virtual devices and partitions.
 Normalised by `--mem-bw-max-bps` or `detect_memory_bandwidth_max_bps()`
 (dmidecode if root, else DDR4-3200 dual-channel default).
 
-What we lose vs V0 SystemTap: nothing if MBM/uncore PMU is available;
+What we lose vs stap-2022 SystemTap: nothing if MBM/uncore PMU is available;
 fewer Intel SKUs are accurate (per Sohal et al. RTNS 2022 and Intel errata
 SKX99/BDF102, MBM may report up to 2x theoretical bandwidth on affected
 hardware -- the kernel applies correction factors but the warning stands).
@@ -110,24 +110,24 @@ its magnitude is not directly comparable to bytes-of-cache-occupied. The
 
 PID backend is selected when `--pids` is non-empty; system backend otherwise.
 
-## 3. Tradeoffs vs V0 / V1
+## 3. Tradeoffs vs v0 (stap-2022) / v1 (stap-nohelper)
 
-V2 cannot do sub-second event-driven detection. The polling loop wakes
+hybrid-c cannot do sub-second event-driven detection. The polling loop wakes
 once per `--interval`; transient spikes shorter than that are smoothed
-into the surrounding window. V0's SystemTap probes are event-driven and
+into the surrounding window. stap-2022's SystemTap probes are event-driven and
 will catch them.
 
-V2 cannot causally attribute interference between processes. resctrl
+hybrid-c cannot causally attribute interference between processes. resctrl
 gives per-`mon_group` byte counters but does not say *whose* requests
-hit *whose* cache lines. V0's kprobes can tag stack frames with the
+hit *whose* cache lines. stap-2022's kprobes can tag stack frames with the
 calling task. For the dissertation's coarse-grained characterisation
 this distinction is acceptable; for fine-grained debugging it is not.
 
-V2's nets metric is an approximation. The softirq-fraction backend is
+hybrid-c's nets metric is an approximation. The softirq-fraction backend is
 the best we can do without per-packet timestamps. Cross-validating
-against V0 in Phase 3 will quantify the gap.
+against stap-2022 in Phase 3 will quantify the gap.
 
-V2's resctrl-based backends consume one RMID per IntP run. RMIDs are a
+hybrid-c's resctrl-based backends consume one RMID per IntP run. RMIDs are a
 hard resource (32-256 per system on Intel). See section 5.
 
 ## 4. Per-process attribution strategy
@@ -149,7 +149,7 @@ to the resctrl group and to the per-PID `cpu`/`llcmr` backends.
 
 resctrl exposes `/sys/fs/resctrl/info/L3_MON/num_rmids` -- typically 32-256
 per L3 instance on Intel, similar on AMD. Each `mon_group` consumes one
-RMID for the duration of its existence. V2 follows three rules:
+RMID for the duration of its existence. hybrid-c follows three rules:
 
 1. **One run, one RMID.** mbw and llcocc share a single mon_group named
    `intp_v4_<pid>` rather than allocating two distinct groups.
@@ -162,7 +162,7 @@ RMID for the duration of its existence. V2 follows three rules:
 
 ## 6. Accuracy validation strategy
 
-Each V2 backend is cross-validatable against an external reference:
+Each hybrid-c backend is cross-validatable against an external reference:
 
 - **mbw resctrl_mbm** vs **mbw perf_uncore_imc** on the same Intel host
   (use `--force-backend`). Per kernel selftests on Skylake-SP the gap is
@@ -172,9 +172,9 @@ Each V2 backend is cross-validatable against an external reference:
 - **cpu procfs_pid** vs `top -p <pid>`.
 - **blk** vs `iostat -x 1` `%util` column (reads the same `io_ticks`).
 - **netp** vs `nload` / `bmon` (sysfs counters, byte-comparable).
-- **nets** has no clean reference; cross-validate against V0 directly.
+- **nets** has no clean reference; cross-validate against stap-2022 directly.
 
-Phase 3 of the dissertation runs the same workload under V0, V1, and V2
+Phase 3 of the dissertation runs the same workload under stap-2022, stap-nohelper, and hybrid-c
 side-by-side and reports per-metric correlation.
 
 ## 7. Cross-environment behaviour
@@ -197,34 +197,34 @@ support not enabled in default cloud images.
 
 ## 8. Comparison points for Phase 3 evaluation
 
-| metric  | V0 (SystemTap)               | V1 (refactored SystemTap+resctrl) | V2 (this variant)                      |
-|---------|------------------------------|-----------------------------------|----------------------------------------|
-| netp    | counter delta                | same                              | sysfs (byte-equivalent)                |
-| nets    | per-packet service time      | same                              | softirq fraction (approximation)       |
-| blk     | bio probe latency            | bio probe latency                 | io_ticks (iostat-equivalent)           |
-| mbw     | RMID via kprobe              | resctrl                           | resctrl > IMC > AMD DF > ARM CMN       |
-| llcmr   | perf events via SystemTap    | perf events via SystemTap         | perf_event_open direct                 |
-| llcocc  | RMID via kprobe              | resctrl                           | resctrl > proxy                        |
-| cpu     | task stats                   | task stats                        | /proc/<pid>/stat                       |
+| metric  | v0 (stap-2022, SystemTap)    | v1 (stap-nohelper, refactored SystemTap+resctrl) | v2 (hybrid-c, this variant)            |
+|---------|------------------------------|--------------------------------------------------|----------------------------------------|
+| netp    | counter delta                | same                                             | sysfs (byte-equivalent)                |
+| nets    | per-packet service time      | same                                             | softirq fraction (approximation)       |
+| blk     | bio probe latency            | bio probe latency                                | io_ticks (iostat-equivalent)           |
+| mbw     | RMID via kprobe              | resctrl                                          | resctrl > IMC > AMD DF > ARM CMN       |
+| llcmr   | perf events via SystemTap    | perf events via SystemTap                        | perf_event_open direct                 |
+| llcocc  | RMID via kprobe              | resctrl                                          | resctrl > proxy                        |
+| cpu     | task stats                   | task stats                                       | /proc/<pid>/stat                       |
 
-V2's overhead profile is fundamentally different: no kprobe insertion,
+hybrid-c's overhead profile is fundamentally different: no kprobe insertion,
 no debuginfo loading, deterministic sleep-poll loop. Phase 3 measures
-RSS, CPU%, and decision-quality preservation versus V0.
+RSS, CPU%, and decision-quality preservation versus stap-2022.
 
 ## 9. Known limitations and honest framing
 
-V2 is **not** a claim that eBPF or SystemTap are obsolete. They remain
+hybrid-c is **not** a claim that eBPF or SystemTap are obsolete. They remain
 the right tool for: per-event sub-millisecond detection, causal
 attribution between processes, kernel-internal counters not exposed via
 ABI, and any analysis where the loss of half-a-microsecond probe overhead
 matters less than missing the event entirely.
 
-V2 is the claim that, for **aggregate interference characterisation at
+hybrid-c is the claim that, for **aggregate interference characterisation at
 seconds-resolution as defined by IntP**, stable kernel ABIs are
 sufficient. The dissertation's novelty is in the comparative analysis
 that demonstrates this -- not in any one of these backends individually.
 
-The honest framing for the document is: V2 trades a small amount of
+The honest framing for the document is: hybrid-c trades a small amount of
 fidelity (chiefly in nets) and per-process attribution depth for a large
 reduction in deployment complexity (no kernel build, no debuginfo, single
 C99 binary, works on locked-down kernels and inside containers/VMs). For

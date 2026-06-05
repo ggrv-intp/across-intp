@@ -50,6 +50,29 @@ METRICS = ["netp", "nets", "blk", "mbw", "llcmr", "llcocc", "cpu"]
 ENVS = ["bare", "hibench"]
 REF_LOADS = ["ref_cpu", "ref_disk", "ref_stream"]
 
+# Descriptive, paper-facing variant names. Figures show these instead of the
+# bare vN tags so a reader need not consult the variant table to know what a
+# panel measures. Canonical map: VERSIONS.md. The four measured versions are
+# stap-legacy (v0.2), stap-modern (v1.1), hybrid-c (v2) and ebpf-agg (v3.2).
+VARIANT_LABELS = {
+    "v0":   "stap-2022",
+    "v0.1": "stap-nollc",
+    "v0.2": "stap-legacy",
+    "v1":   "stap-nohelper",
+    "v1.1": "stap-modern",
+    "v2":   "hybrid-c",
+    "v2.1": "cgroup-native",
+    "v3":   "ebpf-ring",
+    "v3.1": "bpftrace",
+    "v3.2": "ebpf-agg",
+    "v3.3": "ebpf-cgroup",
+}
+
+
+def variant_label(v):
+    """Paper-facing descriptive name for a dataset variant tag."""
+    return VARIANT_LABELS.get(str(v), str(v))
+
 # Endpoint families. The two SystemTap-based endpoints share an instrumentation
 # path; the two C/eBPF endpoints share another. Cross-family pairs are the
 # interesting ones (capability gaps live there).
@@ -434,8 +457,8 @@ def plot_heatmaps(fourway: pd.DataFrame, variants: list[str], out_dir: Path) -> 
                     if not row.empty:
                         M[i, j] = M[j, i] = row.iloc[0][col]
             im = ax.imshow(M, vmin=-1, vmax=1, cmap="RdBu_r")
-            ax.set_xticks(range(len(have))); ax.set_xticklabels(have, rotation=45)
-            ax.set_yticks(range(len(have))); ax.set_yticklabels(have)
+            ax.set_xticks(range(len(have))); ax.set_xticklabels([variant_label(v) for v in have], rotation=45)
+            ax.set_yticks(range(len(have))); ax.set_yticklabels([variant_label(v) for v in have])
             for (i, j), v in np.ndenumerate(M):
                 if not np.isnan(v):
                     ax.text(j, i, f"{v:+.2f}", ha="center", va="center", fontsize=8)
