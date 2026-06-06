@@ -114,3 +114,10 @@ Scaffolded 2026-05-11. Not yet validated on a U22 / kernel 5.15 host —
 the operator runs the smoke test as part of the legacy-V0 campaign
 preflight (`bench/setup/setup-host-legacy.sh` + the V0.2 smoke step
 once added to `run-smoke-all.sh`).
+
+## Standalone use (packaging)
+
+This folder builds and runs on its own (see the steps above) with **one** repo-level
+dependency: `shared/intp-detect.sh` (hardware autodetection, sourced by
+`generate-stp.sh`). To use this folder outside the repository, copy
+`shared/intp-detect.sh` next to it (or keep a repo checkout on hand).

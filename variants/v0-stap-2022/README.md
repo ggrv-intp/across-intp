@@ -110,3 +110,10 @@ Constants **not** placed via the template:
 - [VERSIONS.md](../VERSIONS.md) -- legacy ↔ current naming map.
 - [METRICS-ALIGNMENT.md](../METRICS-ALIGNMENT.md) -- per-metric formulas
   across all variants, with stap-2022 as reference.
+
+## Standalone use (packaging)
+
+This folder builds and runs on its own (see the steps above) with **one** repo-level
+dependency: `shared/intp-detect.sh` (hardware autodetection, sourced by
+`generate-stp.sh`). To use this folder outside the repository, copy
+`shared/intp-detect.sh` next to it (or keep a repo checkout on hand).

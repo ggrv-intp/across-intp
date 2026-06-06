@@ -95,3 +95,8 @@ stap-modern only and tears it down after the run completes.
 - **`comm` substring match**: limited to 15 characters per
   `/proc/<pid>/comm`. For workloads that mask `comm`, switch to
   `/proc/<pid>/cmdline` matching (TODO).
+
+## Standalone use (packaging)
+
+This folder is self-contained: copy it into your own project and use it on its own —
+no other folder from this repository is required. Follow the build/run steps above.

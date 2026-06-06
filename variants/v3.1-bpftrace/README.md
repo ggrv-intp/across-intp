@@ -122,3 +122,10 @@ sudo ./run-intp-bpftrace.sh --list-capabilities
 - bpftrace: https://github.com/iovisor/bpftrace
 - BTF (BPF Type Format): https://docs.kernel.org/bpf/btf.html
 - resctrl: https://docs.kernel.org/filesystems/resctrl.html
+
+## Standalone use (packaging)
+
+This folder builds and runs on its own (see the steps above) with **one** repo-level
+dependency: `shared/intp-detect.sh` (hardware autodetection, wrapped by
+`orchestrator/detect.py`). To use this folder outside the repository, copy
+`shared/intp-detect.sh` next to it (or keep a repo checkout on hand).

@@ -81,3 +81,8 @@ No userspace helper, no resctrl, no uncore PMU access required.
 
 For environments where the entire SystemTap stack is undesirable, use
 C-ABI (procfs/perf/resctrl), bpftrace, or ebpf-ring (eBPF/CO-RE) instead.
+
+## Standalone use (packaging)
+
+This folder is self-contained: copy it into your own project and use it on its own —
+no other folder from this repository is required. Follow the build/run steps above.

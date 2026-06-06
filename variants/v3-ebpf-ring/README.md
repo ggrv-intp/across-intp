@@ -142,3 +142,9 @@ Alternative formats:
 - **PRISM:** Landau, D., Barbosa, J., Saurabh, N. (2025). *eBPF-based instrumentation for generalisable diagnosis of performance degradation*. arXiv:2505.13160. <https://arxiv.org/abs/2505.13160>. Code: <https://github.com/EC-labs/prism>.
 - **eBPF/SystemTap overhead:** Volpert, S. et al. (2025). *Towards eBPF overhead quantification: An exemplary comparison of eBPF and SystemTap*. ICPE '25 Companion. ACM.
 - **CO-RE portability study:** Zhong, S. et al. (2025). *Revealing the unstable foundations of eBPF-based kernel extensions*. EuroSys '25. ACM.
+
+## Standalone use (packaging)
+
+This folder is self-contained: copy it into your own project and use it on its own —
+no other folder from this repository is required. `make` in this directory builds the
+profiler binary; run it per the section(s) above.

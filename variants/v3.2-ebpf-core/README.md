@@ -162,3 +162,9 @@ the steady-state profiler; ebpf-ring is the introspection profiler.
 - **CO-RE portability study:** Zhong, S. et al. (2025). *Revealing the unstable foundations of eBPF-based kernel extensions*. EuroSys '25. ACM.
 - libbpf: <https://github.com/libbpf/libbpf>
 - Nakryiko, A. *BPF CO-RE reference guide*. <https://nakryiko.com/posts/bpf-core-reference-guide/>
+
+## Standalone use (packaging)
+
+This folder is self-contained: copy it into your own project and use it on its own —
+no other folder from this repository is required. `make` in this directory builds the
+profiler binary; run it per the section(s) above.

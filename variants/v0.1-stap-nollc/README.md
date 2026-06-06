@@ -54,3 +54,8 @@ sudo stap -g intp-6.8.stp <PID> <interval_ms>
 For the full 7/7 metric stack on kernel 6.8+, see `variants/v1.1-stap-modern/`
 (SystemTap + userspace helper) or the eBPF/procfs variants
 (`variants/v3-ebpf-ring/`, `variants/v3.1-bpftrace/`, `variants/v2-c-abi/`).
+
+## Standalone use (packaging)
+
+This folder is self-contained: copy it into your own project and use it on its own —
+no other folder from this repository is required. Follow the build/run steps above.
