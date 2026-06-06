@@ -1,19 +1,19 @@
-# V3 (ebpf-ring) -- Full eBPF/CO-RE IntP Implementation (predecessor of V3.2 (ebpf-agg))
+# V3 (ebpf-ring) -- Full eBPF/CO-RE IntP Implementation (predecessor of V3.2 (eBPF-CORE))
 
 The dissertation's Phase 2 prototype: IntP implemented in C with libbpf
 and CO-RE (Compile Once, Run Everywhere). ebpf-ring was the original eBPF
-endpoint; **ebpf-agg (`variants/v3.2-ebpf-agg/`) supersedes it as the
+endpoint; **eBPF-CORE (`variants/v3.2-ebpf-core/`) supersedes it as the
 measured eBPF endpoint** for the SBAC-PAD 2026 campaign by replacing
 ebpf-ring's 16 MiB ring buffer with in-kernel counter aggregation. ebpf-ring is
 retained in the repository as the empirical-evidence predecessor and
 the introspection profiler; see `docs/V3-OVERHEAD-FINDINGS.md` for
 the measurement record (188-390x context-switch amplification, mbw
-silent clip) that motivated ebpf-agg.
+silent clip) that motivated eBPF-CORE.
 
 ebpf-ring is still evaluated head-to-head against the SystemTap lineage
-(stap-2022 original, stap-nohelper stap-native, stap-modern stap+helper), the framework-free hybrid-c,
+(stap-2022 original, stap-nohelper stap-native, stap-modern stap+helper), the framework-free C-ABI,
 and the bpftrace-based bpftrace, since the comparison is structural, not
-about the ebpf-ring vs ebpf-agg trade-off.
+about the ebpf-ring vs eBPF-CORE trade-off.
 
 ## Architecture
 
@@ -28,7 +28,7 @@ Comparison across variants in the repo:
   requires debuginfo. Differ in kernel-version coverage and metric set.
 - V1.1 (stap-modern): SystemTap + userspace helper (`variants/v1.1-stap-modern/intp-helper`)
   for RCU-unsafe operations; full 7 metrics.
-- V2 (hybrid-c): no framework, pure C / procfs / `perf_event_open` / resctrl polling.
+- V2 (C-ABI): no framework, pure C / procfs / `perf_event_open` / resctrl polling.
 - V3.1 (bpftrace): bpftrace DSL (interpreted) + Python orchestrator + resctrl.
 - **V3 (ebpf-ring): native C eBPF + libbpf skeleton + resctrl (this variant).**
 

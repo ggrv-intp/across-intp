@@ -78,18 +78,18 @@ VARIANT_ORDER = ["v0", "v0.1", "v0.2", "v1", "v1.1", "v2", "v3.1", "v3", "v3.2"]
 # Descriptive, paper-facing variant names. Figures show these instead of the
 # bare vN tags so a reader need not consult the variant table to know what a
 # panel measures. Canonical map: VERSIONS.md. The four measured versions are
-# stap-legacy (v0.2), stap-modern (v1.1), hybrid-c (v2) and ebpf-agg (v3.2).
+# intp-baseline (v0.2), stap-modern (v1.1), C-ABI (v2) and eBPF-CORE (v3.2).
 VARIANT_LABELS = {
     "v0":   "stap-2022",
     "v0.1": "stap-nollc",
-    "v0.2": "stap-legacy",
+    "v0.2": "intp-baseline",
     "v1":   "stap-nohelper",
     "v1.1": "stap-modern",
-    "v2":   "hybrid-c",
+    "v2":   "C-ABI",
     "v2.1": "cgroup-native",
     "v3":   "ebpf-ring",
     "v3.1": "bpftrace",
-    "v3.2": "ebpf-agg",
+    "v3.2": "eBPF-CORE",
     "v3.3": "ebpf-cgroup",
 }
 
@@ -196,6 +196,8 @@ def _rglob_profiler(run_dir: Path):
 
 def setup_style() -> None:
     plt.rcParams.update({
+        "pdf.fonttype":       42,
+        "ps.fonttype":        42,
         "figure.dpi":         110,
         "savefig.dpi":        SAVE_DPI,
         "font.family":        "DejaVu Sans",
@@ -1100,7 +1102,7 @@ def fig_variant_resource_heatmap(df: pd.DataFrame, outdir: Path) -> None:
         pivot = pivot.reindex(index=_ordered_variants(pivot.index), columns=resources)
         masked = np.ma.masked_invalid(pivot.values)
         im = ax.imshow(masked, cmap=cmap, vmin=0, vmax=100, aspect="auto",
-                       interpolation="none")
+                       interpolation="nearest")
         ax.set_xticks(range(len(resources)))
         ax.set_xticklabels(resources, fontsize=8.5)
         ax.set_yticks(range(len(pivot.index)))
@@ -1180,7 +1182,7 @@ def fig_hibench_coverage(df: pd.DataFrame, outdir: Path) -> None:
                  .reindex(index=workloads, columns=METRICS))
         masked = np.ma.masked_invalid(pivot.values)
         im = ax.imshow(masked, cmap=cmap, vmin=0, vmax=1, aspect="auto",
-                       interpolation="none")
+                       interpolation="nearest")
         ax.set_xticks(range(len(METRICS)))
         ax.set_xticklabels(METRICS, rotation=40, ha="right", fontsize=8.5)
         if ci == 0:
@@ -1236,7 +1238,7 @@ def fig_metric_availability(df: pd.DataFrame, outdir: Path) -> None:
         figsize=_clamp_figsize(6.4, 0.55 * len(pivot) + 1.4))
     cmap = ListedColormap(["#f4f4f4", "#2ca02c"])
     ax.imshow(pivot.values, cmap=cmap, vmin=0, vmax=1, aspect="auto",
-              interpolation="none")
+              interpolation="nearest")
     ax.set_xticks(range(len(pivot.columns))); ax.set_xticklabels(pivot.columns)
     ax.set_yticks(range(len(pivot.index)));   ax.set_yticklabels([variant_label(v) for v in pivot.index])
     for (yi, xi), v in np.ndenumerate(pivot.values):
@@ -1288,7 +1290,7 @@ def fig_workload_clustermap(df: pd.DataFrame, outdir: Path) -> None:
             order = np.arange(len(m))
         m = m.iloc[order]
         im = ax.imshow(m.values, aspect="auto", cmap="Blues",
-                       vmin=0, vmax=100, interpolation="none")
+                       vmin=0, vmax=100, interpolation="nearest")
         ax.set_xticks(range(len(METRICS)))
         ax.set_xticklabels(METRICS, rotation=40, ha="right", fontsize=8)
         ax.set_yticks(range(len(m.index)))
@@ -1321,6 +1323,10 @@ def main() -> None:
     p.add_argument("--formats", type=str, default="png,pdf",
                    help="Comma-separated output formats (default: png,pdf). "
                         "Each format is written under <out>/<format>/.")
+    p.add_argument("--variants", type=str, default=None,
+                   help="Comma-separated subset of variants to plot (e.g. "
+                        "'v0.2' or 'v2,v3.2'). Default: all present. Used to "
+                        "render the per-paper published/ figures.")
     args = p.parse_args()
 
     hdir = args.hibench_dir
@@ -1338,6 +1344,10 @@ def main() -> None:
 
     print(f"Loading hibench results from {hdir}")
     df, run_dirs = load_hibench_dir(hdir)
+    if args.variants:
+        keep = [v.strip() for v in args.variants.split(",") if v.strip()]
+        df = df[df["variant"].isin(keep)].copy()
+        print(f"  --variants filter: keeping {keep} ({len(df)} rows)")
     # aggregate-means.tsv has one row per rep; collapse to per-(profile,variant,
     # workload) means so the figure functions can index on workload alone.
     df = (df.groupby(["profile", "variant", "workload"], as_index=False)[METRICS]

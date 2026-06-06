@@ -1,7 +1,7 @@
-# V3.2 (ebpf-agg) Design -- eBPF In-Kernel Aggregating
+# V3.2 (eBPF-CORE) Design -- eBPF In-Kernel Aggregating
 
 This document describes the design rationale and implementation
-strategy for v3.2 (ebpf-agg) of IntP. ebpf-agg is the fourth extension specified in
+strategy for v3.2 (eBPF-CORE) of IntP. eBPF-CORE is the fourth extension specified in
 section VIII of the SBAC-PAD 2026 paper: a structural rework of v3 (ebpf-ring)
 that replaces the ring-buffer-streaming consumer with in-kernel
 counter aggregation, eliminating the 188-390x context-switch
@@ -9,7 +9,7 @@ amplification documented in paper section V-D.
 
 ## 1. Research positioning
 
-ebpf-agg is **not** an optimization of ebpf-ring. It is a distinct point on the
+eBPF-CORE is **not** an optimization of ebpf-ring. It is a distinct point on the
 "streaming vs. aggregation" design axis that the paper enumerates
 across the IntP variants. The axis is:
 
@@ -21,7 +21,7 @@ across the IntP variants. The axis is:
 | **V3**  | **Per-event eBPF probe -> 16 MiB ringbuf -> userspace consumer** |
 | **V3.2**| **Per-event eBPF probe -> in-kernel counter maps -> userspace poll** |
 
-The hypothesis ebpf-agg tests is that the difference between hybrid-c and ebpf-ring on
+The hypothesis eBPF-CORE tests is that the difference between C-ABI and ebpf-ring on
 the scheduler-perturbation axis (paper section V-D) is structurally
 caused by the consumer loop, not by intrinsic eBPF cost. The
 evidence transferred from the paper's discussion of iprof / PRISM
@@ -30,13 +30,13 @@ kernel) and PRISM (which aggregates and emits statistical summaries
 once per second) do not show the ebpf-ring-style amplification in any
 published evaluation.
 
-If ebpf-agg converges with hybrid-c on system-CPU and scheduler-perturbation
+If eBPF-CORE converges with C-ABI on system-CPU and scheduler-perturbation
 within noise while keeping the eBPF portability story (BTF + CO-RE)
 and the 7-metric coverage, the hypothesis is supported.
 
 ## 2. CO-RE mechanics
 
-Identical to ebpf-ring. ebpf-agg inherits the same `vmlinux.h` dump pipeline,
+Identical to ebpf-ring. eBPF-CORE inherits the same `vmlinux.h` dump pipeline,
 the same `BPF_CORE_READ` relocation pattern, and the same kernel
 floor (5.8) as ebpf-ring. See `variants/v3-ebpf-ring/DESIGN.md` sections 2 and 3
 for the underlying machinery; nothing changes in the load/relocation
@@ -46,14 +46,14 @@ path.
 
 Also identical to ebpf-ring. `bpftool gen skeleton` produces a header that
 exposes the loaded programs and maps as named members of a struct.
-ebpf-agg's skeleton has no `events` member (there is no ring buffer) but
+eBPF-CORE's skeleton has no `events` member (there is no ring buffer) but
 gains `agg_global`, `agg_per_pid`, and `agg_zero` map members.
 
 ## 4. In-kernel aggregation vs. event streaming
 
 This is the load-bearing design decision. ebpf-ring streams every probe-fired
 event through a BPF_MAP_TYPE_RINGBUF; userspace burns CPU on a
-`ring_buffer__poll` loop draining records as they arrive. ebpf-agg instead
+`ring_buffer__poll` loop draining records as they arrive. eBPF-CORE instead
 has every probe atomically increment a counter slot:
 
 ```c
@@ -93,7 +93,7 @@ et al. UCC Companion 2024) and PRISM (Landau et al. 2025) both rely
 on the same primitive: BPF counter maps + atomic add, read by
 userspace without a continuous event-streaming consumer. iprof reads
 its maps exactly once at shutdown; PRISM polls them every second.
-ebpf-agg sits between these temporal models: it polls at a user-specified
+eBPF-CORE sits between these temporal models: it polls at a user-specified
 `--interval` (default 1 s, matching PRISM), which gives time-series
 output while preserving the absence of the amplification mechanism
 documented in paper section V-D. The 5.8+ verifier accepts the
@@ -104,19 +104,19 @@ modern x86 / arm64.
 **Why ebpf-ring didn't do this originally**: ebpf-ring was designed against the
 `net/tcp_set_state` style of probes where per-event introspection
 matters -- knowing *which* packets contributed *how* to a metric.
-Streaming preserves that observability. ebpf-agg trades it away.
+Streaming preserves that observability. eBPF-CORE trades it away.
 
 **Trade-offs accepted by design**:
 
 1. *No per-event introspection.* `--trace` is removed. Future tools
-   built on ebpf-agg cannot iterate events; they iterate intervals.
+   built on eBPF-CORE cannot iterate events; they iterate intervals.
 
 2. *No MPSC FIFO ordering between probes.* A netp event and a blk
    event closing at the same time end up at unrelated counters; the
    "blk completed AFTER netp" relationship is lost. ebpf-ring preserves it.
 
 3. *No ring buffer overflow signal.* Under ebpf-ring a sample loss is
-   visible as `dropped_events` in the consumer; under ebpf-agg there is
+   visible as `dropped_events` in the consumer; under eBPF-CORE there is
    no analogous signal -- if a counter atomic doesn't happen (e.g.
    the BPF program was blocked by the verifier on an unforeseen
    field access), the metric just goes flat. This is mitigated by
@@ -124,22 +124,22 @@ Streaming preserves that observability. ebpf-agg trades it away.
 
 ## 5. Comparison with iprof (Gögge 2023; Becker, Goegge, Kao 2024)
 
-ebpf-agg's counter-map pattern is **architecturally the same** as iprof's,
+eBPF-CORE's counter-map pattern is **architecturally the same** as iprof's,
 with three differences:
 
-- *Filter*: iprof is system-wide only; ebpf-agg inherits ebpf-ring's
+- *Filter*: iprof is system-wide only; eBPF-CORE inherits ebpf-ring's
   `descendant_tgids` + static `target_pids` filter so per-process
   scoping carries across.
-- *Resctrl integration*: iprof has none; ebpf-agg keeps ebpf-ring's
+- *Resctrl integration*: iprof has none; eBPF-CORE keeps ebpf-ring's
   `resctrl_create_group` + `mbm_total_bytes` summing across
   `mon_L3_*` domains, and adds the dual mbw output described in
   section 6.
 - *Probe set coverage*: iprof covers a subset of the IntP metrics
-  (disk I/O, LLC). ebpf-agg carries the full 7-metric IntP set.
+  (disk I/O, LLC). eBPF-CORE carries the full 7-metric IntP set.
 
 The thesis chapter that documents the technique is
 `MasterThesis_RobinGoege.pdf` chapter 3.3 (HASH + PERCPU_ARRAY for
-disk I/O and LLC). That is the direct template ebpf-agg reuses.
+disk I/O and LLC). That is the direct template eBPF-CORE reuses.
 
 ## 6. mbw normalization fix
 
@@ -151,7 +151,7 @@ without telling the analyst) combined with a `mem_bw_max_bps`
 configured too low (24-51 GB/s) versus the actual DDR5 8-channel
 ceiling (~281 GB/s).
 
-ebpf-agg fixes both halves:
+eBPF-CORE fixes both halves:
 
 - A new helper `resctrl_read_mbm_pct_and_raw()` reads percent and
   raw MB/s in one counter step. The clip-at-100 behavior is opt-in
@@ -173,7 +173,7 @@ Inherited from ebpf-ring unchanged in machinery:
     at attach time (pre-existing fork tree).
 - `sched_process_exit` removes thread-leader TGIDs.
 
-The added piece in ebpf-agg: when a TGID exits and we delete it from
+The added piece in eBPF-CORE: when a TGID exits and we delete it from
 `descendant_tgids`, we also delete its slot from `agg_per_pid` so
 the hash doesn't leak entries as workloads churn. The exit handler:
 
@@ -216,7 +216,7 @@ and raw MB/s in one counter step.
 
 ## 9. Performance characteristics
 
-The goal of ebpf-agg is to converge with hybrid-c on the scheduler-perturbation
+The goal of eBPF-CORE is to converge with C-ABI on the scheduler-perturbation
 axis. Concretely:
 
 - *Probe cost*: similar to ebpf-ring. Atomic add into a per-CPU 64-bit field
@@ -229,7 +229,7 @@ axis. Concretely:
   per-interval userspace work is well under 1 ms.
 - *Context switches*: ideally one per interval (the `nanosleep`
   wakeup). ebpf-ring incurs 188-390x amplification because every record in
-  the ring buffer creates work for the consumer; ebpf-agg's userspace
+  the ring buffer creates work for the consumer; eBPF-CORE's userspace
   does no per-event work.
 
 The `test-no-ctxsw-amplification.sh` integration test makes the
@@ -237,7 +237,7 @@ context-switch ratio acceptance explicit (default: ratio <= 1.10).
 
 ## 10. Kernel version requirements
 
-Same as ebpf-ring: 5.8+ with `CONFIG_DEBUG_INFO_BTF=y`. The maps ebpf-agg uses
+Same as ebpf-ring: 5.8+ with `CONFIG_DEBUG_INFO_BTF=y`. The maps eBPF-CORE uses
 (`PERCPU_ARRAY`, `HASH`, `PERF_EVENT_ARRAY` for the perf programs)
 have been available since 4.6 - 4.15; the kernel floor is set by the
 BTF requirement.
@@ -249,19 +249,19 @@ probes either attach or the load fails. This mirrors ebpf-ring.
 
 Same matrix as ebpf-ring (host / container / VM, host-observer or
 in-guest). The `INTP_VMG_ALLOW_STAP=1` opt-in does not apply
-because ebpf-agg is not stap-based. The same `CAP_BPF + CAP_PERFMON`
-capabilities ebpf-ring requires apply to ebpf-agg.
+because eBPF-CORE is not stap-based. The same `CAP_BPF + CAP_PERFMON`
+capabilities ebpf-ring requires apply to eBPF-CORE.
 
 ## 12. Drift candidates
 
 `detect/` and `resctrl/` are tracked copies of the ebpf-ring versions, with
 `resctrl/` carrying the new `resctrl_read_mbm_pct_and_raw()` helper.
-A future refactor should hoist both into `shared/` so ebpf-ring and ebpf-agg
+A future refactor should hoist both into `shared/` so ebpf-ring and eBPF-CORE
 draw from one source -- the current split keeps the variant tree
 encapsulated at the cost of one update site per variant for any
 detect/resctrl change.
 
-## 13. Comparison matrix (v3 (ebpf-ring) vs. v3.2 (ebpf-agg))
+## 13. Comparison matrix (v3 (ebpf-ring) vs. v3.2 (eBPF-CORE))
 
 | Aspect                             | V3                | V3.2               |
 |------------------------------------|-------------------|--------------------|

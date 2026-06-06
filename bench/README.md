@@ -77,7 +77,7 @@ python3 bench/generate-iada-tree.py \
 | Stage        | What it does                                                  | Maps to                       |
 | ------------ | ------------------------------------------------------------- | ----------------------------- |
 | `detect`     | Hardware/kernel snapshot, capabilities.env, variants.manifest | preflight                     |
-| `build`      | `make` for hybrid-c / ebpf-ring                               | preflight                     |
+| `build`      | `make` for C-ABI / ebpf-ring                               | preflight                     |
 | `solo`       | 15 workloads x reps, one variant at a time, no co-runner      | legacy IntP-style figures (per-app + PCA) |
 | `pairwise`   | victim + antagonist co-located; profiler attached to victim   | cross-interference analysis   |
 | `overhead`   | reference workload with vs without each profiler              | Volpert et al. 2025           |

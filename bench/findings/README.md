@@ -16,13 +16,13 @@ benchmark campaign.
   - Why per-variant metric magnitudes differ (stap-modern reads `llcocc=0` on 100% of
     HiBench reps — multi-process blindness, not noise); the `mbw` ceiling fix
     and current validity; why `aggregate-means.tsv` now carries all 7 HiBench
-    profiles (`stage=hibench-<profile>`); and ebpf-agg's `blk`/`netp` on disk/veth —
+    profiles (`stage=hibench-<profile>`); and eBPF-CORE's `blk`/`netp` on disk/veth —
     `blk`≈0 is a correct service-time reading on NVMe, while TCP-over-veth
     `netp=0` is a genuine (likely production-relevant) probe gap, with a host
     diagnostic to confirm it.
-- [UB22 campaign -- Metric validity notes (v0.2 (stap-legacy))](ub22-campaign-metric-validity.md)
-  - The single-variant stap-legacy (legacy-bridge) leg on kernel 5.15. Keeps the two
-    senses of "ground truth" apart (stap-legacy as the most reproducible V0 vs physical
+- [UB22 campaign -- Metric validity notes (v0.2 (legacy-intp-baseline))](ub22-campaign-metric-validity.md)
+  - The single-variant legacy-intp-baseline (legacy-bridge) leg on kernel 5.15. Keeps the two
+    senses of "ground truth" apart (legacy-intp-baseline as the most reproducible V0 vs physical
     fidelity); documents two published-table defects fixed in-tree (blank
     throughput-overhead from a stress-ng log-tag mismatch; the fidelity figure's
     row-index misalignment — `blk` r 0.06→0.70 once aligned by timestamp); which

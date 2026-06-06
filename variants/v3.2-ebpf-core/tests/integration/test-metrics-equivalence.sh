@@ -15,9 +15,9 @@
 set -eu
 
 # Sibling variant under variants/; this test is run with CWD = the v3.2
-# variant root (where ./intp-ebpf-agg sits), so the sibling is one level up.
+# variant root (where ./intp-eBPF-CORE sits), so the sibling is one level up.
 V3_BIN=${V3_BIN:-../v3-ebpf-ring/intp-ebpf}
-V32_BIN=${V32_BIN:-./intp-ebpf-agg}
+V32_BIN=${V32_BIN:-./intp-eBPF-CORE}
 DUR=${DUR:-30}
 REL_TOL=${REL_TOL:-0.15}    # 15% fractional tolerance
 ABS_TOL=${ABS_TOL:-5}       # 5 percentage points when median is near zero

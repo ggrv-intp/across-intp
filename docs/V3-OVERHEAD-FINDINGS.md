@@ -1,10 +1,10 @@
-# v3 (ebpf-ring) overhead findings (motivation for v3.2 (ebpf-agg))
+# v3 (ebpf-ring) overhead findings (motivation for v3.2 (eBPF-CORE))
 
 This document summarises the empirical ebpf-ring measurements that motivated
-the design of ebpf-agg. It is the in-repo digest of paper section VI
+the design of eBPF-CORE. It is the in-repo digest of paper section VI
 (overhead decomposition). ebpf-ring itself is not deprecated: it remains the
 introspection-friendly profiler and the *predecessor of record* for
-ebpf-agg's architectural decisions.
+eBPF-CORE's architectural decisions.
 
 For full numbers, raw traces, and the paper-grade exposition, see:
 
@@ -71,7 +71,7 @@ balanced -- they are coupled by the architecture of "drain a ring
 buffer from a userspace thread". The split is 50/50 by design, not
 by happy accident. Removing one without removing the other is
 structurally impossible inside the streaming pattern. Removing both
-is what ebpf-agg does by aggregating in-kernel and polling once per
+is what eBPF-CORE does by aggregating in-kernel and polling once per
 interval.
 
 ---
@@ -104,7 +104,7 @@ The resctrl-derived `mbw` byte counter (read separately, before any
 normalisation) shows the actual noise-floor bandwidth at about
 **5.65 GB/s** under idle load on `intp-master`. The signal is
 present and non-zero; ebpf-ring's binary normalisation is what produces
-the misleading display. ebpf-agg emits both `mbw_pct` (normalised) and
+the misleading display. eBPF-CORE emits both `mbw_pct` (normalised) and
 `mbw_raw_mbps` (the raw byte rate), so consumers can detect either
 failure mode immediately. Clipping at 100% is opt-in via
 `--clip-mbw` rather than the default.
@@ -113,7 +113,7 @@ failure mode immediately. Clipping at 100% is opt-in via
 
 ## 4. Why v3 (ebpf-ring) stays in the repo
 
-ebpf-ring is retained as the predecessor of ebpf-agg for two reasons:
+ebpf-ring is retained as the predecessor of eBPF-CORE for two reasons:
 
 1. **Empirical justification.** The overhead measurements above are
    the empirical evidence that motivates the in-kernel-aggregation
@@ -123,10 +123,10 @@ ebpf-ring is retained as the predecessor of ebpf-agg for two reasons:
    own host.
 
 2. **Per-event introspection.** ebpf-ring retains `--trace` mode and the
-   MPSC FIFO ordering of probe events that ebpf-agg trades away. For
+   MPSC FIFO ordering of probe events that eBPF-CORE trades away. For
    debugging individual probe sites or chasing causal ordering bugs,
-   the streaming pattern is the right tool. ebpf-agg is the right tool
+   the streaming pattern is the right tool. eBPF-CORE is the right tool
    for steady-state interference characterisation.
 
-ebpf-ring is the *introspection profiler*; ebpf-agg is the *steady-state
+ebpf-ring is the *introspection profiler*; eBPF-CORE is the *steady-state
 profiler*. Both have a home.

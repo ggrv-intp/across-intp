@@ -24,10 +24,10 @@
 #   --duration SECONDS    Collection duration (default: 10)
 #   --tolerance PCT       Max allowed column divergence in % points (default: 15)
 #   --output-dir DIR      Directory for captured outputs (default: /tmp/intp-xval-*)
-#   --v2-bin PATH         Path to V2 binary (default: ../variants/v2-hybrid-c/intp-hybrid)
+#   --v2-bin PATH         Path to V2 binary (default: ../variants/v2-c-abi/intp-hybrid)
 #   --v3.1-script PATH    Path to V3.1 launcher (default: ../variants/v3.1-bpftrace/run-intp-bpftrace.sh)
 #   --v3-bin PATH         Path to V3 binary (default: ../variants/v3-ebpf-ring/intp-ebpf)
-#   --v3.2-bin PATH       Path to V3.2 binary (default: ../variants/v3.2-ebpf-agg/intp-ebpf-agg)
+#   --v3.2-bin PATH       Path to V3.2 binary (default: ../variants/v3.2-ebpf-core/intp-eBPF-CORE)
 #   --nic-speed-bps N    Force NIC speed (bytes/sec) for all variants
 #   --mem-bw-max-bps N   Force memory bandwidth ceiling (bytes/sec) for all variants
 #   --llc-size-bytes N   Force LLC size (bytes) for all variants
@@ -53,10 +53,10 @@ NIC_SPEED_BPS=""
 MEM_BW_MAX_BPS=""
 LLC_SIZE_BYTES=""
 
-V2_BIN="${REPO_ROOT}/variants/v2-hybrid-c/intp-hybrid"
+V2_BIN="${REPO_ROOT}/variants/v2-c-abi/intp-hybrid"
 V3_1_SCRIPT="${REPO_ROOT}/variants/v3.1-bpftrace/run-intp-bpftrace.sh"
 V3_BIN="${REPO_ROOT}/variants/v3-ebpf-ring/intp-ebpf"
-V3_2_BIN="${REPO_ROOT}/variants/v3.2-ebpf-agg/intp-ebpf-agg"
+V3_2_BIN="${REPO_ROOT}/variants/v3.2-ebpf-core/intp-eBPF-CORE"
 
 METRICS=("netp" "nets" "blk" "mbw" "llcmr" "llcocc" "cpu")
 

@@ -10,7 +10,7 @@
  * the unit test stays decoupled from intp_agg.c's main(); the algorithm
  * being verified is small enough that drift is unlikely.
  *
- * Build (from variants/v3.2-ebpf-agg/):
+ * Build (from variants/v3.2-ebpf-core/):
  *   cc -I src -o tests/unit/test-counter-snapshot \
  *      tests/unit/test-counter-snapshot.c
  */

@@ -3,7 +3,7 @@
 # Volpert et al. ICPE 2025 methodology (idle baseline vs instrumented).
 #
 # Not a full rigorous benchmark -- the Phase 3 evaluation uses the
-# scripts in variants/v2-hybrid-c/scripts/ for that. This one just confirms
+# scripts in variants/v2-c-abi/scripts/ for that. This one just confirms
 # overhead is in the expected "sub-1% under idle" ballpark.
 
 set -eu

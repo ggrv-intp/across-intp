@@ -75,7 +75,7 @@ output contract.
      or out-of-band reboot access. In a shared-tenant or production
      environment, this is a hard blocker on running the SystemTap-based
      variants for sustained campaigns.
-   - **Implication for the framework comparison:** hybrid-c (procfs polling),
+   - **Implication for the framework comparison:** C-ABI (procfs polling),
      bpftrace and ebpf-ring (eBPF/CO-RE) cannot reach this failure class by
      construction — none of them install kernel probes that can recursively
      enter kernel locks held by the probed code path. eBPF in particular is
@@ -89,7 +89,7 @@ This finding supports a two-layer conclusion:
 
 1. **stap-nohelper is a successful compatibility bridge** for reproducing the legacy
    methodology on modern kernels/hardware.
-2. **stap-nohelper is not the reliability endpoint**: hybrid-c/bpftrace/ebpf-ring/ebpf-agg remain more robust
+2. **stap-nohelper is not the reliability endpoint**: C-ABI/bpftrace/ebpf-ring/eBPF-CORE remain more robust
    for sustained benchmarking because they avoid the high-friction SystemTap
    kernel instrumentation path. stap-modern (stap + userspace helper) recovers full
    7-metric coverage on modern kernels without putting RCU-unsafe operations
@@ -98,9 +98,9 @@ This finding supports a two-layer conclusion:
 In practice:
 
 - Use stap-nohelper to preserve historical continuity and document legacy behavior.
-- Use stap-modern, hybrid-c, or ebpf-agg as the reliability baseline for final comparative
+- Use stap-modern, C-ABI, or eBPF-CORE as the reliability baseline for final comparative
   claims (these are three of the four "measured result" variants for the
-  paper; the fourth is stap-legacy on the U22 / kernel 5.15 leg).
+  paper; the fourth is legacy-intp-baseline on the U22 / kernel 5.15 leg).
 
 ---
 
@@ -109,11 +109,11 @@ In practice:
 When presenting results, explicitly separate:
 
 1. **Historical comparability** (stap-2022/stap-nohelper lineage).
-2. **Operational reliability** (hybrid-c/bpftrace/ebpf-ring).
+2. **Operational reliability** (C-ABI/bpftrace/ebpf-ring).
 
 Recommended phrasing:
 
 > The modernization of the original SystemTap methodology (stap-nohelper) restored
 > functional portability but retained non-negligible runtime fragility under
-> high probe pressure. This gap motivated the framework transition in hybrid-c/ebpf-ring,
+> high probe pressure. This gap motivated the framework transition in C-ABI/ebpf-ring,
 > which improved repeatability and reduced instrumentation-induced loss.

@@ -53,18 +53,18 @@ REF_LOADS = ["ref_cpu", "ref_disk", "ref_stream"]
 # Descriptive, paper-facing variant names. Figures show these instead of the
 # bare vN tags so a reader need not consult the variant table to know what a
 # panel measures. Canonical map: VERSIONS.md. The four measured versions are
-# stap-legacy (v0.2), stap-modern (v1.1), hybrid-c (v2) and ebpf-agg (v3.2).
+# intp-baseline (v0.2), stap-modern (v1.1), C-ABI (v2) and eBPF-CORE (v3.2).
 VARIANT_LABELS = {
     "v0":   "stap-2022",
     "v0.1": "stap-nollc",
-    "v0.2": "stap-legacy",
+    "v0.2": "intp-baseline",
     "v1":   "stap-nohelper",
     "v1.1": "stap-modern",
-    "v2":   "hybrid-c",
+    "v2":   "C-ABI",
     "v2.1": "cgroup-native",
     "v3":   "ebpf-ring",
     "v3.1": "bpftrace",
-    "v3.2": "ebpf-agg",
+    "v3.2": "eBPF-CORE",
     "v3.3": "ebpf-cgroup",
 }
 
@@ -440,6 +440,8 @@ def plot_heatmaps(fourway: pd.DataFrame, variants: list[str], out_dir: Path) -> 
         import matplotlib
         matplotlib.use("Agg")
         import matplotlib.pyplot as plt
+        plt.rcParams["pdf.fonttype"] = 42
+        plt.rcParams["ps.fonttype"] = 42
     except Exception as e:  # noqa: BLE001
         log(f"[plot] matplotlib unavailable ({e}); skipping heatmaps")
         return
@@ -456,7 +458,7 @@ def plot_heatmaps(fourway: pd.DataFrame, variants: list[str], out_dir: Path) -> 
                     row = g[(g.variant_a == a) & (g.variant_b == b)]
                     if not row.empty:
                         M[i, j] = M[j, i] = row.iloc[0][col]
-            im = ax.imshow(M, vmin=-1, vmax=1, cmap="RdBu_r")
+            im = ax.imshow(M, vmin=-1, vmax=1, cmap="RdBu_r", interpolation="nearest")
             ax.set_xticks(range(len(have))); ax.set_xticklabels([variant_label(v) for v in have], rotation=45)
             ax.set_yticks(range(len(have))); ax.set_yticklabels([variant_label(v) for v in have])
             for (i, j), v in np.ndenumerate(M):

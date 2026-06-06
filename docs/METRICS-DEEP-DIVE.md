@@ -60,7 +60,7 @@ util       = util_x100 / 100                      # integer percent
 
 - **`125_000_000` (line 242)** -- 1 Gbps in bytes/sec (1e9 / 8). Hardcoded
   to a 1 GbE NIC. Higher-speed NICs (10/25/100 GbE) under-report
-  proportionally; this is one of the original limitations the hybrid-c
+  proportionally; this is one of the original limitations the C-ABI
   and ebpf-ring variants address by detecting the real link speed from
   `/sys/class/net/<iface>/speed`.
 
@@ -117,9 +117,9 @@ sampling window, summed over RX and TX.
 - Both kprobes (`__dev_queue_xmit`, `__napi_schedule_irqoff`,
   `napi_complete_done`) are *internal* kernel symbols. They have moved
   or been inlined across kernel versions, which is one of the main
-  fragility sources for stap-2022 across kernel 5.x and 6.x. hybrid-c cannot
+  fragility sources for stap-2022 across kernel 5.x and 6.x. C-ABI cannot
   replicate per-packet kernel service time and falls back to a softirq
-  ratio (status=DEGRADED, see `variants/v2-hybrid-c/DESIGN.md` section 3).
+  ratio (status=DEGRADED, see `variants/v2-c-abi/DESIGN.md` section 3).
   bpftrace/ebpf-ring reintroduce per-packet timing via `napi:napi_poll` tracepoints.
 - `$skb` and `$n` dereferences require kernel debuginfo to resolve.
 
@@ -161,7 +161,7 @@ saturates at 99 (line 138).
 
 - All block devices are aggregated; no per-device breakdown.
 - `block_rq_complete` exists in modern kernels (it's a stable
-  tracepoint), so this metric is portable; hybrid-c uses
+  tracepoint), so this metric is portable; C-ABI uses
   `/proc/diskstats` field 13 (`io_ticks`) instead, which gives the
   same `%util` semantics without a kprobe.
 
@@ -222,7 +222,7 @@ bw_norm         = (bw_bytes_per_s * 10000) / 34_000_000_000   # *100/34 GB/s
 - **`/ 34_000_000_000` (line 514)** -- 34 GB/s, the ad-hoc maximum
   bandwidth used to normalise. This was the calibrated peak of the
   development machine; on any other machine the percentage is wrong.
-  hybrid-c onwards detects max bandwidth from dmidecode or accepts a
+  C-ABI onwards detects max bandwidth from dmidecode or accepts a
   `--mem-bw-max-bps` override.
 
 ### Known limitations
@@ -272,7 +272,7 @@ the most portable of the seven.
 ### Known limitations
 
 - ARM `PERF_COUNT_HW_CACHE_LL` is mapped on Neoverse but returns 0 on
-  many Cortex designs; that is why hybrid-c/ebpf-ring add a vendor-specific
+  many Cortex designs; that is why C-ABI/ebpf-ring add a vendor-specific
   `perf_raw` fallback (Intel `0x412E/0x4F2E`, AMD `0x06/0x04`,
   ARM `0x37/0x32`).
 
@@ -337,7 +337,7 @@ util_pct     = (total_bytes * 10000 / 34_000_000) / 100
   stap-2022 hard-codes a value that worked for the 2022 dev box.
 - **`/ 34_000_000` (line 582)** -- assumed LLC size in bytes (34 MB).
   Real Cascade Lake / Ice Lake LLCs range 27.5-60 MB per socket; stap-nohelper
-  uses a configurable `LLC_SIZE_KB` (default 30720 KB), hybrid-c through ebpf-ring detect
+  uses a configurable `LLC_SIZE_KB` (default 30720 KB), C-ABI through ebpf-ring detect
   per socket from `/sys/devices/system/cpu/cpu0/cache/index3/size`.
 
 ### Known limitations
@@ -347,7 +347,7 @@ util_pct     = (total_bytes * 10000 / 34_000_000) / 100
 - Requires kernel debuginfo to resolve `pe->hw.cqm_rmid`.
 - Not portable to AMD, ARM, or kernel 6.8+; this is the single hardest
   metric in IntP's portability story and is the reason stap-nohelper introduces
-  the resctrl helper daemon pattern that hybrid-c/bpftrace/ebpf-ring inherit.
+  the resctrl helper daemon pattern that C-ABI/bpftrace/ebpf-ring inherit.
 
 ---
 
@@ -403,7 +403,7 @@ netp	nets	blk	mbw	llcmr	llcocc	cpu
 ```
 
 stap-nohelper prepends a `time_ms` column (line 592 of
-`variants/v1-stap-nohelper/intp-resctrl.stp`); hybrid-c through ebpf-ring keep the original 7-column
+`variants/v1-stap-nohelper/intp-resctrl.stp`); C-ABI through ebpf-ring keep the original 7-column
 TSV for IADA pipeline compatibility but add a `# v2 backends:` /
 `# v3 ebpf-core --` header line declaring which backend produced each
 column.
@@ -414,8 +414,8 @@ Each later variant must produce, for the same workload on the same
 host, *numerically equivalent* output for the metrics it implements.
 The shared `validate-cross-variant.sh` script asserts this, and the
 metric semantics defined above are the contract being checked. When a
-later variant cannot match stap-2022 byte-for-byte (most often `nets` on hybrid-c,
+later variant cannot match stap-2022 byte-for-byte (most often `nets` on C-ABI,
 `llcmr` on bpftrace sampling) it must declare that gap with an explicit
-`status=degraded` and `note` field; see `variants/v2-hybrid-c/DESIGN.md`
+`status=degraded` and `note` field; see `variants/v2-c-abi/DESIGN.md`
 section 4 and `variants/v3.1-bpftrace/README.md` "Known limitations" for the
 authoritative gap list.

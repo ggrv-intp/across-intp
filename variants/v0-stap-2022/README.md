@@ -98,7 +98,7 @@ Constants **not** placed via the template:
   (`variants/v1-stap-nohelper/`), or stap-modern (`variants/v1.1-stap-modern/`).
 - Hardware constants (1 GbE NIC, 34 GB/s memory bandwidth, 34 MB LLC,
   IMC PMU type 14, CMT scale factor 49152) reflect the 2022 PUCRS dev
-  machine. Variants hybrid-c/ebpf-ring/bpftrace autodetect these via
+  machine. Variants C-ABI/ebpf-ring/bpftrace autodetect these via
   `shared/intp-detect.sh`.
 
 ## See also

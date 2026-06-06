@@ -39,14 +39,14 @@ V1_STP="$REPO_ROOT/variants/v1-stap-nohelper/intp-resctrl.stp"
 V1_HELPER="$SHARED_DIR/intp-resctrl-helper.sh"
 V1_1_STP="$REPO_ROOT/variants/v1.1-stap-modern/intp-v1.1.stp"
 V1_1_HELPER="$REPO_ROOT/variants/v1.1-stap-modern/intp-helper"
-V0_2_TEMPLATE="$REPO_ROOT/variants/v0.2-stap-legacy/intp.stp.template"
-V0_2_GENERATOR="$REPO_ROOT/variants/v0.2-stap-legacy/generate-stp.sh"
-V0_2_RECAL_STP="$REPO_ROOT/variants/v0.2-stap-legacy/intp.recal.stp"
-V0_2_HELPER="$REPO_ROOT/variants/v0.2-stap-legacy/intp-helper"
-V2_BIN="$REPO_ROOT/variants/v2-hybrid-c/intp-hybrid"
+V0_2_TEMPLATE="$REPO_ROOT/variants/v0.2-legacy-intp-baseline/intp.stp.template"
+V0_2_GENERATOR="$REPO_ROOT/variants/v0.2-legacy-intp-baseline/generate-stp.sh"
+V0_2_RECAL_STP="$REPO_ROOT/variants/v0.2-legacy-intp-baseline/intp.recal.stp"
+V0_2_HELPER="$REPO_ROOT/variants/v0.2-legacy-intp-baseline/intp-helper"
+V2_BIN="$REPO_ROOT/variants/v2-c-abi/intp-hybrid"
 V3_1_RUNNER="$REPO_ROOT/variants/v3.1-bpftrace/run-intp-bpftrace.sh"
 V3_BIN="$REPO_ROOT/variants/v3-ebpf-ring/intp-ebpf"
-V3_2_BIN="$REPO_ROOT/variants/v3.2-ebpf-agg/intp-ebpf-agg"
+V3_2_BIN="$REPO_ROOT/variants/v3.2-ebpf-core/intp-eBPF-CORE"
 
 # Defaults
 SIZE="${SIZE:-medium}"
@@ -440,7 +440,7 @@ stop_profiler() {
         pre_kids=$(pgrep -P "$PROFILER_PID" 2>/dev/null | tr '\n' ' ')
         log "  [stop_profiler] PROFILER_PID=$PROFILER_PID children='${pre_kids}'"
         _kill_tree KILL "$PROFILER_PID"
-        pkill -KILL -f 'intp-hybrid|intp-ebpf|intp-ebpf-agg|run-intp-bpftrace|orchestrator/aggregator\.py' 2>/dev/null
+        pkill -KILL -f 'intp-hybrid|intp-ebpf|intp-eBPF-CORE|run-intp-bpftrace|orchestrator/aggregator\.py' 2>/dev/null
         pkill -KILL -f 'bpftrace -q' 2>/dev/null
         local k=0
         while [ $k -lt 8 ] && kill -0 "$PROFILER_PID" 2>/dev/null; do
@@ -1580,12 +1580,12 @@ preflight() {
                 command -v stap >/dev/null 2>&1 || die "stap not found (required for v0.2)"
                 [ -f "$V0_2_TEMPLATE" ] || die "V0.2 template not found: $V0_2_TEMPLATE"
                 [ -x "$V0_2_GENERATOR" ] || die "V0.2 generator not executable: $V0_2_GENERATOR"
-                [ -x "$V0_2_HELPER" ] || die "V0.2 helper not built: $V0_2_HELPER (run 'make -C $REPO_ROOT/variants/v0.2-stap-legacy')"
+                [ -x "$V0_2_HELPER" ] || die "V0.2 helper not built: $V0_2_HELPER (run 'make -C $REPO_ROOT/variants/v0.2-legacy-intp-baseline')"
                 ;;
             v2) [ -x "$V2_BIN" ] || [ "$DRY_RUN" -eq 1 ] || die "v2 binary not found: $V2_BIN" ;;
             v3.1) [ -x "$V3_1_RUNNER" ] || [ "$DRY_RUN" -eq 1 ] || die "v3.1 runner not found: $V3_1_RUNNER" ;;
             v3) [ -x "$V3_BIN" ] || [ "$DRY_RUN" -eq 1 ] || die "v3 binary not found: $V3_BIN" ;;
-            v3.2) [ -x "$V3_2_BIN" ] || [ "$DRY_RUN" -eq 1 ] || die "v3.2 binary not found: $V3_2_BIN (run 'make -C $REPO_ROOT/variants/v3.2-ebpf-agg')" ;;
+            v3.2) [ -x "$V3_2_BIN" ] || [ "$DRY_RUN" -eq 1 ] || die "v3.2 binary not found: $V3_2_BIN (run 'make -C $REPO_ROOT/variants/v3.2-ebpf-core')" ;;
             *)  die "unknown variant: $v" ;;
         esac
     done

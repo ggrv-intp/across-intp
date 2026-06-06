@@ -152,7 +152,7 @@ BENCH_ENVS="${BENCH_ENVS:-bare}"
 #   v1   stap-native (pre-helper) — BENCH_VARIANTS="...,v1".
 #   v3.1 bpftrace alternative — BENCH_VARIANTS="...,v3.1".
 #   v3.2 in-kernel-aggregating variant (addresses the V-D amplification);
-#        see variants/v3.2-ebpf-agg/DESIGN.md — BENCH_VARIANTS="...,v3.2".
+#        see variants/v3.2-ebpf-core/DESIGN.md — BENCH_VARIANTS="...,v3.2".
 BENCH_VARIANTS="${BENCH_VARIANTS:-v0.2,v1.1,v2,v3}"
 # HIBENCH_VARIANTS defaults to BENCH_VARIANTS, EXCEPT that the classic V0
 # (exact token "v0", not v0.2) is excluded from HiBench by default.
@@ -280,11 +280,11 @@ if _variant_requested v1; then
     && test -x shared/intp-resctrl-helper.sh
   '
 fi
-_variant_requested v0.2 && run_step "build v0.2" make -C variants/v0.2-stap-legacy all
+_variant_requested v0.2 && run_step "build v0.2" make -C variants/v0.2-legacy-intp-baseline all
 _variant_requested v1.1 && run_step "build v1.1" make -C variants/v1.1-stap-modern all
-_variant_requested v2   && run_step "build v2"   make -C variants/v2-hybrid-c all
+_variant_requested v2   && run_step "build v2"   make -C variants/v2-c-abi all
 _variant_requested v3   && run_step "build v3"   make -C variants/v3-ebpf-ring all
-_variant_requested v3.2 && run_step "build v3.2" make -C variants/v3.2-ebpf-agg all
+_variant_requested v3.2 && run_step "build v3.2" make -C variants/v3.2-ebpf-core all
 _variant_requested v3.1 && run_step "v3.1 deps check" make -C variants/v3.1-bpftrace deps
 true   # keep exit status clean after the short-circuit && chains above
 run_step "python benchmark deps" bash -c '

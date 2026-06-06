@@ -271,4 +271,4 @@ If perf events are available, this might be simpler than resctrl.
 - [Linux kernel resctrl documentation](https://docs.kernel.org/filesystems/resctrl.html) (current canonical URL; the `/x86/resctrl.html` path returns 404).
 - [Intel Resource Director Technology overview](https://www.intel.com/content/www/us/en/architecture-and-technology/resource-director-technology.html)
 - [Kernel 6.8 changelog](https://kernelnewbies.org/Linux_6.8)
-- Sohal, P. et al. (2022). *A Closer Look at Intel Resource Director Technology (RDT)*. RTNS 2022. (DOI: 10.1145/3534879.3534882) -- documents MBM accuracy errata on Skylake-class hardware that motivate the dual `resctrl_mbm` / `perf_uncore_imc` backend in hybrid-c.
+- Sohal, P. et al. (2022). *A Closer Look at Intel Resource Director Technology (RDT)*. RTNS 2022. (DOI: 10.1145/3534879.3534882) -- documents MBM accuracy errata on Skylake-class hardware that motivate the dual `resctrl_mbm` / `perf_uncore_imc` backend in C-ABI.

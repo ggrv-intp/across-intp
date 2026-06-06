@@ -24,7 +24,7 @@ binary that runs the entire campaign. The orchestrator does not `git pull`
 mid-batch. If a fix lands on origin/main after the batch started, that fix
 is **not in the data**. This is documented in
 `bench/findings/v1-modernization-reliability-findings.md` and was the root
-cause of the stap-modern/blk and hybrid-c/netp gaps in the `ubuntu24-full-10052006`
+cause of the stap-modern/blk and C-ABI/netp gaps in the `ubuntu24-full-10052006`
 campaign.
 
 Operational check before starting:
@@ -37,11 +37,11 @@ git log -1 --format='%h %s'   # must include any fix you depend on
 
 ### Rule 2 — rebuild any C variant whose source changed
 
-`variants/v2-hybrid-c/src/*.c` and `variants/v3-ebpf-ring/src/*.c` produce binaries.
+`variants/v2-c-abi/src/*.c` and `variants/v3-ebpf-ring/src/*.c` produce binaries.
 The orchestrator does not rebuild automatically:
 
 ```bash
-make -C variants/v2-hybrid-c clean && make -C variants/v2-hybrid-c
+make -C variants/v2-c-abi clean && make -C variants/v2-c-abi
 make -C variants/v3-ebpf-ring clean && make -C variants/v3-ebpf-ring
 ```
 
@@ -52,7 +52,7 @@ rebuilt after any change to `intp-helper.c`.
 
 `stress-ng --sock`/`--udp` defaults to 127.0.0.1; HiBench defaults to
 `file:///` + `local[*]`. Both keep all traffic in the loopback path and
-make netp register zero for hybrid-c (sysfs-based) regardless of variant
+make netp register zero for C-ABI (sysfs-based) regardless of variant
 correctness.
 
 Set:
@@ -184,9 +184,9 @@ Validation step: `stap -p4` succeeds and a sample run produces a non-empty
 
 ---
 
-## v0.2 (stap-legacy) — stap-2022 semantics with userspace helper (U22 / 5.15 GA), 7/7 metrics
+## v0.2 (legacy-intp-baseline) — stap-2022 semantics with userspace helper (U22 / 5.15 GA), 7/7 metrics
 
-stap-legacy (`variants/v0.2-stap-legacy/`) is a new variant scaffolded for the legacy-V0
+legacy-intp-baseline (`variants/v0.2-legacy-intp-baseline/`) is a new variant scaffolded for the legacy-V0
 campaign. It keeps stap-2022's probe set for the five RCU-safe metrics and
 moves the two RCU-unsafe ones (mbw via uncore IMC, llcocc via cqm_rmid)
 into a userspace helper that talks to the kernel via `perf_event_open(2)`
@@ -221,10 +221,10 @@ right variant (same helper pattern, modern probe set).
 
 ```bash
 # Build helper
-make -C variants/v0.2-stap-legacy
+make -C variants/v0.2-legacy-intp-baseline
 
 # Verify the helper produces a data file (root):
-sudo INTP_HELPER_IMC_PMU_TYPE=14 ./variants/v0.2-stap-legacy/intp-helper stress-ng &
+sudo INTP_HELPER_IMC_PMU_TYPE=14 ./variants/v0.2-legacy-intp-baseline/intp-helper stress-ng &
 sleep 2
 test -s /tmp/intp-v0.2-hw-data || echo "helper not writing"
 ```
@@ -332,11 +332,11 @@ awk -F'\t' 'NR>2{for(i=2;i<=NF;i++) if($i!="00"&&$i!="0") nz[i]++}
 
 ---
 
-## v2 (hybrid-c) — hybrid C on stable ABIs, 7/7 metrics
+## v2 (C-ABI) — hybrid C on stable ABIs, 7/7 metrics
 
 ### Backend hierarchy is dynamic
 
-hybrid-c binds the first viable backend per metric at startup, based on a
+C-ABI binds the first viable backend per metric at startup, based on a
 capability detection pass. The `# v2 backends:` line at the top of every
 `profiler.tsv` declares which backend produced each column.
 
@@ -354,18 +354,18 @@ Read the banner before interpreting the data. Examples:
 
 ### What goes wrong
 
-1. **netp = 0 on loopback-only setups**. hybrid-c's sysfs backend reads
+1. **netp = 0 on loopback-only setups**. C-ABI's sysfs backend reads
    `/sys/class/net/*/statistics/{tx,rx}_bytes` and the multi-iface
    patch (`7fd557f`) excludes `lo` to avoid double-counting. On a
    loopback-only intp-master setup, all traffic is on `lo` and netp
    reads zero. This is **by design**, not a bug — same logic that
-   makes hybrid-c's `blk` an aproximação (io_ticks). Documented as
-   limitation analog to hybrid-c/blk.
+   makes C-ABI's `blk` an aproximação (io_ticks). Documented as
+   limitation analog to C-ABI/blk.
 
-   To recover netp in hybrid-c, route the workload through `intp-veth-h`
+   To recover netp in C-ABI, route the workload through `intp-veth-h`
    via distributed mode (Rule 3).
 
-2. **resctrl not mounted** at startup → hybrid-c falls back to perf uncore
+2. **resctrl not mounted** at startup → C-ABI falls back to perf uncore
    for mbw and to the llcmr-derived proxy for llcocc. Mount it:
 
    ```bash
@@ -376,7 +376,7 @@ Read the banner before interpreting the data. Examples:
    access denied. Either set `kernel.perf_event_paranoid=-1` (campaign
    host only) or grant the capability.
 
-4. **Per-PID attribution**: the hybrid-c binary runs in userspace and polls
+4. **Per-PID attribution**: the C-ABI binary runs in userspace and polls
    procfs. It can attribute `cpu`, `netp`, `blk` per-PID via the
    pid-specific procfs paths. It cannot tag individual cache lines or
    softirq fragments to a PID — that's the stap-2022/ebpf-ring territory.
@@ -460,11 +460,11 @@ zeros.
 
 ---
 
-## v3.2 (ebpf-agg) — eBPF in-kernel aggregation (paper section VIII), 7/7 metrics
+## v3.2 (eBPF-CORE) — eBPF in-kernel aggregation (paper section VIII), 7/7 metrics
 
 ### What's in scope
 
-ebpf-agg (`variants/v3.2-ebpf-agg/`) is the in-kernel-aggregating variant
+eBPF-CORE (`variants/v3.2-ebpf-core/`) is the in-kernel-aggregating variant
 specified in paper section VIII. It is the structural answer to the
 188-390x context-switch amplification documented in section V-D:
 same probe sites as ebpf-ring, but every event lands as an atomic 64-bit
@@ -474,18 +474,18 @@ once per `--interval` instead of draining a stream.
 
 ### Why it lives next to ebpf-ring instead of replacing it
 
-ebpf-ring trades off observability for portability; ebpf-agg trades it again for
+ebpf-ring trades off observability for portability; eBPF-CORE trades it again for
 "non-amplification of the schedule clock". They are different points
 on the same axis, not refinements of each other. The paper reports ebpf-ring
-unchanged; ebpf-agg is the additional data point requested by the section
+unchanged; eBPF-CORE is the additional data point requested by the section
 VIII discussion.
 
 ### What still goes wrong
 
 1. **Loss of per-event introspection.** `--trace` is gone. If you need
-   to know *which* request added 200 us to `blk`, use ebpf-ring, not ebpf-agg.
+   to know *which* request added 200 us to `blk`, use ebpf-ring, not eBPF-CORE.
 2. **mbw without a calibrated ceiling.** ebpf-ring's silent clip masked the
-   misconfigured `mem_bw_max_bps`. ebpf-agg surfaces the raw MB/s in the
+   misconfigured `mem_bw_max_bps`. eBPF-CORE surfaces the raw MB/s in the
    trailing `mbw_raw_mbps` column and warns on stderr the first time
    `mbw_pct` exceeds 100. If you see the warning, recheck
    `--mem-bw-max-bps` against the DDR ceiling for the box.
@@ -493,38 +493,38 @@ VIII discussion.
 
 ### Acceptance gate
 
-ebpf-agg is the **only variant** that requires a pre-campaign acceptance
+eBPF-CORE is the **only variant** that requires a pre-campaign acceptance
 test to be valid:
 
 ```bash
-sudo make -C variants/v3.2-ebpf-agg test-amplification
+sudo make -C variants/v3.2-ebpf-core test-amplification
 ```
 
 This runs `tests/integration/test-no-ctxsw-amplification.sh` against
 the three reference workloads (ref_cpu, ref_disk, ref_stream) and
 fails if the with-profiler / baseline context-switch ratio exceeds
-1.10. If ebpf-agg is failing this gate, the in-kernel aggregation is still
-feeding a userspace draining loop somewhere -- do not include ebpf-agg in
+1.10. If eBPF-CORE is failing this gate, the in-kernel aggregation is still
+feeding a userspace draining loop somewhere -- do not include eBPF-CORE in
 the campaign until the gate is green.
 
 ### Rule 2 — rebuild
 
-Same as ebpf-ring. Any source change in `variants/v3.2-ebpf-agg/` requires
-`make -C variants/v3.2-ebpf-agg` before re-running.
+Same as ebpf-ring. Any source change in `variants/v3.2-ebpf-core/` requires
+`make -C variants/v3.2-ebpf-core` before re-running.
 
 ### Rule 3 — distributed mode
 
-Same as ebpf-ring. The bench harness already routes ebpf-agg through the same
+Same as ebpf-ring. The bench harness already routes eBPF-CORE through the same
 container/VM machinery via `_inguest_profiler_cmd`.
 
 ### Validation step
 
 ```bash
 # Capability declaration (no probes; just print detect_all output).
-sudo ./intp-ebpf-agg --list-capabilities
+sudo ./intp-eBPF-CORE --list-capabilities
 
 # All 7 metrics non-zero on a representative load.
-sudo ./intp-ebpf-agg --pids $(pgrep -nf stress-ng) -i 1 -d 30
+sudo ./intp-eBPF-CORE --pids $(pgrep -nf stress-ng) -i 1 -d 30
 
 # Equivalence vs V3.
 sudo bash tests/integration/test-metrics-equivalence.sh
@@ -540,7 +540,7 @@ sudo bash shared/validate-cross-variant.sh --start-workload --duration 30
 bpftrace (`variants/v3.1-bpftrace/`) is fully implemented and operational, but
 *not measured* in the legacy-V0 campaign. The campaign's contrast
 axis is stap-2022's recalibrated SystemTap baseline against the operationally
-robust variants (stap-nohelper, stap-modern, hybrid-c, ebpf-ring); bpftrace sits between stap-nohelper and ebpf-ring on the
+robust variants (stap-nohelper, stap-modern, C-ABI, ebpf-ring); bpftrace sits between stap-nohelper and ebpf-ring on the
 implementation axis and would not add a discriminating data point for
 that comparison. This is a scoping decision, not a quality judgement
 on bpftrace.
@@ -570,7 +570,7 @@ gap. The fix is mirrored in the bpftrace scripts via
 
 2. **Sampled hardware events** for llcmr (10 000 sample period by
    default). Within a 1-second interval the central limit applies but
-   sub-second noise is higher than hybrid-c's `perf_event_open` approach.
+   sub-second noise is higher than C-ABI's `perf_event_open` approach.
 
 3. **nets via `napi:napi_poll`** rather than ebpf-ring's
    `fentry:__napi_poll` + RX path — partial RX latency window. Status

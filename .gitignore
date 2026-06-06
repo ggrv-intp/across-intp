@@ -3,9 +3,9 @@
 
 # Compiled binaries (one per implementation variant)
 variants/v1.1-stap-modern/intp-helper
-variants/v2-hybrid-c/intp-hybrid
+variants/v2-c-abi/intp-hybrid
 variants/v3-ebpf-ring/intp-ebpf
-variants/v3.2-ebpf-agg/intp-ebpf-agg
+variants/v3.2-ebpf-core/intp-eBPF-CORE
 
 # Generic C/C++ build artifacts
 *.o
@@ -19,10 +19,10 @@ variants/v3.2-ebpf-agg/intp-ebpf-agg
 variants/v3-ebpf-ring/*.skel.h
 variants/v3-ebpf-ring/**/*.skel.h
 variants/v3-ebpf-ring/build/
-variants/v3.2-ebpf-agg/*.skel.h
-variants/v3.2-ebpf-agg/**/*.skel.h
-variants/v3.2-ebpf-agg/build/
-variants/v3.2-ebpf-agg/src/vmlinux.h
+variants/v3.2-ebpf-core/*.skel.h
+variants/v3.2-ebpf-core/**/*.skel.h
+variants/v3.2-ebpf-core/build/
+variants/v3.2-ebpf-core/src/vmlinux.h
 
 # Logs / dumps
 *.log

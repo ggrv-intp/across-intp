@@ -1,19 +1,19 @@
-# UB22 Campaign — Metric Validity Notes (v0.2 (stap-legacy))
+# UB22 Campaign — Metric Validity Notes (v0.2 (legacy-intp-baseline))
 
 **Date:** 2026-05-22
 **Campaign:** `results/ub22-campaign-20260521_162957`
 **Host:** `intp-v1-baseline` — Intel Xeon Gold 5412U (Sapphire Rapids), 48 CPU,
 1 socket, 8 IMC channels, **Ubuntu 22.04.5 LTS, kernel 5.15.0-177-generic**
-**Variant:** v0.2 (stap-legacy) (legacy-bridge: paper-faithful stap-2022 SystemTap + userspace helper)
+**Variant:** v0.2 (legacy-intp-baseline) (legacy-bridge: paper-faithful stap-2022 SystemTap + userspace helper)
 **Detection snapshot:** `capabilities.env` (`INTP_NIC_SPEED_MBPS=1000`,
 `INTP_MEM_BW_MBPS=281600`, `INTP_LLC_SIZE_KB=46080`, resctrl mounted, RDT
 CQM/CAT/MBA present)
 
-This campaign is the **single-variant stap-legacy leg** — the "historical portability"
-exhibit of the dissertation's stap-legacy / stap-modern / hybrid-c / ebpf-agg comparison. Where the
+This campaign is the **single-variant legacy-intp-baseline leg** — the "historical portability"
+exhibit of the dissertation's legacy-intp-baseline / stap-modern / C-ABI / eBPF-CORE comparison. Where the
 [UB24 notes](ub24-campaign-metric-validity.md) explain cross-variant magnitude
 differences, this leg has only one variant, so these notes instead cover:
-(1) the framing every evaluator must keep straight — **stap-legacy as the most
+(1) the framing every evaluator must keep straight — **legacy-intp-baseline as the most
 reproducible embodiment of stap-2022 on a modern kernel, which is *not* the same as
 physical ground truth**; (2) two **defects in the published tables that this
 pass fixed** (throughput-overhead was blank; the fidelity figure was
@@ -33,24 +33,24 @@ stap-2022 (the original 2022 IntP, classic SystemTap kprobes, kernel ≤4.18) **
 run** on kernel ≥6.8 and is *destabilising* even on 5.15: the Canonical
 RCU-checking backports break stap-2022's in-probe `perf_event_create_kernel_counter()`
 path, producing stapio orphans, `stap_*` module accumulation, and eventually
-systemd-logind deadlock (see [v0.2 README](../../variants/v0.2-stap-legacy/README.md)
+systemd-logind deadlock (see [v0.2 README](../../variants/v0.2-legacy-intp-baseline/README.md)
 and [V1 modernization findings](v1-modernization-reliability-findings.md)).
-**stap-legacy is the variant that runs stap-2022's probe set paper-faithfully on 5.15 GA
+**legacy-intp-baseline is the variant that runs stap-2022's probe set paper-faithfully on 5.15 GA
 without that fragility cascade.** So:
 
-- **Axis A — fidelity to stap-2022 (reproducibility).** On this axis stap-legacy *is* the
+- **Axis A — fidelity to stap-2022 (reproducibility).** On this axis legacy-intp-baseline *is* the
   reference: it is the most reachable, reproducible realisation of stap-2022's design
   on current hardware. The legacy quirks below (saturating `blk`, loopback
   `netp`) are *features* of that fidelity, not regressions.
 - **Axis B — fidelity to the physical system (`groundtruth.tsv`).** The
   `groundtruth.tsv` files are an **independent** measurement of physical reality
-  (cpu/disk/net from `/proc`). stap-legacy's legacy formulas deliberately *depart* from
-  physical truth (e.g. `blk` is ~100× over-amplified by design). stap-legacy can be
+  (cpu/disk/net from `/proc`). legacy-intp-baseline's legacy formulas deliberately *depart* from
+  physical truth (e.g. `blk` is ~100× over-amplified by design). legacy-intp-baseline can be
   simultaneously a faithful reproduction of stap-2022 **and** a low-physical-fidelity
   estimator — and that duality is the actual finding the leg demonstrates.
 
-**Do not collapse these.** "stap-legacy reproduces stap-2022" (true) must never be read as
-"stap-legacy's amplified `blk` is the correct disk-busy number" (false). The paper's
+**Do not collapse these.** "legacy-intp-baseline reproduces stap-2022" (true) must never be read as
+"legacy-intp-baseline's amplified `blk` is the correct disk-busy number" (false). The paper's
 historical-portability claim lives on Axis A; the modern-reliability claim
 (why the successors exist) lives on Axis B.
 
@@ -61,7 +61,7 @@ historical-portability claim lives on Axis A; the modern-reliability claim
 `plots/overhead_summary.csv` shipped with an **empty `throughput_overhead_pct`**
 column, and every `overhead/**/throughput.tsv` recorded `bogo_ops_total=NA`
 (72/72 overhead runs), so `plots/overhead_raw.csv`'s `bogo_ops_per_s` was also
-empty. The headline "how much does stap-legacy slow the workload" number was therefore
+empty. The headline "how much does legacy-intp-baseline slow the workload" number was therefore
 unreadable from the published tree.
 
 ### Root cause — a stress-ng log-tag mismatch, not lost data
@@ -90,7 +90,7 @@ with the same logic, and `overhead_raw.csv` / `overhead_summary.csv` /
 
 ### Result — VALID, and recovered
 
-Throughput overhead (stap-legacy vs `_baseline`, bogo-ops/s real-time, n=12 each):
+Throughput overhead (legacy-intp-baseline vs `_baseline`, bogo-ops/s real-time, n=12 each):
 
 | ref         | overhead %         | note |
 |-------------|--------------------|------|
@@ -105,10 +105,10 @@ having no data).
 
 ---
 
-## 2. The fidelity figure understated v0.2 (stap-legacy) — FIXED (timestamp alignment)
+## 2. The fidelity figure understated v0.2 (legacy-intp-baseline) — FIXED (timestamp alignment)
 
 `plots/fidelity_matrix.csv` / `fig05` reported near-zero profiler-vs-ground-truth
-Pearson r (cpu 0.06, blk 0.06, netp 0.01), which reads as "stap-legacy has no fidelity."
+Pearson r (cpu 0.06, blk 0.06, netp 0.01), which reads as "legacy-intp-baseline has no fidelity."
 That was an **analysis artefact**.
 
 ### Root cause — row-index alignment against time-shifted series
@@ -126,7 +126,7 @@ made it worse.
 
 Alignment is now by **timestamp** (`pd.merge_asof(direction="nearest",
 tolerance=0.75)`) after dropping the first few ground-truth rows. Result (solo,
-stap-legacy):
+legacy-intp-baseline):
 
 | metric | published (index) | timestamp-aligned | reading |
 |--------|-------------------|-------------------|---------|
@@ -154,7 +154,7 @@ checked at all** — see §4 (ground-truth coverage gap).
 
 ## 3. Expected legacy behaviour — NOT bugs (Axis A)
 
-All seven stap-legacy metric formulas are `≡ V0` (see
+All seven legacy-intp-baseline metric formulas are `≡ V0` (see
 [METRICS-ALIGNMENT.md](../../METRICS-ALIGNMENT.md)). The saturation an evaluator
 sees is the documented price of that fidelity:
 
@@ -162,7 +162,7 @@ sees is the documented price of that fidelity:
   `blk = svctm_us × ops/s / 100` is **~100× over-amplified** and "saturates
   easily on modern hardware" — preserved deliberately for paper fidelity. On
   this NVMe it pins. This is the canonical Axis-A-vs-Axis-B exhibit: faithful to
-  stap-2022, far from physical disk-busy fraction. (stap-modern/ebpf-agg drop the quirk; hybrid-c uses
+  stap-2022, far from physical disk-busy fraction. (stap-modern/eBPF-CORE drop the quirk; C-ABI uses
   io_ticks — see the UB24 notes.)
 - **`netp`/`nets` at 99 on sock/loopback/veth** (netp 60/276, nets 24/276). stap-2022
   uses a **125 MB/s (1 Gbps)** ceiling and counts loopback; the `sock`/`udp`
@@ -175,14 +175,14 @@ sees is the documented price of that fidelity:
   hardcoded 34 GB/s / 34 MB. `mbw` ranges 0–32% with **0 rows clipped**;
   `llcocc` maxes at 93.9%; both have healthy dynamic range.
 
-  > **Calibration seam (important).** stap-legacy's calibration is therefore *mixed*:
+  > **Calibration seam (important).** legacy-intp-baseline's calibration is therefore *mixed*:
   > the stap-native metrics (`netp`, `nets`, `blk`, `llcmr`, `cpu`) are
   > stap-2022-faithful (legacy constants + amplification), but the helper-fed
   > `mbw`/`llcocc` are modernised (autodetected ceilings). Consequence:
-  > `mbw`/`llcocc` magnitudes are **comparable to stap-modern/hybrid-c/ebpf-agg** (all
+  > `mbw`/`llcocc` magnitudes are **comparable to stap-modern/C-ABI/eBPF-CORE** (all
   > autodetect) but are **not** on the legacy-stap-2022 scale a true-stap-2022 run would
   > produce (which would read much higher and likely clip). When the paper
-  > says "stap-legacy reproduces stap-2022", scope it to the stap-native metrics.
+  > says "legacy-intp-baseline reproduces stap-2022", scope it to the stap-native metrics.
 
 - **`mbw`/`llcmr`/`llcocc`/`cpu` never saturate** (max 32 / 97.4 / 93.9 / 64.6) —
   these columns carry real dynamic range across workloads.
@@ -200,7 +200,7 @@ sees is the documented price of that fidelity:
 
 Everything else is ≤~6%. The cause is the SystemTap probe failing to keep up
 with the `stress-ng --sock` event flood (6 s gaps between samples; `netp` pegged
-at 99). This is exactly stap-legacy's *reason for existing as the fragility exhibit* —
+at 99). This is exactly legacy-intp-baseline's *reason for existing as the fragility exhibit* —
 it is a finding, not corruption — but the **per-rep means for these two
 workloads rest on 22–45 samples and must be reported as low-confidence**
 (see `quality-flags.tsv`, §5). Prefer the median; do not present app11_sort_net

@@ -166,9 +166,9 @@ Two analysis envs: `bare` = the stress-ng layer (`stage == solo`),
 the flattened `[application × metric]` fingerprint (raw and
 per-metric-z-scored) and per single metric across applications. The
 family roll-up splits the endpoints into the SystemTap pair
-`{stap-legacy, stap-modern}` and the production-grade pair `{hybrid-c, ebpf-agg}`; the
+`{legacy-intp-baseline, stap-modern}` and the production-grade pair `{C-ABI, eBPF-CORE}`; the
 **cross-family** rows are where the `llcocc` capability gap and the
-stap-legacy overhead surface. Outputs (to `--out`, default `paper-tables/`):
+legacy-intp-baseline overhead surface. Outputs (to `--out`, default `paper-tables/`):
 
 - `correlation-4way-<env>.tsv` — the 6 pairwise r (raw + z-scored).
 - `correlation-per-metric-<env>.tsv` — 7 metrics × 6 pairs.

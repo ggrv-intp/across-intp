@@ -80,4 +80,4 @@ No userspace helper, no resctrl, no uncore PMU access required.
   the userspace `intp-helper` daemon.
 
 For environments where the entire SystemTap stack is undesirable, use
-hybrid-c (procfs/perf/resctrl), bpftrace, or ebpf-ring (eBPF/CO-RE) instead.
+C-ABI (procfs/perf/resctrl), bpftrace, or ebpf-ring (eBPF/CO-RE) instead.

@@ -1,4 +1,4 @@
-# v2 (hybrid-c) Design -- Hybrid procfs / perf_event / resctrl
+# v2 (C-ABI) Design -- Hybrid procfs / perf_event / resctrl
 
 ## 1. Architectural rationale
 
@@ -6,11 +6,11 @@ The dissertation's contribution rests on a portability survey of the seven
 IntP interference dimensions. That survey concluded that, for the
 seconds-resolution interference characterisation IntP targets, every
 dimension can be observed through stable kernel ABIs already shipped by
-mainstream distributions. v2 (hybrid-c) is the empirical proof of that finding: a
+mainstream distributions. v2 (C-ABI) is the empirical proof of that finding: a
 binary that collects all seven metrics, on all major server architectures,
 without SystemTap, without eBPF, and without compiling against debuginfo.
 
-hybrid-c is **not** "one implementation with one code path". It is a
+C-ABI is **not** "one implementation with one code path". It is a
 runtime-adaptive hierarchy of backends. Each metric carries an ordered
 list; at startup the runtime probes them in order and binds the first one
 that succeeds. The output declares the chosen backend per metric so
@@ -38,7 +38,7 @@ Both backends compute `(rx+tx)/interval / nic_speed_bps * 100`. NIC speed
 unknown -> assume 1Gbps and report status=DEGRADED.
 
 What we lose vs SystemTap: nothing meaningful for utilisation; per-packet
-latency is out of scope for hybrid-c.
+latency is out of scope for C-ABI.
 
 ### nets -- network stack utilisation
 
@@ -48,9 +48,9 @@ latency is out of scope for hybrid-c.
 | 2     | procfs_throughput   | `/proc/net/dev` packets * fixed 1us per-packet cost    | none     |
 
 stap-2022 measures real per-packet kernel service time via kprobes on
-`__dev_queue_xmit` and `napi_complete_done`. hybrid-c cannot replicate that
+`__dev_queue_xmit` and `napi_complete_done`. C-ABI cannot replicate that
 without kprobes; both backends report `status=DEGRADED` and a `note`
-identifying the approximation. This is the metric where hybrid-c honestly loses
+identifying the approximation. This is the metric where C-ABI honestly loses
 the most fidelity, and the `note` makes that explicit at consumption time.
 
 ### blk -- block I/O utilisation
@@ -112,22 +112,22 @@ PID backend is selected when `--pids` is non-empty; system backend otherwise.
 
 ## 3. Tradeoffs vs v0 (stap-2022) / v1 (stap-nohelper)
 
-hybrid-c cannot do sub-second event-driven detection. The polling loop wakes
+C-ABI cannot do sub-second event-driven detection. The polling loop wakes
 once per `--interval`; transient spikes shorter than that are smoothed
 into the surrounding window. stap-2022's SystemTap probes are event-driven and
 will catch them.
 
-hybrid-c cannot causally attribute interference between processes. resctrl
+C-ABI cannot causally attribute interference between processes. resctrl
 gives per-`mon_group` byte counters but does not say *whose* requests
 hit *whose* cache lines. stap-2022's kprobes can tag stack frames with the
 calling task. For the dissertation's coarse-grained characterisation
 this distinction is acceptable; for fine-grained debugging it is not.
 
-hybrid-c's nets metric is an approximation. The softirq-fraction backend is
+C-ABI's nets metric is an approximation. The softirq-fraction backend is
 the best we can do without per-packet timestamps. Cross-validating
 against stap-2022 in Phase 3 will quantify the gap.
 
-hybrid-c's resctrl-based backends consume one RMID per IntP run. RMIDs are a
+C-ABI's resctrl-based backends consume one RMID per IntP run. RMIDs are a
 hard resource (32-256 per system on Intel). See section 5.
 
 ## 4. Per-process attribution strategy
@@ -149,7 +149,7 @@ to the resctrl group and to the per-PID `cpu`/`llcmr` backends.
 
 resctrl exposes `/sys/fs/resctrl/info/L3_MON/num_rmids` -- typically 32-256
 per L3 instance on Intel, similar on AMD. Each `mon_group` consumes one
-RMID for the duration of its existence. hybrid-c follows three rules:
+RMID for the duration of its existence. C-ABI follows three rules:
 
 1. **One run, one RMID.** mbw and llcocc share a single mon_group named
    `intp_v4_<pid>` rather than allocating two distinct groups.
@@ -162,7 +162,7 @@ RMID for the duration of its existence. hybrid-c follows three rules:
 
 ## 6. Accuracy validation strategy
 
-Each hybrid-c backend is cross-validatable against an external reference:
+Each C-ABI backend is cross-validatable against an external reference:
 
 - **mbw resctrl_mbm** vs **mbw perf_uncore_imc** on the same Intel host
   (use `--force-backend`). Per kernel selftests on Skylake-SP the gap is
@@ -174,7 +174,7 @@ Each hybrid-c backend is cross-validatable against an external reference:
 - **netp** vs `nload` / `bmon` (sysfs counters, byte-comparable).
 - **nets** has no clean reference; cross-validate against stap-2022 directly.
 
-Phase 3 of the dissertation runs the same workload under stap-2022, stap-nohelper, and hybrid-c
+Phase 3 of the dissertation runs the same workload under stap-2022, stap-nohelper, and C-ABI
 side-by-side and reports per-metric correlation.
 
 ## 7. Cross-environment behaviour
@@ -197,7 +197,7 @@ support not enabled in default cloud images.
 
 ## 8. Comparison points for Phase 3 evaluation
 
-| metric  | v0 (stap-2022, SystemTap)    | v1 (stap-nohelper, refactored SystemTap+resctrl) | v2 (hybrid-c, this variant)            |
+| metric  | v0 (stap-2022, SystemTap)    | v1 (stap-nohelper, refactored SystemTap+resctrl) | v2 (C-ABI, this variant)            |
 |---------|------------------------------|--------------------------------------------------|----------------------------------------|
 | netp    | counter delta                | same                                             | sysfs (byte-equivalent)                |
 | nets    | per-packet service time      | same                                             | softirq fraction (approximation)       |
@@ -207,24 +207,24 @@ support not enabled in default cloud images.
 | llcocc  | RMID via kprobe              | resctrl                                          | resctrl > proxy                        |
 | cpu     | task stats                   | task stats                                       | /proc/<pid>/stat                       |
 
-hybrid-c's overhead profile is fundamentally different: no kprobe insertion,
+C-ABI's overhead profile is fundamentally different: no kprobe insertion,
 no debuginfo loading, deterministic sleep-poll loop. Phase 3 measures
 RSS, CPU%, and decision-quality preservation versus stap-2022.
 
 ## 9. Known limitations and honest framing
 
-hybrid-c is **not** a claim that eBPF or SystemTap are obsolete. They remain
+C-ABI is **not** a claim that eBPF or SystemTap are obsolete. They remain
 the right tool for: per-event sub-millisecond detection, causal
 attribution between processes, kernel-internal counters not exposed via
 ABI, and any analysis where the loss of half-a-microsecond probe overhead
 matters less than missing the event entirely.
 
-hybrid-c is the claim that, for **aggregate interference characterisation at
+C-ABI is the claim that, for **aggregate interference characterisation at
 seconds-resolution as defined by IntP**, stable kernel ABIs are
 sufficient. The dissertation's novelty is in the comparative analysis
 that demonstrates this -- not in any one of these backends individually.
 
-The honest framing for the document is: hybrid-c trades a small amount of
+The honest framing for the document is: C-ABI trades a small amount of
 fidelity (chiefly in nets) and per-process attribution depth for a large
 reduction in deployment complexity (no kernel build, no debuginfo, single
 C99 binary, works on locked-down kernels and inside containers/VMs). For

@@ -46,7 +46,7 @@ RCU-safe probe context at all. v1.1 (stap-modern) recovers the full 7-metric cov
 by introducing a userspace helper for the RCU-unsafe operations, but
 targets kernel 6.8+.
 
-v0.2 (stap-legacy) is the missing leg: **paper-faithful stap-2022 semantics on kernel 5.15
+v0.2 (legacy-intp-baseline) is the missing leg: **paper-faithful stap-2022 semantics on kernel 5.15
 GA, with the two RCU-unsafe operations moved out of probe context into
 a userspace helper.**
 
@@ -112,7 +112,7 @@ Considered and rejected. The contract with the paper requires
 `variants/v0-stap-2022/intp.stp` to stay byte-identical to the 2022 source. We
 need at least one variant that exhibits the original fragility so the
 dissertation can cite the reliability cliff. A patched stap-2022 would not
-serve that role; stap-legacy sits next to stap-2022 and is selected explicitly by the
+serve that role; legacy-intp-baseline sits next to stap-2022 and is selected explicitly by the
 operator when the experiment goal is "stap-2022 semantics, but stable."
 
 ## Why not just use v1.1 (stap-modern)?
@@ -122,7 +122,7 @@ several places driven by changes in the modern tapsets (e.g., the
 `net_dev_xmit` accounting is sligthly different, the block_rq path is
 folded onto the `block_rq_complete` tracepoint with a different start-
 time semantic). For the U22 / 5.15 leg of the experiment we want
-*paper-faithful probe semantics where they are RCU-safe*. stap-legacy keeps
+*paper-faithful probe semantics where they are RCU-safe*. legacy-intp-baseline keeps
 stap-2022's probe set verbatim and only diverges on the two probes that stap-2022
 itself cannot run safely on 5.15 GA. The cost of duplication is bounded
 to one stap script and a small fork of the helper; the benefit is

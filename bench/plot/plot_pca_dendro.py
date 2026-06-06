@@ -28,6 +28,11 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+# Embed TrueType (type 42) rather than matplotlib's default Type 3 fonts, so
+# the PDF figures render crisply in PDF viewers and LaTeX (avoids the "strange
+# PDF" look).
+plt.rcParams["pdf.fonttype"] = 42
+plt.rcParams["ps.fonttype"] = 42
 from matplotlib import gridspec
 from matplotlib.lines import Line2D
 from matplotlib.patches import Patch
@@ -42,18 +47,18 @@ VARIANT_MARKERS = {"v0.2": "P", "v1.1": "o", "v2": "s", "v3.2": "*"}
 # Descriptive, paper-facing variant names. Figures show these instead of the
 # bare vN tags so a reader need not consult the variant table to know what a
 # panel measures. Canonical map: VERSIONS.md. The four measured versions are
-# stap-legacy (v0.2), stap-modern (v1.1), hybrid-c (v2) and ebpf-agg (v3.2).
+# intp-baseline (v0.2), stap-modern (v1.1), C-ABI (v2) and eBPF-CORE (v3.2).
 VARIANT_LABELS = {
     "v0":   "stap-2022",
     "v0.1": "stap-nollc",
-    "v0.2": "stap-legacy",
+    "v0.2": "intp-baseline",
     "v1":   "stap-nohelper",
     "v1.1": "stap-modern",
-    "v2":   "hybrid-c",
+    "v2":   "C-ABI",
     "v2.1": "cgroup-native",
     "v3":   "ebpf-ring",
     "v3.1": "bpftrace",
-    "v3.2": "ebpf-agg",
+    "v3.2": "eBPF-CORE",
     "v3.3": "ebpf-cgroup",
 }
 
@@ -91,11 +96,21 @@ def per_workload_variant_means(df):
     return df.groupby(["workload", "variant"])[METRICS].mean().fillna(0)
 
 
-def main(csv_path, outdir):
+def main(csv_path, outdir, variants=None):
     outdir = Path(outdir)
     outdir.mkdir(parents=True, exist_ok=True)
 
+    # Optional subset (e.g. "v0.2" or "v2,v3.2") for the per-paper published/
+    # figures; default plots the full VARIANT_ORDER set present in the data.
+    if variants:
+        sel = {v.strip() for v in variants.split(",") if v.strip()}
+        vorder = [v for v in VARIANT_ORDER if v in sel]
+    else:
+        vorder = list(VARIANT_ORDER)
+
     df = load_solo_bare(csv_path)
+    if variants:
+        df = df[df["variant"].isin(vorder)].copy()
     g = per_workload_variant_means(df)
 
     workloads = sorted(g.index.get_level_values(0).unique())
@@ -149,7 +164,7 @@ def main(csv_path, outdir):
     # --- Panel A: PCA scatter ---
     ax_pca = fig.add_subplot(gs[0, 0])
     for wl in workloads:
-        for variant in VARIANT_ORDER:
+        for variant in vorder:
             try:
                 p = coords.loc[(wl, variant)]
             except KeyError:
@@ -163,7 +178,7 @@ def main(csv_path, outdir):
             )
         # thin polygon connecting variants of the same workload
         pts = []
-        for variant in VARIANT_ORDER:
+        for variant in vorder:
             try:
                 p = coords.loc[(wl, variant)]
                 pts.append((p["PC1"], p["PC2"]))
@@ -186,7 +201,7 @@ def main(csv_path, outdir):
     ax_pca.tick_params(labelsize=8)
 
     # Add top headroom so the in-panel legends sit in an empty band above the
-    # scatter. The descriptive variant names (stap-legacy, ebpf-agg, ...) are
+    # scatter. The descriptive variant names (legacy-intp-baseline, eBPF-CORE, ...) are
     # wider/taller than the old vN tags, so without this the upper-left
     # "variant" legend overlaps the top points.
     y0, y1 = ax_pca.get_ylim()
@@ -198,7 +213,7 @@ def main(csv_path, outdir):
         Line2D([0], [0], marker=VARIANT_MARKERS[v], color="w",
                markerfacecolor="lightgray", markeredgecolor="black",
                markersize=7, label=variant_label(v))
-        for v in VARIANT_ORDER
+        for v in vorder
     ]
     cluster_handles = [
         Patch(facecolor=cluster_color[c], edgecolor="black",
@@ -276,6 +291,16 @@ def main(csv_path, outdir):
 
 
 if __name__ == "__main__":
-    csv_path = Path(sys.argv[1]) if len(sys.argv) > 1 else Path("aggregate-means.csv")
-    outdir = Path(sys.argv[2]) if len(sys.argv) > 2 else Path("out")
-    main(csv_path, outdir)
+    # Positional, backward-compatible: <csv> [<outdir>] [<variants>]
+    # <variants> is an optional comma-separated subset (e.g. "v0.2" or
+    # "v2,v3.2") used to render the per-paper published/ figures.
+    args = [a for a in sys.argv[1:] if not a.startswith("-")]
+    variants = None
+    for a in sys.argv[1:]:
+        if a.startswith("--variants="):
+            variants = a.split("=", 1)[1]
+    csv_path = Path(args[0]) if len(args) > 0 else Path("aggregate-means.csv")
+    outdir = Path(args[1]) if len(args) > 1 else Path("out")
+    if variants is None and len(args) > 2:
+        variants = args[2]
+    main(csv_path, outdir, variants)

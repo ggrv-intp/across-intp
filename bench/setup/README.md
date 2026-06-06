@@ -178,7 +178,7 @@ pointed at a parent directory.
 | `--no-build`        | Skip `make` of v2 / v3.                                             |
 | `--no-debuginfo`    | Skip the ddebs repo and matching dbgsym package. SystemTap probes
                        lose access to a lot of internal symbols; only use this if you
-                       intend to run hybrid-c/bpftrace/ebpf-ring only.                  |
+                       intend to run C-ABI/bpftrace/ebpf-ring only.                  |
 
 ## Sanity check after step 4 / step 6
 

@@ -1,9 +1,9 @@
-# UB24 Campaign — Metric Validity Notes (v1.1 (stap-modern), v2 (hybrid-c), v3.2 (ebpf-agg))
+# UB24 Campaign — Metric Validity Notes (v1.1 (stap-modern), v2 (C-ABI), v3.2 (eBPF-CORE))
 
 **Date:** 2026-05-21
 **Campaign:** `results/ub24-campaign-20260518_021737` → published `sbac-results/` (leg `ub24`)
 **Host:** Intel Xeon Gold 5412U (Sapphire Rapids), 48 CPU, 1 socket, 8 IMC channels
-**Variants:** v1.1 (stap-modern, SystemTap helper), v2 (hybrid-c) / v3.2 (ebpf-agg) (eBPF + resctrl)
+**Variants:** v1.1 (stap-modern, SystemTap helper), v2 (C-ABI) / v3.2 (eBPF-CORE) (eBPF + resctrl)
 **Detection snapshot:** `capabilities-ub24.env` (`INTP_MEM_BW_MBPS=281600`, `INTP_LLC_SIZE_KB=46080`, `INTP_CMT_SCALE_FACTOR=49152`, resctrl mounted, RDT CQM/CAT/MBA present)
 
 These notes explain three things an evaluator will notice in the ub24 result
@@ -11,7 +11,7 @@ tree: (1) why the per-variant metric magnitudes differ — chiefly `llcocc` — 
 when that is real vs. an artifact; (2) the state of the `mbw` column and its
 ceiling fix; (3) how `aggregate-means.tsv` was fixed to carry all 7 HiBench
 profiles (it previously collapsed to one);
-(4) why ebpf-agg reads near-zero `blk` and zero `netp` on the disk/veth pairwise
+(4) why eBPF-CORE reads near-zero `blk` and zero `netp` on the disk/veth pairwise
 workloads — `blk` is a correct production-faithful service-time reading on fast
 NVMe, while `netp` is correct on loopback but has one genuine probe gap
 (TCP-over-veth) worth fixing.
@@ -38,7 +38,7 @@ HiBench tooling differences aside. This is the control proving the differences
 below are **backend-specific, not workload noise**.
 
 **On HiBench, stap-modern is blind to `llcocc`.** stap-modern reports `llcocc = 0` for
-**100% (72/72)** of HiBench rows; hybrid-c/ebpf-agg report it correctly (0% zero):
+**100% (72/72)** of HiBench rows; C-ABI/eBPF-CORE report it correctly (0% zero):
 
 | segment    | v1.1 llcocc==0 | v2 | v3.2 |
 |------------|----------------|----|------|
@@ -65,16 +65,16 @@ distributed cluster. stap-modern (a) loses samples under sustained contention �
 fragility result, mean 15.96% / max 98.89% sample loss, see
 `bench-full/fragility-aggregated.tsv` — and (b) never attaches a resctrl
 mon_group to the JVM cgroup tree, so cache occupancy reads **zero** for every
-HiBench rep. hybrid-c/ebpf-agg (eBPF + resctrl mon_group over the full process set)
+HiBench rep. C-ABI/eBPF-CORE (eBPF + resctrl mon_group over the full process set)
 capture the ~98% LLC occupancy the Spark working set actually holds.
 
 **This is not a bug to "fix" in the data — it is a finding.** It corroborates
 the paper's thesis: stap-modern's instrumentation is not merely lossy, it is
 *structurally blind* to multi-process resctrl metrics under realistic
-sustained load. hybrid-c/ebpf-agg are robust on both axes.
+sustained load. C-ABI/eBPF-CORE are robust on both axes.
 
 **Consequence for the paper:** never compare stap-modern's HiBench `llcocc`/`cpu`
-against hybrid-c/ebpf-agg as if measuring the same thing — stap-modern's HiBench `llcocc` is a
+against C-ABI/eBPF-CORE as if measuring the same thing — stap-modern's HiBench `llcocc` is a
 null signal. The legitimate cross-variant comparison is on **stress-ng**, where
 all three converge (PCA convergence metric intra/global = 0.300,
 `fig_pca_correlation_circle`). On HiBench, treat stap-modern as the
@@ -84,7 +84,7 @@ all three converge (PCA convergence metric intra/global = 0.300,
 
 ## 2. `mbw` column — ceiling fix and current validity
 
-`mbw` for hybrid-c/ebpf-ring/bpftrace/ebpf-agg is a **percentage** of a memory-bandwidth ceiling
+`mbw` for C-ABI/ebpf-ring/bpftrace/eBPF-CORE is a **percentage** of a memory-bandwidth ceiling
 (bytes/s). The ceiling must be supplied in **B/s**.
 
 ### The fix (`resolve_mem_bw_ceiling`, run-hibench-subset.sh)
@@ -98,14 +98,14 @@ saturates/garbles. `resolve_mem_bw_ceiling()` does the MB/s→B/s conversion
 
 ### Status in this campaign — VALID
 
-The ceiling fix is active and working. Across all stap-modern/hybrid-c/ebpf-agg rows:
+The ceiling fix is active and working. Across all stap-modern/C-ABI/eBPF-CORE rows:
 
 - `mbw` range **0.00 … 61.31%** — **no clipping** (0 rows at ≥99%, none pinned).
 - `mbw == 0` on 348/1047 rows: these are the non-memory workloads (cpu/net
   stressors, overhead `_baseline`) that legitimately move ~no bandwidth — not a
   failure.
 - On memory/HiBench workloads `mbw` is a sensible single-to-low-double-digit %
-  (e.g. kmeans ebpf-agg = 11.29) — expected, since few workloads approach a 281
+  (e.g. kmeans eBPF-CORE = 11.29) — expected, since few workloads approach a 281
   GB/s, 8-channel ceiling.
 
 So `mbw` in the ub24 tree is usable as published. The
@@ -114,10 +114,10 @@ So `mbw` in the ub24 tree is usable as published. The
 
 ### `mbw_raw_mbps` is suppressed here
 
-ebpf-agg (and ebpf-ring) emit a trailing diagnostic column `mbw_raw_mbps` — the **un-clipped
+eBPF-CORE (and ebpf-ring) emit a trailing diagnostic column `mbw_raw_mbps` — the **un-clipped
 raw bandwidth in MB/s** (`mbm_total_bytes_delta / interval / 1e6`). In this
 campaign it is **deliberately suppressed**: run-hibench-subset.sh passes
-`--no-raw-mbw` for ebpf-agg so its column shape matches hybrid-c/ebpf-ring exactly
+`--no-raw-mbw` for eBPF-CORE so its column shape matches C-ABI/ebpf-ring exactly
 (7 canonical columns; the published profiler.tsv header is
 `ts netp nets blk mbw llcmr llcocc cpu`). Therefore `mbw_raw_mbps` is **not
 available as a fallback in this tree**.
@@ -177,7 +177,7 @@ rows. Filtering a single profile is now `stage == "hibench-cpu-extreme"`.
 
 ---
 
-## 4. v3.2 (ebpf-agg) reads ~0 `blk` and 0 `netp` on the disk/veth pairwise figures
+## 4. v3.2 (eBPF-CORE) reads ~0 `blk` and 0 `netp` on the disk/veth pairwise figures
 
 > **CORRECTION (2026-05-22) — the `netp` cause below (GSO/TSO) is SUPERSEDED.**
 > The GSO hypothesis was, in the text's own words, "not confirmed by a live
@@ -185,7 +185,7 @@ rows. Filtering a single profile is now `stage == "hibench-cpu-extreme"`.
 > (`results/sbac-results-ub24`, see `bench/findings/ub22-campaign-metric-validity.md`)
 > pins the real cause, and it is **not** GSO and **not** a tracepoint-firing gap:
 >
-> - **The campaign ran ebpf-agg PID/cgroup-scoped, not system-wide.** Every ebpf-agg
+> - **The campaign ran eBPF-CORE PID/cgroup-scoped, not system-wide.** Every eBPF-CORE
 >   `profiler.tsv` header reads `scope=cgroup=…`. The premise below ("the bench
 >   runs V2/V3 SYSTEM-WIDE … so should_monitor_current() is always true") is
 >   therefore false for this campaign — the harness passes `--cgroup` whenever a
@@ -199,9 +199,9 @@ rows. Filtering a single profile is now `stage == "hibench-cpu-extreme"`.
 >   0-vs-99 split, and it needs no GSO explanation.
 > - **`nets` was never broken.** Its softirq tracepoints already update
 >   `agg_global` **ungated** (per-PID is impossible in softirq), i.e. already
->   device-level — and ebpf-agg `nets` on `tcp_v_tcp_veth` reads **5.88 ≈ hybrid-c's 5.24**.
+>   device-level — and eBPF-CORE `nets` on `tcp_v_tcp_veth` reads **5.88 ≈ C-ABI's 5.24**.
 >   This is the control proving the device-level approach is right.
-> - **hybrid-c captures the veth TCP because its `netp` is device-level** (`/sys/class/net`
+> - **C-ABI captures the veth TCP because its `netp` is device-level** (`/sys/class/net`
 >   non-`lo` byte counters), independent of cgroup. So `netp` is intrinsically a
 >   *device* metric, not a per-process one.
 >
@@ -209,29 +209,29 @@ rows. Filtering a single profile is now `stage == "hibench-cpu-extreme"`.
 > `tp_net_dev_xmit` / `tp_netif_receive_skb` now count the global `netp` counter
 > **device-level** (no `should_monitor_current()` gate; `lo` still excluded to
 > avoid the single-host xmit+recv 2× double-count), bringing `netp` into line
-> with `nets` and with hybrid-c. The per-PID slot stays best-effort (updated only when
-> `current` matches). The change **builds clean** (`make -C variants/v3.2-ebpf-agg`)
-> but was **not run** here — the consolidated tree keeps ebpf-agg's measured
+> with `nets` and with C-ABI. The per-PID slot stays best-effort (updated only when
+> `current` matches). The change **builds clean** (`make -C variants/v3.2-ebpf-core`)
+> but was **not run** here — the consolidated tree keeps eBPF-CORE's measured
 > `netp=0` on `tcp_v_tcp_veth`/`app11b_tcp_veth`, now flagged `XVAR_ZERO:netp`
-> in `plots/quality-flags.tsv`, pending a re-run of ebpf-agg on the measurement host.
+> in `plots/quality-flags.tsv`, pending a re-run of eBPF-CORE on the measurement host.
 > The `diagnose-netp-veth-coverage.sh` premise (system-wide bpftrace, GSO) is
 > likewise superseded: run it system-wide and it will show the tracepoints fire
 > fine — the gap only appears under the cgroup/PID gate.
 
-In `fig07_pairwise_heatmap_bare`, the ebpf-agg panel shows an all-black `blk`
-column and a black `netp` column where stap-modern/hybrid-c light up. The two have
+In `fig07_pairwise_heatmap_bare`, the eBPF-CORE panel shows an all-black `blk`
+column and a black `netp` column where stap-modern/C-ABI light up. The two have
 **different** explanations, and only one is a real gap *(historical analysis
 below; see the correction above for `netp`)*:
 
-- **`blk` (black) is correct, not a gap.** It is ebpf-agg's production-faithful
+- **`blk` (black) is correct, not a gap.** It is eBPF-CORE's production-faithful
   *service-time* definition reading ~0 on fast NVMe (see below). Nothing to fix.
 - **`netp` (black) is two cells with two causes.** `net_v_net` (loopback) reads 0
-  in *both* hybrid-c and ebpf-agg and is correct (loopback → `nets`). `tcp_v_tcp_veth`
-  (veth) is a **genuine ebpf-agg probe gap** — hybrid-c reads it, ebpf-agg misses it — and is
+  in *both* C-ABI and eBPF-CORE and is correct (loopback → `nets`). `tcp_v_tcp_veth`
+  (veth) is a **genuine eBPF-CORE probe gap** — C-ABI reads it, eBPF-CORE misses it — and is
   likely production-relevant. That one warrants a fix.
 
 The `blk`/`netp` machinery is inherited from V3 unchanged (equivalence-tested),
-so these behaviors are V3-family-wide, not ebpf-agg-specific regressions.
+so these behaviors are V3-family-wide, not eBPF-CORE-specific regressions.
 
 ### `blk` — service-time utilization vs iostat `%util`
 
@@ -239,22 +239,22 @@ The two backends measure different definitions of "block I/O utilization":
 
 | variant | definition | source | reads on NVMe under load |
 |---------|-----------|--------|--------------------------|
-| v1.1 (stap-modern), v2 (hybrid-c) | iostat `%util` — wall-time fraction the device queue was non-empty | `/proc/diskstats` `io_ticks` ([blk.c](../../variants/v2-hybrid-c/src/blk.c)) | **97–99%** |
-| v3.2 (ebpf-agg) (=V3) | service-time utilization = `Σ per-request svctm / interval` | eBPF `block_rq_issue→complete` ([intp_agg.bpf.h:63](../../variants/v3.2-ebpf-agg/src/intp_agg.bpf.h#L63)) | **~1–4%** |
+| v1.1 (stap-modern), v2 (C-ABI) | iostat `%util` — wall-time fraction the device queue was non-empty | `/proc/diskstats` `io_ticks` ([blk.c](../../variants/v2-c-abi/src/blk.c)) | **97–99%** |
+| v3.2 (eBPF-CORE) (=V3) | service-time utilization = `Σ per-request svctm / interval` | eBPF `block_rq_issue→complete` ([intp_agg.bpf.h:63](../../variants/v3.2-ebpf-core/src/intp_agg.bpf.h#L63)) | **~1–4%** |
 
 `%util` (io_ticks) is the classic disk-busy metric, but it **saturates to ~100%
 on multi-queue NVMe** even at a tiny fraction of the device's real throughput —
-the queue is essentially never empty under stress. ebpf-agg instead sums the actual
+the queue is essentially never empty under stress. eBPF-CORE instead sums the actual
 issue→complete **service time**; on NVMe each request finishes in microseconds,
-so the summed busy-time is a sliver of the 1 s interval → ~1–4%. The raw ebpf-agg
+so the summed busy-time is a sliver of the 1 s interval → ~1–4%. The raw eBPF-CORE
 trace confirms it (per-sample blk values are `01`–`04`).
 
 **Which is "right"?** For a *production* server — where the relevant question
-is "how much real I/O service pressure is this co-runner adding" — ebpf-agg's
+is "how much real I/O service pressure is this co-runner adding" — eBPF-CORE's
 service-time number is the faithful, non-saturating signal, and `%util` is the
 misleading one (it pins to 100% and hides headroom on SSD/NVMe). For *this
 benchmark*, whose disk stressor hammers a fast NVMe, that production-faithful
-number is legitimately near zero. So the black `blk` column is ebpf-agg telling the
+number is legitimately near zero. So the black `blk` column is eBPF-CORE telling the
 truth about an NVMe that is barely service-time-bound, not a missing metric.
 
 ### `netp` — the single-node network model, and the one real gap
@@ -269,65 +269,65 @@ sparse on a single host:
   the iperf3 workloads (`*_veth`). The veth is the stand-in for the physical NIC
   that production would have.
 
-Both `netp` backends deliberately **exclude `lo`** — this is not an ebpf-agg quirk:
+Both `netp` backends deliberately **exclude `lo`** — this is not an eBPF-CORE quirk:
 
 | variant | source | loopback |
 |---------|--------|----------|
 | v1.1 (stap-modern) | `/proc/net/dev` | counts `lo` (mis-attributes loopback as physical) |
-| v2 (hybrid-c) | `/sys/class/net/*/statistics`, **non-`lo` aggregate** ([netp.c:32-34](../../variants/v2-hybrid-c/src/netp.c#L32)) | **skips `lo`** ("matches v3's eBPF semantics") |
-| v3.2 (ebpf-agg) (=V3) | tracepoints `net_dev_xmit` + `netif_receive_skb`, **`lo` excluded** ([intp_agg.bpf.c:185](../../variants/v3.2-ebpf-agg/src/intp_agg.bpf.c#L185)) | **skips `lo`** to avoid the ≥2× xmit+recv double-count |
+| v2 (C-ABI) | `/sys/class/net/*/statistics`, **non-`lo` aggregate** ([netp.c:32-34](../../variants/v2-c-abi/src/netp.c#L32)) | **skips `lo`** ("matches v3's eBPF semantics") |
+| v3.2 (eBPF-CORE) (=V3) | tracepoints `net_dev_xmit` + `netif_receive_skb`, **`lo` excluded** ([intp_agg.bpf.c:185](../../variants/v3.2-ebpf-core/src/intp_agg.bpf.c#L185)) | **skips `lo`** to avoid the ≥2× xmit+recv double-count |
 
 So per pairwise row:
 
 | pair | route | v1.1 | v2 | v3.2 | reading |
 |------|-------|------|----|------|---------|
-| `net_v_net` | `lo` (sock) | 99 | **0** | **0** | **hybrid-c and ebpf-agg agree and are correct** — loopback is net-stack, captured in `nets`; only stap-modern mis-labels it physical `netp` |
-| `tcp_v_tcp_veth` | veth (TCP) | 99 | 97 | **0** | **the one genuine ebpf-agg gap** |
-| UDP-over-veth (solo) | veth (UDP) | 82 | 96 | 99 | control — ebpf-agg captures it fine |
+| `net_v_net` | `lo` (sock) | 99 | **0** | **0** | **C-ABI and eBPF-CORE agree and are correct** — loopback is net-stack, captured in `nets`; only stap-modern mis-labels it physical `netp` |
+| `tcp_v_tcp_veth` | veth (TCP) | 99 | 97 | **0** | **the one genuine eBPF-CORE gap** |
+| UDP-over-veth (solo) | veth (UDP) | 82 | 96 | 99 | control — eBPF-CORE captures it fine |
 
-**Therefore "enable loopback counting in ebpf-agg" is the wrong fix:** it would
-(1) *diverge* from hybrid-c (which also skips `lo`), (2) re-introduce the ≥2×
+**Therefore "enable loopback counting in eBPF-CORE" is the wrong fix:** it would
+(1) *diverge* from C-ABI (which also skips `lo`), (2) re-introduce the ≥2×
 single-host double-count the design removed, and (3) not even touch the real
 gap — `tcp_v_tcp_veth` is on the **veth**, not `lo`, and the veth is already not
 skipped (UDP-over-veth proves it).
 
 **The real gap is TCP-over-veth only**, and two hypotheses are ruled out by the
 code: it is *not* the loopback skip (veth ≠ `lo`), and *not* PID attribution
-(the bench runs hybrid-c/ebpf-ring **system-wide** — [run-intp-bench.sh:176-177](../run-intp-bench.sh#L176),
+(the bench runs C-ABI/ebpf-ring **system-wide** — [run-intp-bench.sh:176-177](../run-intp-bench.sh#L176),
 `V_USE_PID_FILTER=0` — so `should_monitor_current()` is always true). What
-remains is whether the **veth TCP path actually fires** ebpf-agg's two tracepoints.
+remains is whether the **veth TCP path actually fires** eBPF-CORE's two tracepoints.
 The leading explanation is **GSO/TSO**: TCP egress over veth is handed down as
 large GSO super-frames and delivered to the peer via the GRO path, so the
 per-frame `net_dev_xmit`/`netif_receive_skb` accounting under-counts; UDP's
 per-datagram path fires them normally. **This is not confirmed by a live trace**
 (the host was not available from this session) — run
-[`diagnose-netp-veth-coverage.sh`](../../variants/v3.2-ebpf-agg/tests/integration/diagnose-netp-veth-coverage.sh)
+[`diagnose-netp-veth-coverage.sh`](../../variants/v3.2-ebpf-core/tests/integration/diagnose-netp-veth-coverage.sh)
 on the measurement host (`--proto tcp`, then `--proto udp`) to confirm: it
-compares the bytes ebpf-agg's tracepoints see against the `/sys/class/net` counters
-hybrid-c uses.
+compares the bytes eBPF-CORE's tracepoints see against the `/sys/class/net` counters
+C-ABI uses.
 
 **Production relevance.** If the cause is GSO/TSO, it is **not** a mere bench
-artifact: real NICs run TCP with TSO/GSO, so ebpf-agg would under-count `netp` for
+artifact: real NICs run TCP with TSO/GSO, so eBPF-CORE would under-count `netp` for
 production TCP egress too. The production-AND-bench-compatible fix is to make
-ebpf-agg's `netp` **GSO-aware on non-`lo` interfaces** (count `skb_shinfo->gso_segs`
+eBPF-CORE's `netp` **GSO-aware on non-`lo` interfaces** (count `skb_shinfo->gso_segs`
 × MSS / use the byte length the GRO/GSO skb carries, or fall back to the
-`/sys/class/net` non-`lo` byte deltas hybrid-c already uses) — keeping `lo` excluded.
+`/sys/class/net` non-`lo` byte deltas C-ABI already uses) — keeping `lo` excluded.
 That fix is gated on the diagnostic above and a BPF rebuild on the host, so it
 is **not applied here**.
 
 ### Practical guidance
 
-- The **disk/net interference signal on this harness** is best read from hybrid-c:
+- The **disk/net interference signal on this harness** is best read from C-ABI:
   `%util`-`blk` and the non-`lo` byte-counter `netp` both light up on the
   veth/NVMe bench. stap-modern over-reports (saturating `blk`, loopback counted as
   `netp`).
-- ebpf-agg's **`blk`** (service-time) is the production-faithful number and is
+- eBPF-CORE's **`blk`** (service-time) is the production-faithful number and is
   *correctly* ~0 on NVMe — not a gap. Do not "fix" it for the bench except by
   using a device/IO pattern where service time is non-trivial, or by switching
-  the definition (which would just duplicate hybrid-c's `%util`).
-- ebpf-agg's **`netp`** is correct except for the **TCP-over-veth** undercount, which
+  the definition (which would just duplicate C-ABI's `%util`).
+- eBPF-CORE's **`netp`** is correct except for the **TCP-over-veth** undercount, which
   is a real (and likely production-relevant) gap to fix in the BPF — not a reason
   to start counting `lo`.
-- Net: read the black ebpf-agg `blk` cells as truth (NVMe barely service-bound);
-  read the black ebpf-agg TCP-veth `netp` cell as a **probe gap to fix**, confirmed
+- Net: read the black eBPF-CORE `blk` cells as truth (NVMe barely service-bound);
+  read the black eBPF-CORE TCP-veth `netp` cell as a **probe gap to fix**, confirmed
   via the diagnostic.

@@ -137,7 +137,7 @@ BPF_MAP_TYPE_PERCPU_ARRAY maps for the entire profiling window,
 and the userspace Go binary reads each map exactly once when the
 context is cancelled (SIGINT/SIGTERM or the `-t` deadline). There
 is no continuous consumer thread, no ring buffer, and no periodic
-poll. ebpf-agg is therefore *closer* to iprof than ebpf-ring ever was on the
+poll. eBPF-CORE is therefore *closer* to iprof than ebpf-ring ever was on the
 transport axis, and *closer to PRISM* than iprof on the temporal
 axis (interval-based snapshots vs end-of-run single read).
 
@@ -492,9 +492,9 @@ field.
   passthrough. `detect_pmu_passthrough()` actively probes a hardware
   counter at startup and surfaces the result in `--list-capabilities`.
 
-## 12. Comparison matrix (V3 (ebpf-ring) vs. V0 (stap-2022)/V1 (stap-nohelper)/V2 (hybrid-c)/V3.1 (bpftrace))
+## 12. Comparison matrix (V3 (ebpf-ring) vs. V0 (stap-2022)/V1 (stap-nohelper)/V2 (C-ABI)/V3.1 (bpftrace))
 
-| Feature                | V0 (stap-2022) | V1 (stap-nohelper) | V2 (hybrid-c) | V3.1 (bpftrace) | V3 (ebpf-ring) |
+| Feature                | V0 (stap-2022) | V1 (stap-nohelper) | V2 (C-ABI) | V3.1 (bpftrace) | V3 (ebpf-ring) |
 |------------------------|:-------:|:---------------:|:---------:|:-----------:|:------------:|
 | Kernel module          | yes     | yes             | no        | no          | no           |
 | Debuginfo required     | yes     | yes             | no        | no (BTF)    | no (BTF)     |
@@ -507,23 +507,23 @@ field.
 | Output format          | TSV     | TSV             | TSV/JSON  | TSV         | TSV/JSON/Prom|
 
 ebpf-ring is positioned at the **native eBPF** endpoint of the spectrum: same
-safety guarantees as bpftrace, same cross-kernel portability as hybrid-c, but with
+safety guarantees as bpftrace, same cross-kernel portability as C-ABI, but with
 the per-event cost profile of a compiled-C implementation.
 
 ---
 
-## 13. Why this design is no longer the V3.2 (ebpf-agg) endpoint
+## 13. Why this design is no longer the V3.2 (eBPF-CORE) endpoint
 
 ebpf-ring is retained for empirical evidence and per-event introspection, but
-**ebpf-agg supersedes it as the eBPF/CO-RE measured endpoint** for the
+**eBPF-CORE supersedes it as the eBPF/CO-RE measured endpoint** for the
 SBAC-PAD 2026 campaign. The shift is architectural, not incremental:
-ebpf-ring streams events to userspace through a 16 MiB ring buffer; ebpf-agg
+ebpf-ring streams events to userspace through a 16 MiB ring buffer; eBPF-CORE
 aggregates them in-kernel into hash and per-CPU array maps that
 userspace polls once per interval.
 
-### What V3.2 (ebpf-agg) fixes
+### What V3.2 (eBPF-CORE) fixes
 
-The decision to introduce ebpf-agg was driven by three empirical findings
+The decision to introduce eBPF-CORE was driven by three empirical findings
 documented in `docs/V3-OVERHEAD-FINDINGS.md`:
 
 1. **188-390x system-wide context-switch amplification.** ebpf-ring's
@@ -531,14 +531,14 @@ documented in `docs/V3-OVERHEAD-FINDINGS.md`:
    plus an induced preemption of co-resident workers for every drain
    cycle. The two mechanisms are structurally coupled (each wakeup
    *is* a preemption opportunity) and contribute 50/50; the only way
-   to remove them is to not stream events at all. ebpf-agg does exactly
+   to remove them is to not stream events at all. eBPF-CORE does exactly
    that.
 
 2. **mbw silent clipping at 100%.** ebpf-ring's
    `resctrl_read_mbm_delta()` clips at 100% whenever
    `bytes/sec > INTP_MEM_BW_MBPS`, and the bimodal discrete-outlier
    pattern (96/80/64/48/32/16/0) is per-channel zero reads at
-   multiples of 12.5% (8 DDR5 channels). ebpf-agg emits both `mbw_pct`
+   multiples of 12.5% (8 DDR5 channels). eBPF-CORE emits both `mbw_pct`
    and `mbw_raw_mbps` so both failure modes are detectable; clipping
    is opt-in via `--clip-mbw`.
 
@@ -546,12 +546,12 @@ documented in `docs/V3-OVERHEAD-FINDINGS.md`:
    magnitude** when a BPF program is attached to the same tracepoint.
    This is not an ebpf-ring bug per se, but it means ebpf-ring's overhead has to be
    measured via `vmstat 1` (the kernel `/proc/stat::ctxt` counter),
-   not via perf. ebpf-agg's amplification is bounded by
+   not via perf. eBPF-CORE's amplification is bounded by
    `test-no-ctxsw-amplification.sh` at ratio <= 1.10.
 
-### What V3.2 (ebpf-agg) trades away (and why V3 (ebpf-ring) stays)
+### What V3.2 (eBPF-CORE) trades away (and why V3 (ebpf-ring) stays)
 
-ebpf-agg loses per-event introspectability, MPSC FIFO ordering between
+eBPF-CORE loses per-event introspectability, MPSC FIFO ordering between
 probes, and sub-second temporal resolution. None of those are needed
 for the steady-state IntP workload the paper studies, but they *are*
 needed when debugging individual probe sites or chasing causal
@@ -561,11 +561,11 @@ introspection profiler.
 
 ### Where to look next
 
-- `variants/v3.2-ebpf-agg/DESIGN.md` -- ebpf-agg's design, including the
+- `variants/v3.2-ebpf-core/DESIGN.md` -- eBPF-CORE's design, including the
   in-kernel-aggregation maps (`BPF_MAP_TYPE_HASH` keyed by
   `(pid_tgid, metric_id)` plus `BPF_MAP_TYPE_PERCPU_ARRAY` for
   global counters), the poll cycle, and the acceptance tests.
-- `docs/V3-OVERHEAD-FINDINGS.md` -- the empirical case for ebpf-agg.
+- `docs/V3-OVERHEAD-FINDINGS.md` -- the empirical case for eBPF-CORE.
 - `docs/EXPERIMENT-STRATEGY.md` § "Why it lives next to V3 instead
   of replacing it" -- the campaign-level decision.
 - Paper section VI (overhead decomposition) and section VIII

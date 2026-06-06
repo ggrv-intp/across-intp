@@ -35,8 +35,8 @@ the operator selects `--variants v0.2`; for ad-hoc use:
          INTP_HELPER_L3_SIZE_KB=35840 \
          ./intp-helper stress-ng &
     # in another terminal: generate the recalibrated .stp and load it
-    sudo bash variants/v0.2-stap-legacy/generate-stp.sh
-    sudo stap -g variants/v0.2-stap-legacy/intp.recal.stp stress-ng
+    sudo bash variants/v0.2-legacy-intp-baseline/generate-stp.sh
+    sudo stap -g variants/v0.2-legacy-intp-baseline/intp.recal.stp stress-ng
 
 The pattern is matched as a substring against `/proc/<pid>/comm`.
 
@@ -75,7 +75,7 @@ detection fails.
 
 ## intp.stp.template
 
-`intp.stp.template` is the stap-legacy stap script with a placeholder for the
+`intp.stp.template` is the legacy-intp-baseline stap script with a placeholder for the
 host NIC bandwidth (`@@NIC_BYTES_PER_SEC@@`). `generate-stp.sh` sources
 `shared/intp-detect.sh`, substitutes the placeholder, writes
 `intp.recal.stp`, and that is what `stap` loads. The template itself is

@@ -38,7 +38,7 @@ campaign).
 **Where:** `results/<campaign>/bench-full/overhead/bare/<variant>/` after
 the run; `bench/plot/plot-intp-bench.py::fig_overhead_bars` materialises it.
 
-**Status:** partial. The email reports ±3–5% across stap-modern/hybrid-c/ebpf-ring/bpftrace; final
+**Status:** partial. The email reports ±3–5% across stap-modern/C-ABI/ebpf-ring/bpftrace; final
 campaign should narrow this for ebpf-ring and bpftrace specifically.
 
 ---
@@ -156,7 +156,7 @@ No TODOs in this section.
 
 **Status:** resolved. 281,600 MB/s is the canonical theoretical
 ceiling for the campaign; the empirical Stream measurement lives in
-`capabilities.env` next to each rep. ebpf-agg emits both `mbw_pct`
+`capabilities.env` next to each rep. eBPF-CORE emits both `mbw_pct`
 (normalised against this ceiling) and `mbw_raw_mbps` (the raw byte
 rate) so consumers can detect either over-clipping or
 under-calibration directly from the TSV.
@@ -225,10 +225,10 @@ subsystems. Discuss directionality (which app is the antagonist) and
 which metric registers the strongest delta.
 
 **Status:** pending data. Note: the pre-fix data (email attachment
-`fig07_pairwise_heatmap_bare.png`) shows hybrid-c/bpftrace mbw and ebpf-ring llcmr
+`fig07_pairwise_heatmap_bare.png`) shows C-ABI/bpftrace mbw and ebpf-ring llcmr
 zeroed — that's the bug evidence. The new run should fix all three.
 
-### V.D — Self-overhead (Fig. 4) `[TODO: v3 (ebpf-ring)/v3.1 (bpftrace) < 1%; v2 (hybrid-c) 1–3%; v1.1 (stap-modern) higher]`
+### V.D — Self-overhead (Fig. 4) `[TODO: v3 (ebpf-ring)/v3.1 (bpftrace) < 1%; v2 (C-ABI) 1–3%; v1.1 (stap-modern) higher]`
 
 **Figure source:** `bench/plot/plot-intp-bench.py::fig_overhead_bars`
 (produces `fig04_overhead_bars.png`).
@@ -292,7 +292,7 @@ pagerank).
 
 ### VI.B — Where variants disagree, and why
 
-> [TODO: Identify any metric on which stap-modern and hybrid-c/ebpf-ring/bpftrace systematically
+> [TODO: Identify any metric on which stap-modern and C-ABI/ebpf-ring/bpftrace systematically
 > differ, and explain the likely cause: helper-side polling cadence
 > (1 s) versus eBPF tracepoint sampling, IMC unit selection on
 > Sapphire Rapids, system-wide vs. per-process attribution semantics

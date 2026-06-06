@@ -119,7 +119,7 @@ This directly motivates:
   the MSR conflict, at the cost of dropping `llcocc`.
 - **v1 (stap-nohelper)**: 7-metric coverage restored via `/sys/fs/resctrl`, with no
   dependency on internal `hw_perf_event` fields.
-- **v2 (hybrid-c)/v3.1 (bpftrace)/v3 (ebpf-ring)**: SystemTap-free approaches that are immune to this
+- **v2 (C-ABI)/v3.1 (bpftrace)/v3 (ebpf-ring)**: SystemTap-free approaches that are immune to this
   kind of ABI drift.
 
 The campaign archived under `v1-full-campaign-all-envs/` should be

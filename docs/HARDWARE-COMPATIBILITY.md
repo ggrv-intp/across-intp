@@ -53,7 +53,7 @@ cat /sys/fs/resctrl/info/L3_MON/num_rmids
 ls /sys/devices/uncore_imc_*/
 ```
 
-### 2.3 IntP Backend Priority (hybrid-c)
+### 2.3 IntP Backend Priority (C-ABI)
 
 ```
 mbw:   resctrl_mbm > perf_uncore_imc
@@ -136,7 +136,7 @@ ls /sys/devices/amd_df*/
 grep AuthenticAMD /proc/cpuinfo
 ```
 
-### 3.3 IntP Backend Priority (hybrid-c)
+### 3.3 IntP Backend Priority (C-ABI)
 
 ```texts
 mbw:    resctrl_mbm > perf_amd_df (DRAM beats, 64B granularity)
@@ -205,7 +205,7 @@ cat /sys/fs/resctrl/info/MB_MON/mon_features 2>/dev/null
 ls /sys/devices/arm_cmn*/
 ```
 
-### 4.3 IntP Backend Priority (hybrid-c)
+### 4.3 IntP Backend Priority (C-ABI)
 
 ```text
 mbw:    resctrl_mbm > perf_arm_cmn (HN-F memory traffic, 64B)
@@ -277,16 +277,16 @@ sudo apt install build-essential clang libbpf-dev linux-tools-generic bpftrace p
 sudo mount -t resctrl resctrl /sys/fs/resctrl
 
 # Build all
-cd variants/v2-hybrid-c && make && cd ..
+cd variants/v2-c-abi && make && cd ..
 cd variants/v3-ebpf-ring && make && cd ..
 
 # Validate 7/7
 ./shared/intp-detect.sh | grep INTP_
-sudo ./variants/v2-hybrid-c/intp-hybrid --list-backends
+sudo ./variants/v2-c-abi/intp-hybrid --list-backends
 sudo ./variants/v3-ebpf-ring/intp-ebpf --list-capabilities
 
 # Run
-sudo ./variants/v2-hybrid-c/intp-hybrid --interval 1 --duration 60
+sudo ./variants/v2-c-abi/intp-hybrid --interval 1 --duration 60
 sudo ./variants/v3.1-bpftrace/run-intp-bpftrace.sh --interval 1 --duration 60
 sudo ./variants/v3-ebpf-ring/intp-ebpf --interval 1 --duration 60
 
@@ -304,7 +304,7 @@ sudo apt install build-essential clang libbpf-dev linux-tools-generic bpftrace p
 sudo mount -t resctrl resctrl /sys/fs/resctrl
 
 # Build
-cd variants/v2-hybrid-c && make && cd ..
+cd variants/v2-c-abi && make && cd ..
 cd variants/v3-ebpf-ring && make && cd ..
 
 # Verify — look for amd_df and resctrl features
@@ -312,7 +312,7 @@ ls /sys/devices/amd_df*/ 2>/dev/null && echo "AMD DF: available"
 cat /sys/fs/resctrl/info/L3_MON/mon_features
 
 # Run (identical commands)
-sudo ./variants/v2-hybrid-c/intp-hybrid --interval 1 --duration 60
+sudo ./variants/v2-c-abi/intp-hybrid --interval 1 --duration 60
 sudo ./variants/v3.1-bpftrace/run-intp-bpftrace.sh --interval 1 --duration 60
 sudo ./variants/v3-ebpf-ring/intp-ebpf --interval 1 --duration 60
 ```
@@ -328,7 +328,7 @@ uname -r   # must be >= 6.19
 sudo mount -t resctrl resctrl /sys/fs/resctrl 2>/dev/null
 
 # Build (native on ARM64)
-cd variants/v2-hybrid-c && make && cd ..
+cd variants/v2-c-abi && make && cd ..
 cd variants/v3-ebpf-ring && make && cd ..
 
 # Verify
@@ -336,7 +336,7 @@ cat /sys/fs/resctrl/info/L3_MON/mon_features 2>/dev/null || echo "No MPAM — mb
 ls /sys/devices/arm_cmn*/ 2>/dev/null && echo "ARM CMN: available"
 
 # Run
-sudo ./variants/v2-hybrid-c/intp-hybrid --interval 1 --duration 60
+sudo ./variants/v2-c-abi/intp-hybrid --interval 1 --duration 60
 sudo ./variants/v3.1-bpftrace/run-intp-bpftrace.sh --interval 1 --duration 60
 sudo ./variants/v3-ebpf-ring/intp-ebpf --interval 1 --duration 60
 ```

@@ -68,7 +68,7 @@ output on any non-2022-PUCRS-dev-machine carries calibration error.
 **Measurement fidelity.** Highest of all variants for the metrics it
 collects: events are captured per-packet, per-bio, and per-MSR-read,
 not aggregated by polling. The score sheet sets the upper bound that
-hybrid-c through ebpf-ring are measured against in Phase 3.
+C-ABI through ebpf-ring are measured against in Phase 3.
 
 **Deployment requirements.** SystemTap >= 4.9, kernel debuginfo for
 the running kernel, root, and a kernel that still exposes the
@@ -107,7 +107,7 @@ network-heavy workloads.
 
 **Relationship to other variants.** stap-2022 is the canonical fidelity
 reference. stap-nollc is the smallest possible patch on top of it; stap-nohelper keeps
-the SystemTap shape but replaces the broken CQM path. hybrid-c through ebpf-ring replace
+the SystemTap shape but replaces the broken CQM path. C-ABI through ebpf-ring replace
 SystemTap altogether and are evaluated against stap-2022's output via
 `shared/validate-cross-variant.sh`.
 
@@ -148,16 +148,16 @@ implementation to read from resctrl rather than from `cqm_rmid`. stap-nollc
 is rarely the best deployment choice in practice but has a clear
 pedagogical role in the dissertation.
 
-### V0.2 (stap-legacy) -- V0 semantics + userspace helper (target: kernel 5.15 GA, U22)
+### V0.2 (legacy-intp-baseline) -- V0 semantics + userspace helper (target: kernel 5.15 GA, U22)
 
 **Status.** *Active (legacy-V0 campaign).* Scaffolded 2026-05-11;
 pending operator-side smoke validation on a U22 host.
 
-**Architecture summary.** stap-legacy keeps the paper-faithful stap-2022 stap probe
+**Architecture summary.** legacy-intp-baseline keeps the paper-faithful stap-2022 stap probe
 set for `netp`, `nets`, `blk`, `llcmr`, and `cpu` (all RCU-safe) and
 moves the two RCU-unsafe operations -- uncore IMC perf events
 (`mbw`) and `cqm_rmid`-based LLC occupancy (`llcocc`) -- into a small
-userspace daemon (`variants/v0.2-stap-legacy/intp-helper.c`). The helper writes
+userspace daemon (`variants/v0.2-legacy-intp-baseline/intp-helper.c`). The helper writes
 the latest values atomically to `/tmp/intp-v0.2-hw-data`; the stap
 script reads that file from a `procfs.read` probe via the same
 RCU-safe `filp_open + kernel_read` pattern stap-modern uses. Target kernel
@@ -178,7 +178,7 @@ metrics. For mbw and llcocc, fidelity matches stap-modern's helper output
 bench launcher passes `INTP_HELPER_DRAM_BW_MBPS`, `INTP_HELPER_L3_SIZE_KB`,
 and `INTP_HELPER_IMC_PMU_TYPE` from `shared/intp-detect.sh`).
 
-**Recalibration.** `variants/v0.2-stap-legacy/intp.stp.template` carries only one
+**Recalibration.** `variants/v0.2-legacy-intp-baseline/intp.stp.template` carries only one
 placeholder (`@@NIC_BYTES_PER_SEC@@`); all other host knobs flow
 through helper environment variables and are read at helper startup.
 `variants/v0-stap-2022/intp.stp` is unchanged.
@@ -197,11 +197,11 @@ boots empty for ~1 s on each rep, during which mbw and llcocc read
 as 0; the bench harness sleeps 0.3 s before starting the stap run to
 let the helper write its first line.
 
-**Relationship to other variants.** stap-2022 -> stap-legacy is a kernel-era port:
+**Relationship to other variants.** stap-2022 -> legacy-intp-baseline is a kernel-era port:
 keep stap-2022's probes where they are RCU-safe, replace the two RCU-unsafe
-ones with a userspace path. stap-legacy -> stap-modern is the same architecture
+ones with a userspace path. legacy-intp-baseline -> stap-modern is the same architecture
 applied to a different stap probe set (stap-nohelper's modern set vs stap-2022's paper
-set). stap-legacy and stap-modern do not coexist in the same campaign by intent --
+set). legacy-intp-baseline and stap-modern do not coexist in the same campaign by intent --
 they target different kernels.
 
 ### V1 (stap-nohelper) -- Stap-native (kernel 6.8+, 5/7 metrics, no helper)
@@ -238,14 +238,14 @@ for the probes that remain.
 **Known limitations.**
 
 1. mbw and llcocc are unavailable -- anyone needing 7/7 metrics on
-   kernel 6.8+ should use stap-modern (stap + helper) or hybrid-c / bpftrace / ebpf-ring.
+   kernel 6.8+ should use stap-modern (stap + helper) or C-ABI / bpftrace / ebpf-ring.
 2. Inherits stap-2022's debuginfo and guru-mode requirements; the SystemTap
    `.ko` is still loaded into the kernel.
 
 **Relationship to other variants.** stap-nohelper is the stap-only baseline for
 "how much can SystemTap alone deliver on kernel 6.8+". stap-modern adds a
 userspace helper to recover mbw and llcocc without breaking RCU
-safety. hybrid-c / bpftrace / ebpf-ring abandon SystemTap entirely.
+safety. C-ABI / bpftrace / ebpf-ring abandon SystemTap entirely.
 
 ### V1.1 (stap-modern) -- Stap + userspace helper (kernel 6.8+, full 7 metrics, RCU-safe)
 
@@ -272,7 +272,7 @@ read lock held).
 | llcocc | helper creates `mon_groups/intp-<pid>/`; polls `mon_data/mon_L3_*/llc_occupancy`; sums |
 
 **Measurement fidelity.** Equivalent to stap-2022 for software metrics. For
-hardware metrics, equivalent to hybrid-c / bpftrace / ebpf-ring (resctrl source is the
+hardware metrics, equivalent to C-ABI / bpftrace / ebpf-ring (resctrl source is the
 same). mbw resolution is bounded by the 1-second helper polling rate.
 Both mbw and llcocc gracefully degrade to 0 if the helper is not
 running or the hardware is unavailable.
@@ -321,10 +321,10 @@ respectively. stap-modern is the dissertation's "how much can SystemTap
 deliver if we stop trying to do everything inside the probe context"
 data point.
 
-### V2 (hybrid-c) -- Hybrid procfs/perf_event/resctrl (no framework)
+### V2 (C-ABI) -- Hybrid procfs/perf_event/resctrl (no framework)
 
-**Architecture summary.** hybrid-c is a single C99 binary
-(`variants/v2-hybrid-c/intp-hybrid`) with no kernel module, no debuginfo
+**Architecture summary.** C-ABI is a single C99 binary
+(`variants/v2-c-abi/intp-hybrid`) with no kernel module, no debuginfo
 dependency, and no compile-time selection of a collection path. Each of
 the seven metrics (netp, nets, blk, mbw, llcmr, llcocc, cpu) carries an
 ordered list of backends. At startup the binary runs a capability
@@ -336,7 +336,7 @@ exposition formats. A leading `# v2 backends:` banner in the TSV lets
 downstream consumers see which backend produced each column.
 
 **Backend hierarchy per metric.** The decision tree below is the
-operational contract of hybrid-c; `variants/v2-hybrid-c/DESIGN.md` section 2
+operational contract of C-ABI; `variants/v2-c-abi/DESIGN.md` section 2
 carries the full per-backend detail including minimum kernel versions
 and privilege requirements.
 
@@ -350,7 +350,7 @@ and privilege requirements.
 | llcocc | resctrl        | proxy_from_miss_ratio |                           |
 | cpu    | procfs_pid     | procfs_system         |                           |
 
-**Measurement fidelity.** hybrid-c produces seconds-resolution aggregate data,
+**Measurement fidelity.** C-ABI produces seconds-resolution aggregate data,
 not sub-second event capture. Samples are integrated over the
 `--interval` window (default 1 s) and reported as a single value per
 metric per sample. This is an intentional design decision, not a
@@ -374,7 +374,7 @@ build is provided via `scripts/build-deb.sh`. No kernel module, no BTF,
 no libbpf, no SystemTap runtime, no Python at collection time.
 
 **Performance overhead analysis.** Definitive numbers come from the
-Phase 3 evaluation, which runs the same workload under stap-2022, stap-nohelper, and hybrid-c
+Phase 3 evaluation, which runs the same workload under stap-2022, stap-nohelper, and C-ABI
 bare-metal / container / VM and reports RSS, CPU%, and per-metric
 correlation. The expected order of magnitude for the polling loop is
 around 10^2 microseconds per sample: one `fread` each on `/proc/stat`,
@@ -385,7 +385,7 @@ itself uses `clock_nanosleep(TIMER_ABSTIME)` so overhead is
 deterministic and drift-free; there are no event storms, no verifier
 stalls, and no probe re-insertion cost.
 
-**Known limitations.** hybrid-c does **not** address three aspects that an
+**Known limitations.** C-ABI does **not** address three aspects that an
 event-driven tracer can:
 
 1. *Sub-second events.* Transient spikes shorter than `--interval` are
@@ -394,19 +394,19 @@ event-driven tracer can:
 2. *Causal attribution.* resctrl and perf counters show *what* hit the
    cache, bandwidth, or softirq, but not *whose* instruction did so
    to *whose* cache line. stap-2022's SystemTap probes can tag stack frames
-   with the calling task; hybrid-c cannot replicate that.
+   with the calling task; C-ABI cannot replicate that.
 3. *Per-packet service time for nets.* Both nets backends are
    approximations (softirq-fraction ratio or a fixed 1us/packet
    heuristic). Both carry `status=degraded`;
-   `variants/v2-hybrid-c/DESIGN.md` section 3 explains the gap.
+   `variants/v2-c-abi/DESIGN.md` section 3 explains the gap.
 
-**Relationship to other variants.** hybrid-c differs from **stap-2022** in trading
+**Relationship to other variants.** C-ABI differs from **stap-2022** in trading
 event-driven SystemTap probes for polling over stable ABIs, losing
-per-event resolution but removing kernel-module risk. hybrid-c differs from
+per-event resolution but removing kernel-module risk. C-ABI differs from
 **stap-nohelper** by not using SystemTap at all, instead reaching resctrl directly
-and adding perf_event_open as a second hardware-counter path. hybrid-c
+and adding perf_event_open as a second hardware-counter path. C-ABI
 differs from **bpftrace** by not using bpftrace: no BTF dependency and no
-per-event handler, at the cost of causal attribution. hybrid-c differs from
+per-event handler, at the cost of causal attribution. C-ABI differs from
 **ebpf-ring** by not using eBPF/CO-RE: no verifier, no maps, no BPF object
 loading, at the cost of kernel-internal counters that are only exposed
 through tracepoints.
@@ -417,7 +417,7 @@ through tracepoints.
 The implementation under `variants/v3.1-bpftrace/` is unchanged and remains
 runnable via `BENCH_VARIANTS="...,v3.1"`. The legacy-V0 campaign
 compares stap-2022's recalibrated baseline against the operationally robust
-variants (stap-nohelper, stap-modern, hybrid-c, ebpf-ring); bpftrace is held out of the default matrix
+variants (stap-nohelper, stap-modern, C-ABI, ebpf-ring); bpftrace is held out of the default matrix
 as a scoping decision, not a quality judgement. See
 [`docs/EXPERIMENT-STRATEGY.md`](EXPERIMENT-STRATEGY.md) §
 "V3.1 -- out of scope for this campaign".
@@ -455,7 +455,7 @@ The entry point is `run-intp-bpftrace.sh`.
   `status=degraded` and a note for this column.
 - `llcmr` is *sampled*, not exact: bpftrace hardware events default
   to a 10 000 sample period, so the miss ratio converges over the
-  1-second window but has more noise than hybrid-c's `perf_event_open`
+  1-second window but has more noise than C-ABI's `perf_event_open`
   approach. Within one interval the noise is bounded by the central
   limit.
 - `mbw` and `llcocc` go straight through resctrl, so they match stap-nohelper (and
@@ -596,16 +596,16 @@ the userspace binary is a normal native build.
 
 **Relationship to other variants.** ebpf-ring sits at the "native eBPF" end
 of the spectrum: same safety guarantees as bpftrace, same cross-kernel
-portability as hybrid-c, but with the per-event cost profile of compiled C.
+portability as C-ABI, but with the per-event cost profile of compiled C.
 In Phase 3 it plays the "modern eBPF" role against stap-2022 (original
 SystemTap) and stap-nohelper (refactored SystemTap), evaluated on accuracy,
 overhead (Volpert et al. ICPE 2025 methodology), portability,
 deployment complexity, and execution-environment behaviour
 (bare-metal / container / VM).
 
-### V3.2 (ebpf-agg) -- eBPF in-kernel aggregation (paper section VIII)
+### V3.2 (eBPF-CORE) -- eBPF in-kernel aggregation (paper section VIII)
 
-**Architecture summary.** ebpf-agg is ebpf-ring's structural alternative: a
+**Architecture summary.** eBPF-CORE is ebpf-ring's structural alternative: a
 distinct point on the streaming-vs-aggregation axis the paper
 enumerates, not an optimization of ebpf-ring. The same eBPF probe sites
 (net_dev_xmit, block_rq_complete, sched_switch, softirq_entry/exit,
@@ -647,16 +647,16 @@ clang 11+, libbpf 0.8+, bpftool, libelf, zlib; CAP_BPF / CAP_PERFMON
 at runtime; resctrl for hardware metrics).
 
 **Performance characteristics.** The structural goal is to converge
-with hybrid-c on scheduler-perturbation while keeping eBPF portability and
+with C-ABI on scheduler-perturbation while keeping eBPF portability and
 the 7-metric coverage. The acceptance test enforces this:
 `test-no-ctxsw-amplification.sh` measures vmstat ctxt across a 90s
 window with and without the profiler and fails if the ratio exceeds
 1.10 (ebpf-ring fails this test at 188-390x).
 
-**mbw normalization.** ebpf-agg fixes the silent clip documented in
+**mbw normalization.** eBPF-CORE fixes the silent clip documented in
 paper section IV-E. The legacy V3 `resctrl_read_mbm_delta()` hard-
 clips at 100% (producing the bimodal discrete 96/80/64/48/32/16/0
-pattern when `mem_bw_max_bps` is misconfigured); ebpf-agg's
+pattern when `mem_bw_max_bps` is misconfigured); eBPF-CORE's
 `resctrl_read_mbm_pct_and_raw()` returns the unclipped percent AND
 the raw MB/s in one counter step. A trailing `mbw_raw_mbps` TSV
 column carries the raw reading; `--no-raw-mbw` suppresses it for
@@ -665,16 +665,16 @@ byte-compat. The clip-at-99 behavior is opt-in via `--clip-mbw`.
 **Known limitations.**
 
 1. *Loss of per-event introspection.* No `--trace` flag. Tools built
-   on ebpf-agg reason about intervals, not events.
+   on eBPF-CORE reason about intervals, not events.
 2. *Loss of MPSC FIFO ordering* between probes. A blk completion
    that lands at the same instant as a sched_switch is unordered.
 3. *Per-PID nets attribution is structurally impossible.* Same as
    ebpf-ring: softirqs run in interrupted context. Only system-wide nets
    is attributable.
 
-**Relationship to other variants.** ebpf-agg sits "below" ebpf-ring on the
+**Relationship to other variants.** eBPF-CORE sits "below" ebpf-ring on the
 streaming-vs-aggregation axis (less observability, less amplification)
-and "above" hybrid-c (eBPF probes with sub-microsecond cost vs. /proc
+and "above" C-ABI (eBPF probes with sub-microsecond cost vs. /proc
 polling). It does not replace ebpf-ring -- ebpf-ring remains the introspection
-profiler. ebpf-agg is the steady-state profiler the paper section VIII
+profiler. eBPF-CORE is the steady-state profiler the paper section VIII
 calls for.

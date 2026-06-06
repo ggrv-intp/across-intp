@@ -132,18 +132,18 @@ VARIANT_DISPLAY = {"v3": "v3.2"}
 # Descriptive, paper-facing variant names. Figures show these instead of the
 # bare vN tags so a reader need not consult the variant table to know what a
 # panel measures. Canonical map: VERSIONS.md. The four measured versions are
-# stap-legacy (v0.2), stap-modern (v1.1), hybrid-c (v2) and ebpf-agg (v3.2).
+# intp-baseline (v0.2), stap-modern (v1.1), C-ABI (v2) and eBPF-CORE (v3.2).
 VARIANT_LABELS = {
     "v0":   "stap-2022",
     "v0.1": "stap-nollc",
-    "v0.2": "stap-legacy",
+    "v0.2": "intp-baseline",
     "v1":   "stap-nohelper",
     "v1.1": "stap-modern",
-    "v2":   "hybrid-c",
+    "v2":   "C-ABI",
     "v2.1": "cgroup-native",
     "v3":   "ebpf-ring",
     "v3.1": "bpftrace",
-    "v3.2": "ebpf-agg",
+    "v3.2": "eBPF-CORE",
     "v3.3": "ebpf-cgroup",
 }
 
@@ -159,6 +159,12 @@ def _variant_label(v: str) -> str:
 # in _grid_dims expects 4. If <results_dir>/variants.manifest exists, it
 # overrides this default (one variant per line, '#' comments allowed).
 DEFAULT_PLOTTED_VARIANTS = ["v0.2", "v1.1", "v2", "v3.2"]
+
+# When set to a set of variant tags, the figure functions that re-scan
+# results_dir directly (overhead, fidelity, timeseries, segmented) restrict to
+# these — so --variants applies to them too, not only the means-based figures.
+# main() initialises it from the plotted set.
+_PLOTTED_FILTER = None
 
 
 def _load_plotted_variants(results_dir) -> list[str]:
@@ -198,6 +204,8 @@ SAVE_DPI = 220
 def setup_style() -> None:
     """Publication-friendly defaults. Call once at the start of main()."""
     plt.rcParams.update({
+        "pdf.fonttype":       42,
+        "ps.fonttype":        42,
         "figure.dpi":         110,
         "savefig.dpi":        SAVE_DPI,
         "font.family":        "DejaVu Sans",
@@ -502,7 +510,7 @@ def fig_per_variant_bars(means: pd.DataFrame, outdir: Path) -> None:
                .reindex(workloads)[METRICS]
                .fillna(0))
         im = ax.imshow(sub.values, aspect="auto", cmap="Blues",
-                       vmin=0, vmax=100, interpolation="none")
+                       vmin=0, vmax=100, interpolation="nearest")
         # Per-cell numeric overlay so each workload's seven values are
         # readable directly without colour-to-percentage translation.
         # Text colour flips at the colormap midpoint for contrast; cells
@@ -725,7 +733,8 @@ def _smooth(arr: np.ndarray, window: int = 9) -> np.ndarray:
 
 
 def fig_timeseries(results_dir: Path, outdir: Path) -> None:
-    files = list(results_dir.rglob("timeseries/**/profiler.tsv"))
+    files = [f for f in results_dir.rglob("timeseries/**/profiler.tsv")
+             if _PLOTTED_FILTER is None or f.parts[-5] in _PLOTTED_FILTER]
     if not files:
         print("[timeseries] no timeseries data — skip")
         return
@@ -844,6 +853,12 @@ def _collect_overhead_rows(results_dir: Path) -> pd.DataFrame:
             env = parts[-5]; variant = parts[-4]; refid = parts[-3]
             rep = int(parts[-2].replace("rep", ""))
         except (IndexError, ValueError):
+            continue
+        # Keep the no-profiler reference arms (variant dirs named "_baseline*")
+        # regardless of the filter — the overhead ratio needs them as the
+        # denominator; they are merged as the baseline, not plotted as bars.
+        if (_PLOTTED_FILTER is not None and variant not in _PLOTTED_FILTER
+                and not variant.startswith("_baseline")):
             continue
         try:
             elapsed = float(elapsed_file.read_text().strip())
@@ -1049,6 +1064,8 @@ def fig_fidelity_matrix(results_dir: Path, outdir: Path) -> None:
         merged = pd.merge_asof(prof, gt[["ts"] + gt_cols], on="ts",
                                direction="nearest", tolerance=0.75)
         env = prof_path.parts[-6]; variant = prof_path.parts[-5]
+        if _PLOTTED_FILTER is not None and variant not in _PLOTTED_FILTER:
+            continue
         for metric, gt_col in pair_map.items():
             if metric not in merged or gt_col not in merged: continue
             a = pd.to_numeric(merged[metric], errors="coerce")
@@ -1072,7 +1089,7 @@ def fig_fidelity_matrix(results_dir: Path, outdir: Path) -> None:
     cmap = plt.get_cmap("RdBu_r").copy()
     cmap.set_bad(color="#dddddd")
     im = ax.imshow(masked, vmin=-1, vmax=1, cmap=cmap, aspect="auto",
-                   interpolation="none")
+                   interpolation="nearest")
     ax.set_xticks(range(len(pivot.columns))); ax.set_xticklabels(pivot.columns)
     ax.set_yticks(range(len(pivot.index)));   ax.set_yticklabels([_variant_label(v) for v in pivot.index])
     for (i, j), v in np.ndenumerate(pivot.values):
@@ -1123,7 +1140,7 @@ def fig_env_heatmap(means: pd.DataFrame, outdir: Path) -> None:
         pivot = sub.pivot_table(index="variant", columns="metric", values="ratio")
         pivot = pivot.reindex(index=_ordered_variants(pivot.index))
         im = ax.imshow(pivot.values, cmap="PiYG", vmin=0, vmax=2, aspect="auto",
-                       interpolation="none")
+                       interpolation="nearest")
         ax.set_xticks(range(len(pivot.columns))); ax.set_xticklabels(pivot.columns)
         ax.set_yticks(range(len(pivot.index)));   ax.set_yticklabels([_variant_label(v) for v in pivot.index])
         ax.set_title(f"{env} / bare")
@@ -1176,7 +1193,7 @@ def fig_pairwise_heatmap(means: pd.DataFrame, outdir: Path) -> None:
             cmap = plt.get_cmap("Blues").copy()
             cmap.set_bad(color="#cccccc")
             im = ax.imshow(masked, cmap=cmap, aspect="auto", vmin=0, vmax=100,
-                           interpolation="none")
+                           interpolation="nearest")
             ax.set_xticks(range(len(METRICS))); ax.set_xticklabels(METRICS, rotation=45, ha="right", fontsize=7)
             ax.set_yticks(range(len(workloads))); ax.set_yticklabels(workloads, fontsize=7)
             ax.set_title(f"variant={_variant_label(variant)}", fontsize=9)
@@ -1208,7 +1225,7 @@ def fig_metric_availability(means: pd.DataFrame, outdir: Path) -> None:
     fig, ax = plt.subplots(figsize=_clamp_figsize(6.2, 0.5 * len(pivot) + 1.2))
     cmap = ListedColormap(["#f4f4f4", "#2ca02c"])
     im = ax.imshow(pivot.values, cmap=cmap, vmin=0, vmax=1, aspect="auto",
-                   interpolation="none")
+                   interpolation="nearest")
     ax.set_xticks(range(len(pivot.columns))); ax.set_xticklabels(pivot.columns)
     ax.set_yticks(range(len(pivot.index)));   ax.set_yticklabels([_variant_label(v) for v in pivot.index])
     for (i, j), v in np.ndenumerate(pivot.values):
@@ -1323,7 +1340,7 @@ def fig_workload_clustermap(means: pd.DataFrame, outdir: Path) -> None:
             order = np.arange(len(m))
         m = m.iloc[order]
         im = ax.imshow(m.values, aspect="auto", cmap="Blues", vmin=0, vmax=100,
-                       interpolation="none")
+                       interpolation="nearest")
         ax.set_xticks(range(len(METRICS))); ax.set_xticklabels(METRICS, rotation=45, ha="right", fontsize=7)
         ax.set_yticks(range(len(m.index))); ax.set_yticklabels(m.index, fontsize=7)
         ax.set_title(f"variant={_variant_label(variant)} (Ward linkage)", fontsize=9)
@@ -1404,7 +1421,8 @@ def fig_pairwise_timeseries(results_dir: Path, outdir: Path) -> None:
     """For each (env, variant) overlay 4 resource-family lines (Cache/CPU/
     Disk/Memory) over the long mixed-load trace. Reproduces the look of
     IntP Fig. 8 (4-line interference levels per node)."""
-    files = list(results_dir.rglob("timeseries/**/profiler.tsv"))
+    files = [f for f in results_dir.rglob("timeseries/**/profiler.tsv")
+             if _PLOTTED_FILTER is None or f.parts[-5] in _PLOTTED_FILTER]
     if not files:
         return
     n = len(files)
@@ -1473,7 +1491,8 @@ def _loess_smooth(y: np.ndarray, frac: float = 0.20) -> np.ndarray:
 
 
 def fig_iada_segmented(results_dir: Path, outdir: Path, n_segments: int = 4) -> None:
-    files = list(results_dir.rglob("timeseries/**/profiler.tsv"))
+    files = [f for f in results_dir.rglob("timeseries/**/profiler.tsv")
+             if _PLOTTED_FILTER is None or f.parts[-5] in _PLOTTED_FILTER]
     if not files:
         print("[iada_segmented] no timeseries data — skip")
         return
@@ -1527,6 +1546,17 @@ def fig_iada_segmented(results_dir: Path, outdir: Path, n_segments: int = 4) -> 
     fig.suptitle("Segmented Loess-smoothed interference trace",
                  y=1.05, fontsize=11)
     fig.tight_layout()
+    # Centre a lone trailing panel: with 3 variants in a 2-column grid the
+    # bottom row holds a single axis, which tight_layout leaves left-aligned
+    # (dead space on the right). Shift it to the horizontal centre of the row.
+    # (fig01b/fig07 use _make_axes_grid, which already centres partial rows.)
+    n_last = n - (rows - 1) * cols
+    if rows >= 2 and cols == 2 and 0 < n_last < cols:
+        lone = axes[rows - 1][0]
+        p = lone.get_position()
+        l0 = axes[0][0].get_position(); r0 = axes[0][1].get_position()
+        cx = (l0.x0 + r0.x1) / 2.0
+        lone.set_position([cx - p.width / 2.0, p.y0, p.width, p.height])
     _save(fig, outdir / "fig13_iada_segmented.png", "fig13")
 
 
@@ -1572,7 +1602,7 @@ def fig_variant_resource_heatmap(means: pd.DataFrame, outdir: Path) -> None:
         cmap = plt.get_cmap("Blues").copy()
         cmap.set_bad(color="#cccccc")
         im = ax.imshow(masked, cmap=cmap, vmin=0, vmax=100, aspect="auto",
-                       interpolation="none")
+                       interpolation="nearest")
         ax.set_xticks(range(len(resources))); ax.set_xticklabels(resources)
         ax.set_yticks(range(len(pivot.index))); ax.set_yticklabels([_variant_label(v) for v in pivot.index])
         ax.set_title(f"env={env}", fontsize=9.5)
@@ -1692,6 +1722,8 @@ def main() -> None:
         print(f"Plotted-variants source: --variants CLI flag")
     else:
         plotted = _load_plotted_variants(args.results_dir)
+    global _PLOTTED_FILTER
+    _PLOTTED_FILTER = set(plotted)
     pre = len(means)
     means = means[means["variant"].isin(plotted)].copy()
     if means.empty:

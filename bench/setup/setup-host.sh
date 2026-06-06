@@ -337,9 +337,9 @@ EOF
 build_variants() {
     [ "$DO_BUILD" -eq 1 ] || { log "skipping build per --no-build"; return 0; }
 
-    if [ -d "$REPO_ROOT/variants/v2-hybrid-c" ]; then
+    if [ -d "$REPO_ROOT/variants/v2-c-abi" ]; then
         log "building v2 (hybrid procfs)"
-        make -C "$REPO_ROOT/variants/v2-hybrid-c" || warn "v2 build failed"
+        make -C "$REPO_ROOT/variants/v2-c-abi" || warn "v2 build failed"
     fi
 
     if [ "$PROFILE" = "modern" ] && [ -d "$REPO_ROOT/variants/v3-ebpf-ring" ]; then
@@ -364,9 +364,9 @@ selftest() {
         fi
     fi
 
-    if [ -x "$REPO_ROOT/variants/v2-hybrid-c/intp-hybrid" ]; then
-        if "$REPO_ROOT/variants/v2-hybrid-c/intp-hybrid" --list-backends >/dev/null 2>&1; then
-            log "  v2          OK ($(${REPO_ROOT}/variants/v2-hybrid-c/intp-hybrid --list-backends 2>&1 | head -1))"
+    if [ -x "$REPO_ROOT/variants/v2-c-abi/intp-hybrid" ]; then
+        if "$REPO_ROOT/variants/v2-c-abi/intp-hybrid" --list-backends >/dev/null 2>&1; then
+            log "  v2          OK ($(${REPO_ROOT}/variants/v2-c-abi/intp-hybrid --list-backends 2>&1 | head -1))"
         else
             warn "  v2          FAIL (--list-backends returned non-zero)"
         fi

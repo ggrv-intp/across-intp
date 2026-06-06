@@ -2,7 +2,7 @@
 #
 # Differs from V3 only in:
 #   - sources are intp_agg.{bpf.c,c,h,_args.c,_args.h}
-#   - binary is intp-ebpf-agg
+#   - binary is intp-eBPF-CORE
 #   - no ring buffer; userspace polls per-CPU/hash maps each interval
 #
 # Build pipeline mirrors V3 exactly:
@@ -51,7 +51,7 @@ USER_SRCS   := $(SRC_DIR)/intp_agg.c $(SRC_DIR)/intp_agg_args.c \
                $(RESCTRL_DIR)/resctrl.c $(DETECT_DIR)/detect.c
 USER_OBJS   := $(USER_SRCS:.c=.o)
 
-BINARY      := intp-ebpf-agg
+BINARY      := intp-eBPF-CORE
 
 INCLUDES    := -I$(SRC_DIR) -I$(RESCTRL_DIR) -I$(DETECT_DIR)
 

@@ -1,11 +1,11 @@
-# V3.2 (ebpf-agg) -- eBPF In-Kernel Aggregating IntP
+# V3.2 (eBPF-CORE) -- eBPF In-Kernel Aggregating IntP
 
 The fourth extension of the dissertation work, specified in
 section VIII of the SBAC-PAD 2026 paper: an in-kernel-aggregating
 variant of V3 (ebpf-ring) that replaces ebpf-ring's 16 MiB ring buffer with per-CPU
 counter maps + per-PID hash maps polled once per sampling interval.
 
-The hypothesis ebpf-agg tests is structural, not optimization:
+The hypothesis eBPF-CORE tests is structural, not optimization:
 
 > "the structurally-coupled consumer-wakeup and induced-preemption
 > mechanisms both vanish by construction when the userspace consumer
@@ -13,15 +13,15 @@ The hypothesis ebpf-agg tests is structural, not optimization:
 
 ebpf-ring incurs 188-390x context-switch amplification (paper section V-D)
 because its userspace process loops on `ring_buffer__poll` returning
-records and is scheduled-in / scheduled-out at the event rate. ebpf-agg
+records and is scheduled-in / scheduled-out at the event rate. eBPF-CORE
 removes the loop: BPF probes atomically increment counters; userspace
 sleeps `--interval` seconds and reads a snapshot. The only
-context-switch contribution from ebpf-agg's userspace is the wakeup from
+context-switch contribution from eBPF-CORE's userspace is the wakeup from
 nanosleep once per interval.
 
 ## Architecture vs. V3 (ebpf-ring)
 
-| Aspect                    | V3 (ebpf-ring)                              | V3.2 (ebpf-agg)                                   |
+| Aspect                    | V3 (ebpf-ring)                              | V3.2 (eBPF-CORE)                                   |
 |---------------------------|---------------------------------------------|---------------------------------------------------|
 | Transport kernel -> user  | `BPF_MAP_TYPE_RINGBUF` 16 MiB               | `PERCPU_ARRAY` + `HASH` of `struct intp_counters` |
 | Userspace loop            | `ring_buffer__poll` continuous              | `clock_nanosleep` 1 Hz + map read                 |
@@ -66,32 +66,32 @@ sudo apt install clang libbpf-dev libelf-dev zlib1g-dev \
 make
 
 # Print detected capabilities (no root needed for read-only checks).
-sudo ./intp-ebpf-agg --list-capabilities
+sudo ./intp-eBPF-CORE --list-capabilities
 
 # Run system-wide, 1-second samples, IntP-compatible TSV output
 # (8 columns: 7 canonical + mbw_raw_mbps diagnostic).
-sudo ./intp-ebpf-agg --interval 1
+sudo ./intp-eBPF-CORE --interval 1
 
 # Match ebpf-ring's column shape exactly (no mbw_raw_mbps).
-sudo ./intp-ebpf-agg --interval 1 --no-raw-mbw
+sudo ./intp-eBPF-CORE --interval 1 --no-raw-mbw
 
 # Restore the legacy ebpf-ring cap-at-99 clip on mbw (default is unclipped).
-sudo ./intp-ebpf-agg --interval 1 --clip-mbw
+sudo ./intp-eBPF-CORE --interval 1 --clip-mbw
 
 # Monitor specific PIDs for 60 seconds.
-sudo ./intp-ebpf-agg --pids 1234,5678 --interval 1 --duration 60
+sudo ./intp-eBPF-CORE --pids 1234,5678 --interval 1 --duration 60
 ```
 
 ## Output format
 
 The 7 canonical IntP columns come first (byte-compatible with ebpf-ring's
-`intp-ebpf` output and the IADA contract). ebpf-agg appends one trailing
+`intp-ebpf` output and the IADA contract). eBPF-CORE appends one trailing
 column, `mbw_raw_mbps`, with the underlying memory-bandwidth reading
 in megabytes per second. The new column is suppressed with
 `--no-raw-mbw`.
 
 ```text
-# v3.2 ebpf-aggregate -- netp:tracepoint nets:softirq blk:tracepoint cpu:sched_switch llcmr:perf_event mbw:resctrl llcocc:resctrl
+# v3.2 eBPF-COREregate -- netp:tracepoint nets:softirq blk:tracepoint cpu:sched_switch llcmr:perf_event mbw:resctrl llcocc:resctrl
 # kernel 6.17 env=bare-metal
 # mbw_pct = (mbm_total_bytes_delta / interval) / mem_bw_max_bps * 100  (clip_mbw=off)
 # mbw_raw_mbps = (mbm_total_bytes_delta / interval) / 1e6  (diagnostic, see paper IV-E)
@@ -110,14 +110,14 @@ canonical reason for `pct > 100` is a misconfigured
 
 ## Acceptance tests
 
-ebpf-agg ships two integration tests on top of the ebpf-ring smoke test:
+eBPF-CORE ships two integration tests on top of the ebpf-ring smoke test:
 
 - `tests/integration/test-no-ctxsw-amplification.sh` (`make test-amplification`)
   -- the structural acceptance test for the paper's V-D hypothesis.
   Runs stress-ng under vmstat for 90 s with and without the profiler,
   computes the ratio of context switches, and fails if the ratio
   exceeds 1.10. ebpf-ring fails this test at 188-390x.
-- `tests/integration/test-metrics-equivalence.sh` -- runs ebpf-ring and ebpf-agg
+- `tests/integration/test-metrics-equivalence.sh` -- runs ebpf-ring and eBPF-CORE
   back-to-back over the same stress-ng workload and verifies each of
   the 7 canonical metric medians agrees within 15% relative tolerance.
 
@@ -141,7 +141,7 @@ the saturating subtraction `counters_diff()` relies on.
 - `tests/unit/test-counter-snapshot.c` -- saturating subtraction test.
 - `tests/integration/test-*.sh` -- load/attach + amplification + equivalence.
 
-## When to pick V3.2 (ebpf-agg) over V3 (ebpf-ring)
+## When to pick V3.2 (eBPF-CORE) over V3 (ebpf-ring)
 
 - You're running ebpf-ring against a sustained-workload campaign and the
   paper's V-D amplification is showing up in your numbers.
@@ -149,14 +149,14 @@ the saturating subtraction `counters_diff()` relies on.
 - You don't need MPSC FIFO ordering between probes.
 
 If you need per-event traces (e.g., investigating a specific request
-latency spike), ebpf-ring's `--trace` flag is still the right tool. ebpf-agg is
+latency spike), ebpf-ring's `--trace` flag is still the right tool. eBPF-CORE is
 the steady-state profiler; ebpf-ring is the introspection profiler.
 
 ## References
 
 - **Original IntP:** Xavier, M. G., Cano, C. H. C., Meyer, V., and De Rose, C. A. F. (2022). *IntP: Quantifying cross-application interference via system-level instrumentation*. SBAC-PAD 2022, pp. 231-240. IEEE. PUCRS.
 - **In-kernel aggregation pattern, iprof:**
-  - Gögge, R. (2023). *Finding noisy neighbours: Measuring application interference with system-level instrumentation using eBPF*. Master's thesis, Technical University of Berlin. (Chapter 3.3 documents the `PERCPU_ARRAY + HASH` pattern ebpf-agg reuses.)
+  - Gögge, R. (2023). *Finding noisy neighbours: Measuring application interference with system-level instrumentation using eBPF*. Master's thesis, Technical University of Berlin. (Chapter 3.3 documents the `PERCPU_ARRAY + HASH` pattern eBPF-CORE reuses.)
   - Becker, S., Goegge, R., Kao, O. (2024). *Measuring application interference with system-level instrumentation*. UCC Companion 2024, IEEE/ACM.
 - **PRISM:** Landau, D., Barbosa, J., Saurabh, N. (2025). *eBPF-based instrumentation for generalisable diagnosis of performance degradation*. arXiv:2505.13160. (Statistical summaries polled every second -- adjacent point on the same axis.)
 - **CO-RE portability study:** Zhong, S. et al. (2025). *Revealing the unstable foundations of eBPF-based kernel extensions*. EuroSys '25. ACM.

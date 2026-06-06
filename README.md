@@ -7,9 +7,9 @@ profiler that collects 7 metrics from the Linux kernel. The variants are
 organized for systematic comparison as part of a Master's dissertation on
 kernel instrumentation for interference profiling (PPGCC/PUCRS, advisor
 Prof. Cesar De Rose). The research compares the original SystemTap-based IntP
-across kernel eras (V0 (stap-2022) / V0.1 (stap-nollc) / V0.2 (stap-legacy)), an RCU-safe stap+helper hybrid (V1.1 (stap-modern)),
-and modern instrumentation approaches (procfs polling — V2 (hybrid-c); bpftrace — V3.1 (bpftrace);
-eBPF/CO-RE — V3 (ebpf-ring) ring-buffer-streaming; eBPF/CO-RE — V3.2 (ebpf-agg) in-kernel-aggregating)
+across kernel eras (V0 (stap-2022) / V0.1 (stap-nollc) / V0.2 (legacy-intp-baseline)), an RCU-safe stap+helper hybrid (V1.1 (stap-modern)),
+and modern instrumentation approaches (procfs polling — V2 (C-ABI); bpftrace — V3.1 (bpftrace);
+eBPF/CO-RE — V3 (ebpf-ring) ring-buffer-streaming; eBPF/CO-RE — V3.2 (eBPF-CORE) in-kernel-aggregating)
 to evaluate portability, safety, and measurement-fidelity trade-offs.
 
 ## About
@@ -34,8 +34,8 @@ the original SystemTap approach across kernel versions and hardware architecture
 ### Research Goals
 
 1. Reproduce the original IntP baseline (stap-2022) and document breakage on kernel 6.8+.
-2. Develop minimal patches to restore functionality on current kernels (stap-nollc, stap-nohelper) and stap+helper hybrids that recover full metric coverage without RCU-unsafe operations: stap-legacy on kernel 5.15 GA (Ubuntu 22.04, paper-faithful stap-2022 semantics) and stap-modern on kernel 6.8+.
-3. Implement kernel-module-free alternatives using procfs/perf_event (hybrid-c), bpftrace, and eBPF/CO-RE (ebpf-ring).
+2. Develop minimal patches to restore functionality on current kernels (stap-nollc, stap-nohelper) and stap+helper hybrids that recover full metric coverage without RCU-unsafe operations: legacy-intp-baseline on kernel 5.15 GA (Ubuntu 22.04, paper-faithful stap-2022 semantics) and stap-modern on kernel 6.8+.
+3. Implement kernel-module-free alternatives using procfs/perf_event (C-ABI), bpftrace, and eBPF/CO-RE (ebpf-ring).
 4. Compare all nine variants across portability, safety, deployment complexity, and measurement fidelity dimensions.
 
 ### Status
@@ -44,13 +44,13 @@ the original SystemTap approach across kernel versions and hardware architecture
 | --------- | -------- |
 | V0 (stap-2022) -- Original (SystemTap, needs `intel_cqm` driver — mainline removed it in 4.14) | Original baseline; in practice runs only on kernel < 4.4 or custom compiled for cqm_rmid field comaptibility) |
 | V0.1 (stap-nollc) -- Updated (SystemTap, 6.8+, LLC disabled) | Complete |
-| V0.2 (stap-legacy) -- Stap + userspace helper (SystemTap, 5.15 GA, stap-2022-faithful, RCU-safe) | Complete; validated on Hetzner Sapphire Rapids for Phase 3 experiments (UB22 boot) |
+| V0.2 (legacy-intp-baseline) -- Stap + userspace helper (SystemTap, 5.15 GA, stap-2022-faithful, RCU-safe) | Complete; validated on Hetzner Sapphire Rapids for Phase 3 experiments (UB22 boot) |
 | V1 (stap-nohelper) -- Stap-native (SystemTap, 6.8+, mbw/llcocc disabled) | Complete |
 | V1.1 (stap-modern) -- Stap + userspace helper (SystemTap, 6.8+, full metrics, RCU-safe) | Complete (helper, `.stp`, and bench integration done; HiBench distributed-mode limitation documented in METRICS-ALIGNMENT.md) |
-| V2 (hybrid-c) -- C / procfs / perf_event / resctrl | Complete; validated on Hetzner Sapphire Rapids for Phase 3 experiments |
+| V2 (C-ABI) -- C / procfs / perf_event / resctrl | Complete; validated on Hetzner Sapphire Rapids for Phase 3 experiments |
 | V3.1 (bpftrace) -- bpftrace + Python orchestrator | Complete; validated on Hetzner Sapphire Rapids for Phase 3 experiments |
 | V3 (ebpf-ring) -- eBPF/CO-RE (libbpf, ring-buffer-streaming) | Complete; validated on Hetzner Sapphire Rapids for Phase 3 experiments |
-| V3.2 (ebpf-agg) -- eBPF/CO-RE (libbpf, in-kernel-aggregating, paper section VIII) | Complete; validated on Hetzner Sapphire Rapids for Phase 3 experiments |
+| V3.2 (eBPF-CORE) -- eBPF/CO-RE (libbpf, in-kernel-aggregating, paper section VIII) | Complete; validated on Hetzner Sapphire Rapids for Phase 3 experiments |
 
 ### Citation
 
@@ -60,7 +60,7 @@ If you use this software in your research, please cite it using the metadata in
 
 ## Variant Comparison
 
-| Feature                  | V0 classic | V0.1 k68 | V0.2 helper | V1 native | V1.1 helper | V2 stable-abi | V3.1 bpftrace | V3 ebpf-core | V3.2 ebpf-agg |
+| Feature                  | V0 classic | V0.1 k68 | V0.2 helper | V1 native | V1.1 helper | V2 stable-abi | V3.1 bpftrace | V3 ebpf-core | V3.2 eBPF-CORE |
 |--------------------------|:----------:|:--------:|:-----------:|:---------:|:-----------:|:-------------:|:-------------:|:------------:|:-------------:|
 | Kernel module required   |    Yes     |   Yes    |     Yes     |    Yes    |     Yes     |      No       |     No        |      No      |      No       |
 | Userspace helper         |    No      |   No     |     Yes     |    No     |     Yes     |      n/a      |     Yes       |     Yes      |      Yes      |
@@ -109,13 +109,13 @@ x = supported, ~ = polling approximation, - = disabled in this build
 |-- variants/                  One directory per IntP implementation variant
 |   |-- v0-stap-2022/      Unmodified 2022 IntP (SystemTap, kernel <=6.6)
 |   |-- v0.1-stap-nollc/        Kernel 6.8 patch (LLC occupancy disabled)
-|   |-- v0.2-stap-legacy/    Kernel 5.15 GA, V0-faithful stap + userspace helper (RCU-safe)
+|   |-- v0.2-legacy-intp-baseline/    Kernel 5.15 GA, V0-faithful stap + userspace helper (RCU-safe)
 |   |-- v1-stap-nohelper/          Kernel 6.8+, stap-native probes (mbw/llcocc disabled)
 |   |-- v1.1-stap-modern/      Kernel 6.8+, stap + userspace helper (full 7 metrics, RCU-safe)
-|   |-- v2-hybrid-c/           Pure C: procfs / perf_event_open / resctrl
+|   |-- v2-c-abi/           Pure C: procfs / perf_event_open / resctrl
 |   |-- v3-ebpf-ring/       Full eBPF/CO-RE with libbpf (ring-buffer-streaming)
 |   |-- v3.1-bpftrace/         bpftrace scripts + Python orchestrator + resctrl
-|   |-- v3.2-ebpf-agg/         Full eBPF/CO-RE with libbpf (in-kernel-aggregating, paper section VIII)
+|   |-- v3.2-ebpf-core/         Full eBPF/CO-RE with libbpf (in-kernel-aggregating, paper section VIII)
 |-- VERSIONS.md                Variant-naming map (current vs legacy pre-2026-05-05)
 ```
 
@@ -139,10 +139,10 @@ sudo stap -g intp-6.8.stp <PID> <interval_ms>
 
 Requires: SystemTap, kernel debuginfo, kernel 6.8+. Note: llcocc returns 0.
 
-### V0.2 (stap-legacy) -- stap-2022-faithful + userspace helper (kernel 5.15 GA / Ubuntu 22.04)
+### V0.2 (legacy-intp-baseline) -- stap-2022-faithful + userspace helper (kernel 5.15 GA / Ubuntu 22.04)
 
 ```bash
-cd variants/v0.2-stap-legacy
+cd variants/v0.2-legacy-intp-baseline
 make
 sudo INTP_HELPER_IMC_PMU_TYPE=14 \
      INTP_HELPER_DRAM_BW_MBPS=34000 \
@@ -185,10 +185,10 @@ Requires: SystemTap 5.x, kernel debuginfo, kernel 6.8+, Intel RDT (resctrl)
 for `llcocc`, uncore IMC PMU for `mbw`. mbw/llcocc gracefully degrade to 0
 if hardware is unavailable.
 
-### V2 (hybrid-c) -- C: procfs / perf_event / resctrl
+### V2 (C-ABI) -- C: procfs / perf_event / resctrl
 
 ```bash
-cd variants/v2-hybrid-c
+cd variants/v2-c-abi
 make
 sudo ./intp-hybrid -p <PID> -i <interval_ms>
 ```
@@ -214,18 +214,18 @@ sudo ./intp-ebpf -p <PID> -i <interval_ms>
 
 Requires: libbpf, clang, kernel BTF, resctrl for mbw/llcocc.
 
-### V3.2 (ebpf-agg) -- eBPF/CO-RE in-kernel aggregating
+### V3.2 (eBPF-CORE) -- eBPF/CO-RE in-kernel aggregating
 
 ```bash
-cd variants/v3.2-ebpf-agg
+cd variants/v3.2-ebpf-core
 make
-sudo ./intp-ebpf-agg --pids <PID> --interval <seconds>
+sudo ./intp-eBPF-CORE --pids <PID> --interval <seconds>
 
 # Critical acceptance gate before campaign inclusion:
 sudo make test-amplification
 ```
 
-ebpf-agg is the in-kernel-aggregating variant specified in paper section
+eBPF-CORE is the in-kernel-aggregating variant specified in paper section
 VIII: same probe set as ebpf-ring, but the 16 MiB ring buffer is replaced
 with per-CPU + per-PID counter maps polled once per `--interval`.
 The userspace consumer is no longer draining a continuous event

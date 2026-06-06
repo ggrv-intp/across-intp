@@ -146,7 +146,7 @@ The IntP dissertation is structured in two phases:
 
 1. **Phase 1 (IntP):** seven instrumentation variants (v0 (stap-2022),
    v0.1 (stap-nollc), v1 (stap-nohelper), v1.1 (stap-modern),
-   v2 (hybrid-c), v3 (ebpf-ring), v3.1 (bpftrace)) collect the same
+   v2 (C-ABI), v3 (ebpf-ring), v3.1 (bpftrace)) collect the same
    seven interference metrics
    under controlled workloads. Phase 1 quantifies how the
    *instrumentation choice* affects measurement fidelity, deployment

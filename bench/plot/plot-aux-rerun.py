@@ -27,6 +27,11 @@ from pathlib import Path
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+# Embed TrueType (type 42) rather than matplotlib's default Type 3 fonts, so
+# the PDF figures render crisply in PDF viewers and LaTeX (avoids the "strange
+# PDF" look).
+plt.rcParams["pdf.fonttype"] = 42
+plt.rcParams["ps.fonttype"] = 42
 import numpy as np
 
 METRICS = ["netp", "nets", "blk", "mbw", "llcmr", "llcocc", "cpu"]
@@ -43,18 +48,18 @@ METRIC_LABEL = {
 # Descriptive, paper-facing variant names. Figures show these instead of the
 # bare vN tags so a reader need not consult the variant table to know what a
 # panel measures. Canonical map: VERSIONS.md. The four measured versions are
-# stap-legacy (v0.2), stap-modern (v1.1), hybrid-c (v2) and ebpf-agg (v3.2).
+# intp-baseline (v0.2), stap-modern (v1.1), C-ABI (v2) and eBPF-CORE (v3.2).
 VARIANT_LABELS = {
     "v0":   "stap-2022",
     "v0.1": "stap-nollc",
-    "v0.2": "stap-legacy",
+    "v0.2": "intp-baseline",
     "v1":   "stap-nohelper",
     "v1.1": "stap-modern",
-    "v2":   "hybrid-c",
+    "v2":   "C-ABI",
     "v2.1": "cgroup-native",
     "v3":   "ebpf-ring",
     "v3.1": "bpftrace",
-    "v3.2": "ebpf-agg",
+    "v3.2": "eBPF-CORE",
     "v3.3": "ebpf-cgroup",
 }
 
@@ -353,7 +358,7 @@ def plot_noise_floor_compare(runs, out_dir):
                     color=col, family="DejaVu Sans Mono", clip_on=False)
 
         if m == "mbw":
-            ax.text(50, i - 0.46, "mbw% INVALID in both runs — ebpf-agg ceiling "
+            ax.text(50, i - 0.46, "mbw% INVALID in both runs — eBPF-CORE ceiling "
                     "= 0 (raw, unbounded); ebpf-ring clipped/saturated at 100",
                     ha="center", va="top", fontsize=7.0, style="italic",
                     color="#a00")

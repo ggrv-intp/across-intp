@@ -38,7 +38,7 @@ into the repo at `results/across-intp-sbac-results-v0.1.0/sbac_results-publish/`
 (`/results/` is gitignored, so it is never committed). This is the **redacted
 public payload**: it contains no `stall-monitor/` dumps (`stall-dump-*` count =
 0). The shipped `fragility-aggregated.tsv` still carries
-`bare stap-legacy sum_stalls_detected=148` from the full tree, so the extractor must
+`bare legacy-intp-baseline sum_stalls_detected=148` from the full tree, so the extractor must
 NOT overwrite the shipped file here (that would reset stalls to 0). See D5
 (Phase-2 validation method) and the README do-not-regenerate caveat.
 
@@ -46,22 +46,22 @@ NOT overwrite the shipped file here (that would reset stalls to 0). See D5
 
 `python3 bench/plot/hibench-sample-loss.py <tree> --out-dir <tmp>` reproduces the
 shipped `fragility-hibench-aggregated.tsv` exactly over 2016 HiBench reps
-(4×504): stap-legacy 3.03% / max 55.0% (68 reps>5%), stap-modern 4.39% / max 73.08%
-(100 reps>5%), hybrid-c 0.0% (max 2.38), ebpf-agg 0.01% (max 1.85).
+(4×504): legacy-intp-baseline 3.03% / max 55.0% (68 reps>5%), stap-modern 4.39% / max 73.08%
+(100 reps>5%), C-ABI 0.0% (max 2.38), eBPF-CORE 0.01% (max 1.85).
 
 ## D5 — Phase 2 validated without clobbering the shipped artifact
 
 Method: backed up `fragility-aggregated.tsv` + `fragility-summary.tsv`, ran
 `python3 bench/plot/extract-fragility.py <tree>`, inspected the regenerated
-output, then restored the backups (confirmed byte-identical; bare stap-legacy
+output, then restored the backups (confirmed byte-identical; bare legacy-intp-baseline
 `sum_stalls_detected=148`, `runs_with_stall_dump=28` intact). Results:
 
-- **env=bare UNCHANGED**: stap-legacy 277 mean 6.38 / max 75.56; stap-modern 277 mean 15.96 /
-  max 98.89; hybrid-c/ebpf-agg zero. (Regenerating against this redacted tree reads stall
+- **env=bare UNCHANGED**: legacy-intp-baseline 277 mean 6.38 / max 75.56; stap-modern 277 mean 15.96 /
+  max 98.89; C-ABI/eBPF-CORE zero. (Regenerating against this redacted tree reads stall
   counts as 0 — see D3 — which is exactly why the shipped file is preserved,
   not overwritten.)
 - **env=hibench NEW (real loss)**: stap-modern mean 4.05 / max 73.08 / 100 runs>5%;
-  stap-legacy mean 2.8 / max 55.0 / 68>5%; hybrid-c/ebpf-agg ~0 (max <2.4). n_runs = 546 = 504
+  legacy-intp-baseline mean 2.8 / max 55.0 / 68>5%; C-ABI/eBPF-CORE ~0 (max <2.4). n_runs = 546 = 504
   per-rep + 42 workload-aggregate `run.json` rows (no profiler.tsv → 0 loss),
   which is why the per-variant mean is ~4.05 here vs the Phase-1 tool's 4.39
   (expected, per the brief).
@@ -117,7 +117,7 @@ and that future runs record `sample_interval_s`. Written for readers/reviewers
 with **no author-only notes** (per user guidance, 2026-06-01): it cites the
 canonical `fragility-hibench-aggregated.tsv` figures (stap-modern 4.39% / max 73.08% /
 100-of-504 reps>5%) and explains the unified extractor's ~4.05% nuance for
-reviewers. The existing do-not-regenerate / stap-legacy-stalls-as-counts caveat (under
+reviewers. The existing do-not-regenerate / legacy-intp-baseline-stalls-as-counts caveat (under
 Anonymization) is left intact and cross-referenced rather than duplicated, plus
 a note that `hibench-sample-loss.py` is safe to re-run on the published tree
 (writes only `fragility-hibench-*.tsv`) whereas `extract-fragility.py` would

@@ -2,7 +2,7 @@
 
 This directory holds the result tree behind the SBAC-PAD 2026 paper: the
 profiler TSVs, raw logs, and figures for the four reported variants —
-**v0.2 (stap-legacy), v1.1 (stap-modern), v2 (hybrid-c), v3.2 (ebpf-agg)**.
+**v0.2 (legacy-intp-baseline), v1.1 (stap-modern), v2 (C-ABI), v3.2 (eBPF-CORE)**.
 
 It is the input consumed by the fragility extractor cited in the paper:
 
@@ -69,6 +69,37 @@ sbac-results/
 Only `bare` was measured for the paper; the container/vm envs are wired in
 the harness but were not run for this campaign.
 
+## Published paper figures (`published/`)
+
+A sibling **`published/`** directory ships alongside this payload (next to
+`extra/`) with the figures actually used in the paper, rendered in the
+reduced-variant views the SBAC-PAD camera-ready uses. v1.1 (stap-modern) is
+excluded from the paper figures. In plot legends/axes the baseline is
+abbreviated **`intp-baseline`** (the full name `legacy-intp-baseline` is used
+in prose and this README) to avoid label overlap.
+
+```
+published/
+├── baseline/   # v0.2 (intp-baseline) alone
+├── new/        # v2 (C-ABI) + v3.2 (eBPF-CORE) together
+└── merged/     # v0.2 + v2 + v3.2 together (v1.1 excluded)
+```
+
+Each subfolder holds the same 10 paper figures as PDF + PNG: `fig01b_per_variant_bars`,
+`fig02_pca_dendro`, `fig04_overhead_throughput`, `fig04b_overhead_cpu_jiffies`,
+`fig04c_overhead_sched_switch`, `fig05_fidelity_matrix`, `fig07_pairwise_heatmap_bare`,
+`fig10_variant_resource_heatmap`, `fig11_idi_bars`, `fig13_iada_segmented`.
+They are regenerated from the same data via the plotters' `--variants` flag, e.g.:
+
+```bash
+# baseline / new / merged (repeat per variant subset)
+python3 bench/plot/plot-intp-bench.py sbac-results --variants v0.2          --out /tmp/baseline
+python3 bench/plot/plot-intp-bench.py sbac-results --variants v2,v3.2       --out /tmp/new
+python3 bench/plot/plot-intp-bench.py sbac-results --variants v0.2,v2,v3.2  --out /tmp/merged
+# fig02 via plot_pca_dendro.py <aggregate-means.csv> <out> <variants>;
+# fig10 via plot-hibench.py sbac-results/hibench --variants <subset> --out <out>
+```
+
 ## Data-quality / sample loss
 
 `extract-fragility.py` writes one row per discovered `run.json` to
@@ -100,9 +131,9 @@ So `extract-fragility.py` emits real `env=hibench` rows (the timestamp-gap path
 is taken whenever `run.json` carries no `duration_target_s`), and
 `bench/plot/hibench-sample-loss.py` is a standalone backfill that writes
 `fragility-hibench-samples.tsv` (per rep) and `fragility-hibench-aggregated.tsv`
-(per variant) for any tree. Measured HiBench sample loss: **stap-legacy mean 3.03% /
+(per variant) for any tree. Measured HiBench sample loss: **legacy-intp-baseline mean 3.03% /
 max 55.0% (68 of 504 reps > 5%), stap-modern mean 4.39% / max 73.08% (100 of 504 reps
-> 5%), hybrid-c and ebpf-agg ~0% (max < 2.4%)** — the same SystemTap-vs-modern split seen
+> 5%), C-ABI and eBPF-CORE ~0% (max < 2.4%)** — the same SystemTap-vs-modern split seen
 on stress-ng. (`fragility-hibench-aggregated.tsv` holds these per-rep figures;
 the unified extractor's `env=hibench` means read marginally lower, ~4.05%,
 because that pass also walks the 0-loss per-workload aggregate `run.json` files.)
@@ -116,7 +147,7 @@ interval.
 `hibench-sample-loss.py` only writes the `fragility-hibench-*.tsv` files, so it
 is safe to re-run on this published tree. `extract-fragility.py`, by contrast,
 rewrites `fragility-summary.tsv` / `fragility-aggregated.tsv` — do not run it
-against this published tree, per the stap-legacy stall-count caveat under
+against this published tree, per the legacy-intp-baseline stall-count caveat under
 **Anonymization** below.
 
 ## How this tree is produced
@@ -148,8 +179,8 @@ with generic placeholders (hostnames → `anon-host`, internal IPs → `10.0.0.x
 build paths → `/path/to/across-intp`). See `ANONYMIZATION.md` in the payload for
 the full redaction record.
 
-The stap-legacy `stall-monitor/` raw kernel/journal dumps are **omitted for privacy**
-(they captured system journald output, including third-party SSH-spam). The stap-legacy
+The legacy-intp-baseline `stall-monitor/` raw kernel/journal dumps are **omitted for privacy**
+(they captured system journald output, including third-party SSH-spam). The legacy-intp-baseline
 stall evidence is retained as counts in the shipped `fragility-summary.tsv` /
 `fragility-aggregated.tsv` — do **not** regenerate these with
 `extract-fragility.py` against this tree, since the raw dumps needed to recount

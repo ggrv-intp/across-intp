@@ -18,7 +18,7 @@ Validate, on the same modern host, that:
 3. The four modern variants (V1-V3) produce numerically comparable
    measurements under identical workload pressure.
 4. Trade-offs between historical fidelity (stap-2022/stap-nohelper lineage) and operational
-   reliability (hybrid-c/bpftrace/ebpf-ring) are made explicit with reproducible evidence.
+   reliability (C-ABI/bpftrace/ebpf-ring) are made explicit with reproducible evidence.
 
 Two categories of workload are used in combination:
 
@@ -67,7 +67,7 @@ direct.
 | V0.1 (stap-nollc) | SystemTap, kernel 6.8 minimal patch | Compiles, `llcocc=0` | Bridge step in the historical narrative |
 | V1 (stap-nohelper) | SystemTap, stap-native probes only | Works on 6.8; `mbw=0`, `llcocc=0` (no embedded I/O) | Reliability baseline for stap probes alone |
 | V1.1 (stap-modern) | SystemTap + userspace helper | Works on 6.8 with full 7 metrics; helper owns RCU-unsafe ops | RCU-safe stap path with hardware metrics restored |
-| V2 (hybrid-c) | Pure C: procfs / `perf_event_open` / resctrl | Stable, no kernel modules | Modern reliability baseline |
+| V2 (C-ABI) | Pure C: procfs / `perf_event_open` / resctrl | Stable, no kernel modules | Modern reliability baseline |
 | V3.1 (bpftrace) | bpftrace + Python orchestrator + resctrl | Stable, BTF-driven | DSL-level eBPF baseline |
 | V3 (ebpf-ring) | C/libbpf + CO-RE eBPF | Stable, single binary | Canonical eBPF endpoint |
 
@@ -155,7 +155,7 @@ plus an `index.tsv` for indexing.
 | Stage | What it does | Used for |
 |---|---|---|
 | `detect` | Probes RDT/CQM/BTF/resctrl/MSR/IMC and writes `capabilities.env` | Reproducibility envelope |
-| `build` | Compiles hybrid-c/ebpf-ring if needed; checks stap-nohelper deps; checks bpftrace BTF | Pre-flight |
+| `build` | Compiles C-ABI/ebpf-ring if needed; checks stap-nohelper deps; checks bpftrace BTF | Pre-flight |
 | `solo` | One workload at a time, N reps each (1-after-1 baseline) | Per-workload metric coverage |
 | `pairwise` | Victim + antagonist concurrent, N reps each | Cross-application interference |
 | `overhead` | Short bursts to estimate instrumentation overhead | Overhead bound per variant |
@@ -191,7 +191,7 @@ How variants observe stress-ng:
   exposes occupancy values to the SystemTap script via
   `/tmp/intp-resctrl-data` plus a PID enroll/unenroll channel
   (`/tmp/intp-resctrl-pids`).
-- **hybrid-c (`intp-hybrid`)** is launched with either `--pids <PID>`,
+- **C-ABI (`intp-hybrid`)** is launched with either `--pids <PID>`,
   `--cgroup <path>`, or system-wide; backends are chosen by
   capabilities probing (procfs, `perf_event_open`, resctrl).
 - **bpftrace** loads scripts that key on PID/comm; resctrl is
@@ -242,7 +242,7 @@ rather than sharing one. Quick map:
 |---------|------------------------------------------------------------------------------------------------------------------------------------|
 | V1 (stap-nohelper)   | None (mbw and llcocc reported as 0)                                                                                                |
 | V1.1 (stap-modern)   | `variants/v1.1-stap-modern/intp-helper` -- C daemon, opens uncore IMC events + creates `mon_groups/intp-<pid>/`, polls 1 s, writes `/tmp/intp-hw-data` |
-| V2 (hybrid-c)        | In-process: C reader inside `intp-hybrid`                                                                                          |
+| V2 (C-ABI)        | In-process: C reader inside `intp-hybrid`                                                                                          |
 | V3.1 (bpftrace)      | In-process: Python `resctrl_reader.py` orchestrated by the bpftrace runner                                                         |
 | V3 (ebpf-ring)       | In-process: C code in `variants/v3-ebpf-ring/resctrl/`                                                                                    |
 
@@ -319,13 +319,13 @@ Mitigations applied in the launcher:
 Where the mitigation is insufficient (long stap-nohelper campaigns), the campaign
 is split into:
 
-- A **hybrid-c/bpftrace/ebpf-ring full bench** (does not perturb systemd at all).
+- A **C-ABI/bpftrace/ebpf-ring full bench** (does not perturb systemd at all).
 - A **shorter stap-nohelper campaign** focused on the apps not yet covered, with
   reduced `DURATION` and `REPS` so it fits within the stap-nohelper stability
   window.
 
 This split is the operational expression of the dissertation's main
-narrative point: stap-nohelper preserves historical comparability; hybrid-c/ebpf-ring are the
+narrative point: stap-nohelper preserves historical comparability; C-ABI/ebpf-ring are the
 production-grade reliability endpoints.
 
 ### 8.3 Historical comparability note
@@ -355,7 +355,7 @@ distributed-cluster availability.
 | --- | --- | --- |
 | Hardware | 16 × Dell PowerEdge R810, 2× Xeon X-class (32 vCPUs each), 64 GB, 4× GbE, GbE switch | 1 × Hetzner bare-metal, Xeon Gold 5412U (Sapphire Rapids), 24C/48T, 256 GB, 10 GbE |
 | OS / kernel | Ubuntu 16.04 (kernel 4.x era) | Ubuntu 24.04, kernel 6.8.0-111 |
-| IntP variant runnable | stap-2022 (single SystemTap, all modules in kernel mode) | stap-2022 fails to compile (`cqm_rmid` removed); stap-nollc partial; stap-nohelper modernized; hybrid-c/bpftrace/ebpf-ring added |
+| IntP variant runnable | stap-2022 (single SystemTap, all modules in kernel mode) | stap-2022 fails to compile (`cqm_rmid` removed); stap-nollc partial; stap-nohelper modernized; C-ABI/bpftrace/ebpf-ring added |
 | Workload catalog | 15 apps from HiBench mapped to resource intensities (Table II) | Same 15-app schema reproduced as `stress-ng` workloads (`app01_ml_llc` … `app15_query_merge`) plus a 6-workload Spark/HiBench subset |
 | Profiling pattern | 1-after-1 individual runs | 1-after-1 (`solo` stage), plus pairwise, overhead, and timeseries stages |
 | Output schema | 6 metrics: `netp`, `nets`, `blk`, `mbw`, `llocc`, `cpu` | 7 columns: paper's 6 plus `llcmr` (LLC miss ratio) for diagnostic detail |
@@ -369,7 +369,7 @@ distributed-cluster availability.
   paper (block service-time delta, network back-pressure, CSW
   waiting time, IMC-based memory bandwidth, RMID-based LLC
   occupancy) are the same definitions that stap-2022/stap-nollc/stap-nohelper still implement
-  in SystemTap, and that hybrid-c/bpftrace/ebpf-ring reimplement on top of stable
+  in SystemTap, and that C-ABI/bpftrace/ebpf-ring reimplement on top of stable
   Linux interfaces (perf_event, resctrl, eBPF, procfs).
 - **Workload taxonomy.** The 15-app catalog of paper Table II is
   reproduced 1:1 in `bench/run-intp-bench.sh` (`WORKLOADS=(...)`)
@@ -385,7 +385,7 @@ distributed-cluster availability.
   default `solo` stage in this repo.
 - **PID/comm-scoped probing.** The IntP guarantee that probes attach
   per task (paper's "thread-scoped" model) is preserved across
-  variants: SystemTap by `comm`, hybrid-c by `--pids/--cgroup`, bpftrace/ebpf-ring by
+  variants: SystemTap by `comm`, C-ABI by `--pids/--cgroup`, bpftrace/ebpf-ring by
   PID filter map.
 
 ### 9.3 What had to change (forced by the 2026 stack)
@@ -405,7 +405,7 @@ distributed-cluster availability.
   sections V.A, V.B, V.C cannot be re-run as-is**. The campaign
   reproduces only the **per-host instrumentation** part of the
   methodology, which is what IntP itself measures.
-- **Variant family.** Adding hybrid-c/bpftrace/ebpf-ring is required to make the
+- **Variant family.** Adding C-ABI/bpftrace/ebpf-ring is required to make the
   comparison feasible at all (stap-2022 does not run on the host that the
   modern Spark/HiBench/CO-RE-eBPF stack runs on).
 
@@ -458,7 +458,7 @@ IntP outputs is necessary but not sufficient for them.
   the input (`aggregate-means.tsv` per `env+variant`) is. Adding
   this analysis is a natural follow-up.
 - **Cross-variant comparability of the IntP signal.** This is the
-  campaign-specific question: *do stap-nohelper, hybrid-c, bpftrace, ebpf-ring measure the same
+  campaign-specific question: *do stap-nohelper, C-ABI, bpftrace, ebpf-ring measure the same
   per-application interference vector for the same workload?* The
   paper does not address it because in 2022 there was only stap-2022.
 - **Empirical overhead claim** for IntP: the paper says "very low
@@ -473,10 +473,10 @@ IntP outputs is necessary but not sufficient for them.
 | Section II | Background on contention sources (CPU, mem, LLC, blk, net) | Documented in `docs/METRICS-DEEP-DIVE.md` and reflected in IntP's metric set |
 | Section III, Fig. 2 | IntP module architecture | `variants/v0-stap-2022/intp.stp` is the canonical implementation; V1-V3 README files describe each module's modern equivalent |
 | Section IV.A (block) | `block_rq_complete`/`block_rq_issue` delta | Same probe in stap-2022/stap-nohelper; tracepoint `block_rq_complete` in bpftrace/ebpf-ring |
-| Section IV.B (network) | `napi_complete_done`/`napi_schedule_irqoff` and xmit deltas | Same probes in stap-2022/stap-nohelper; kprobes/tracepoints equivalent in bpftrace/ebpf-ring; `/proc/net/dev` in hybrid-c |
+| Section IV.B (network) | `napi_complete_done`/`napi_schedule_irqoff` and xmit deltas | Same probes in stap-2022/stap-nohelper; kprobes/tracepoints equivalent in bpftrace/ebpf-ring; `/proc/net/dev` in C-ABI |
 | Section IV.C (CPU/CSW) | scheduler dispatcher waiting time | `scheduler.ctxswitch` in stap-nohelper; `sched:sched_switch` tracepoint in bpftrace/ebpf-ring |
-| Section IV.D (memory) | IMC-based memory bandwidth (rejecting `LLC_MISS×64B`) | IMC PMU types recalibrated in stap-nohelper (78–89); `perf_event_open` in hybrid-c; resctrl MBM as primary in bpftrace/ebpf-ring |
-| Section IV.E (LLC) | RMID/MSR-based occupancy via Intel CMT | Replaced by `/sys/fs/resctrl` reads in stap-nohelper (helper) and directly in hybrid-c/bpftrace/ebpf-ring |
+| Section IV.D (memory) | IMC-based memory bandwidth (rejecting `LLC_MISS×64B`) | IMC PMU types recalibrated in stap-nohelper (78–89); `perf_event_open` in C-ABI; resctrl MBM as primary in bpftrace/ebpf-ring |
+| Section IV.E (LLC) | RMID/MSR-based occupancy via Intel CMT | Replaced by `/sys/fs/resctrl` reads in stap-nohelper (helper) and directly in C-ABI/bpftrace/ebpf-ring |
 | Section IV final list | 6-metric output schema | 7-column TSV with `llcmr` added; paper's 6 are unchanged |
 | Section V.A, Fig. 4 | Per-app interference bars across 15 apps | `solo` stage output + `aggregate-means.tsv` + plotting script |
 | Section V.A, Fig. 5 | PCA + K-means on per-app vectors | Reproducible from `aggregate-means.tsv`; PCA/K-means script not yet in repo (planned follow-up) |
@@ -710,7 +710,7 @@ python3 bench/generate-iada-tree.py \
 
 What this gets us, in dissertation terms:
 
-- The per-app interference fingerprint produced by **our** stap-nohelper, hybrid-c, bpftrace,
+- The per-app interference fingerprint produced by **our** stap-nohelper, C-ABI, bpftrace,
   ebpf-ring variants on Sapphire Rapids is fed into the **same** scheduling
   pipeline used by the original IADA paper. If the cross-variant
   signal is consistent, all four runs of the simulator will produce
@@ -774,7 +774,7 @@ Recommended runtime stack:
 
 | Layer | Minimal choice | Reason |
 | --- | --- | --- |
-| Node-side profiler | hybrid-c first, ebpf-ring second | hybrid-c is the most operationally stable on current host; ebpf-ring is the eBPF endpoint once the signal is validated |
+| Node-side profiler | C-ABI first, ebpf-ring second | C-ABI is the most operationally stable on current host; ebpf-ring is the eBPF endpoint once the signal is validated |
 | Scope key | cgroup/container ID | Matches scheduler objects better than raw PID |
 | Export protocol | HTTP/JSON or line CSV at 1 Hz | Easy to debug and replay offline |
 | Change-point detection | `ruptures` in Python or `ocp` via `rpy2` | Keeps parity with the IADA logic without forcing Java+R in the hot path |
@@ -785,7 +785,7 @@ Recommended runtime stack:
 Minimal control loop:
 
 1. Each node samples the current cgroups/containers every second with
-   hybrid-c or ebpf-ring and emits the 7-value interference vector.
+   C-ABI or ebpf-ring and emits the 7-value interference vector.
 2. A central coordinator keeps a sliding window per workload and runs
    change-point detection when the vector shifts materially.
 3. The current window is classified into interference levels using the

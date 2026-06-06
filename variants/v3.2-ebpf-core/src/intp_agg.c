@@ -321,7 +321,7 @@ static void emit_tsv_header(FILE *out,
                             int no_raw_mbw, int clip_mbw)
 {
     fprintf(out,
-        "# v3.2 ebpf-aggregate -- netp:tracepoint nets:softirq blk:tracepoint"
+        "# v3.2 eBPF-COREregate -- netp:tracepoint nets:softirq blk:tracepoint"
         " cpu:sched_switch llcmr:%s mbw:%s llcocc:%s\n",
         no_perf     ? "off" : "perf_event",
         no_resctrl  ? "off" : "resctrl",
