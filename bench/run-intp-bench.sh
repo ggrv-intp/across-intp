@@ -94,10 +94,10 @@ V0_2_HELPER="$REPO_ROOT/variants/v0.2-legacy-intp-baseline/intp-helper"
 V1_STP="$REPO_ROOT/variants/v1-stap-nohelper/intp-resctrl.stp"
 V1_1_STP="$REPO_ROOT/variants/v1.1-stap-modern/intp-v1.1.stp"
 V1_1_HELPER="$REPO_ROOT/variants/v1.1-stap-modern/intp-helper"
-V2_BIN="$REPO_ROOT/variants/v2-c-abi/intp-hybrid"
+V2_BIN="$REPO_ROOT/variants/v2-c-abi/intp-c-abi"
 V3_1_RUNNER="$REPO_ROOT/variants/v3.1-bpftrace/run-intp-bpftrace.sh"
-V3_BIN="$REPO_ROOT/variants/v3-ebpf-ring/intp-ebpf"
-V3_2_BIN="$REPO_ROOT/variants/v3.2-ebpf-core/intp-eBPF-CORE"
+V3_BIN="$REPO_ROOT/variants/v3-ebpf-ring/intp-ebpf-ring"
+V3_2_BIN="$REPO_ROOT/variants/v3.2-ebpf-core/intp-ebpf-core"
 
 DEFAULT_STAGES="detect,build,solo,pairwise,overhead,timeseries,report"
 DEFAULT_VARIANTS="v0,v0.1,v0.2,v1,v1.1,v2,v3.1,v3,v3.2"
@@ -2257,10 +2257,10 @@ _inguest_profiler_cmd() {
     # _inguest_profiler_cmd <variant> <pid> <duration> <interval>
     local variant="$1" pid="$2" duration="$3" interval="$4" prefix="$5"
     case "$variant" in
-        v2)   echo "$prefix/variants/v2-c-abi/intp-hybrid --pid $pid --interval $interval --duration $duration --no-prom" ;;
-        v3)   echo "$prefix/variants/v3-ebpf-ring/intp-ebpf --pid $pid --interval $interval --duration $duration" ;;
+        v2)   echo "$prefix/variants/v2-c-abi/intp-c-abi --pid $pid --interval $interval --duration $duration --no-prom" ;;
+        v3)   echo "$prefix/variants/v3-ebpf-ring/intp-ebpf-ring --pid $pid --interval $interval --duration $duration" ;;
         v3.1) echo "bash $prefix/variants/v3.1-bpftrace/run-intp-bpftrace.sh --pid $pid --interval $interval --duration $duration" ;;
-        v3.2) echo "$prefix/variants/v3.2-ebpf-core/intp-eBPF-CORE --pids $pid --interval $interval --duration $duration --no-raw-mbw" ;;
+        v3.2) echo "$prefix/variants/v3.2-ebpf-core/intp-ebpf-core --pids $pid --interval $interval --duration $duration --no-raw-mbw" ;;
         v1.1) echo "stap -DMAXACTION=8192 -DSTP_NO_OVERLOAD --suppress-handler-errors $prefix/variants/v1.1-stap-modern/intp-v1.1.stp -x $pid --target-pid=$pid -F" ;;
         v0|v0.1|v1) echo "stap -DMAXACTION=8192 --suppress-handler-errors $prefix/variants/v0.1-stap-nollc/intp-6.8.stp -x $pid -F" ;;
         *) echo ""; return 1 ;;

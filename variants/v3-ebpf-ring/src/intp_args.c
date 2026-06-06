@@ -1,5 +1,5 @@
 /*
- * intp_args.c -- argument parser for intp-ebpf.
+ * intp_args.c -- argument parser for intp-ebpf-ring.
  */
 
 #include "intp_args.h"

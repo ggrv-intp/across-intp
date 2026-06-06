@@ -324,7 +324,7 @@ data point.
 ### V2 (C-ABI) -- Hybrid procfs/perf_event/resctrl (no framework)
 
 **Architecture summary.** C-ABI is a single C99 binary
-(`variants/v2-c-abi/intp-hybrid`) with no kernel module, no debuginfo
+(`variants/v2-c-abi/intp-c-abi`) with no kernel module, no debuginfo
 dependency, and no compile-time selection of a collection path. Each of
 the seven metrics (netp, nets, blk, mbw, llcmr, llcocc, cpu) carries an
 ordered list of backends. At startup the binary runs a capability

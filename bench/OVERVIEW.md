@@ -191,7 +191,7 @@ How variants observe stress-ng:
   exposes occupancy values to the SystemTap script via
   `/tmp/intp-resctrl-data` plus a PID enroll/unenroll channel
   (`/tmp/intp-resctrl-pids`).
-- **C-ABI (`intp-hybrid`)** is launched with either `--pids <PID>`,
+- **C-ABI (`intp-c-abi`)** is launched with either `--pids <PID>`,
   `--cgroup <path>`, or system-wide; backends are chosen by
   capabilities probing (procfs, `perf_event_open`, resctrl).
 - **bpftrace** loads scripts that key on PID/comm; resctrl is
@@ -242,7 +242,7 @@ rather than sharing one. Quick map:
 |---------|------------------------------------------------------------------------------------------------------------------------------------|
 | V1 (stap-nohelper)   | None (mbw and llcocc reported as 0)                                                                                                |
 | V1.1 (stap-modern)   | `variants/v1.1-stap-modern/intp-helper` -- C daemon, opens uncore IMC events + creates `mon_groups/intp-<pid>/`, polls 1 s, writes `/tmp/intp-hw-data` |
-| V2 (C-ABI)        | In-process: C reader inside `intp-hybrid`                                                                                          |
+| V2 (C-ABI)        | In-process: C reader inside `intp-c-abi`                                                                                          |
 | V3.1 (bpftrace)      | In-process: Python `resctrl_reader.py` orchestrated by the bpftrace runner                                                         |
 | V3 (ebpf-ring)       | In-process: C code in `variants/v3-ebpf-ring/resctrl/`                                                                                    |
 

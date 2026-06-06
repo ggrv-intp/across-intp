@@ -1,11 +1,11 @@
 #!/bin/bash
-# test-load-attach.sh -- smoke test: launch intp-eBPF-CORE, verify programs
+# test-load-attach.sh -- smoke test: launch intp-ebpf-core, verify programs
 # load and attach, let it run briefly, check no programs leak, confirm
 # TSV output is well-formed.
 
 set -eu
 
-BIN=${BIN:-./intp-eBPF-CORE}
+BIN=${BIN:-./intp-ebpf-core}
 DURATION=${DURATION:-3}
 
 if [ ! -x "$BIN" ]; then

@@ -99,13 +99,13 @@ CLI overrides (if autodetect doesn't match):
 
 ```bash
 # V2
-sudo ./intp-hybrid --nic-speed-bps 3125000000 --llc-size-bytes 57671680 --mem-bw-max-bps 140000000000
+sudo ./intp-c-abi --nic-speed-bps 3125000000 --llc-size-bytes 57671680 --mem-bw-max-bps 140000000000
 
 # V3.1
 sudo ./run-intp-bpftrace.sh --nic-speed-bps 3125000000 --llc-size-bytes 57671680 --mem-bw-max-bps 140000000000
 
 # V3
-sudo ./intp-ebpf --nic-speed-bps 3125000000 --llc-size-bytes 57671680 --mem-bw-max-bps 140000000000
+sudo ./intp-ebpf-ring --nic-speed-bps 3125000000 --llc-size-bytes 57671680 --mem-bw-max-bps 140000000000
 ```
 
 ---
@@ -165,12 +165,12 @@ cat /sys/fs/resctrl/info/L3_MON/mon_features
 #    llc_occupancy  mbm_total_bytes  mbm_local_bytes
 
 # 3. Run (same commands as Intel)
-sudo ./intp-hybrid --pid $(pgrep -f my_workload)                # V2
+sudo ./intp-c-abi --pid $(pgrep -f my_workload)                # V2
 sudo ./run-intp-bpftrace.sh --pid $(pgrep -f my_workload)      # V3.1
-sudo ./intp-ebpf --pids $(pgrep -f my_workload)                # V3
+sudo ./intp-ebpf-ring --pids $(pgrep -f my_workload)                # V3
 
 # 4. If on Naples (Zen 1) — no resctrl, mbw/llcocc unavailable
-sudo ./intp-hybrid --pid $(pgrep -f my_workload)
+sudo ./intp-c-abi --pid $(pgrep -f my_workload)
 # Output: mbw=-- llcocc=-- (or proxy)
 ```
 
@@ -238,13 +238,13 @@ sudo mount -t resctrl resctrl /sys/fs/resctrl
 #    Other 5 metrics work normally
 
 # V2 (works on any ARM64 with /proc and /sys)
-sudo ./intp-hybrid --pid $(pgrep -f my_workload)
+sudo ./intp-c-abi --pid $(pgrep -f my_workload)
 
 # V3.1 (needs bpftrace + BTF; aarch64 bpftrace available in Ubuntu 24.04)
 sudo ./run-intp-bpftrace.sh --pid $(pgrep -f my_workload)
 
 # V3 (needs clang + libbpf; cross-compile or native build on ARM64)
-sudo ./intp-ebpf --pids $(pgrep -f my_workload)
+sudo ./intp-ebpf-ring --pids $(pgrep -f my_workload)
 ```
 
 ---
@@ -282,13 +282,13 @@ cd variants/v3-ebpf-ring && make && cd ..
 
 # Validate 7/7
 ./shared/intp-detect.sh | grep INTP_
-sudo ./variants/v2-c-abi/intp-hybrid --list-backends
-sudo ./variants/v3-ebpf-ring/intp-ebpf --list-capabilities
+sudo ./variants/v2-c-abi/intp-c-abi --list-backends
+sudo ./variants/v3-ebpf-ring/intp-ebpf-ring --list-capabilities
 
 # Run
-sudo ./variants/v2-c-abi/intp-hybrid --interval 1 --duration 60
+sudo ./variants/v2-c-abi/intp-c-abi --interval 1 --duration 60
 sudo ./variants/v3.1-bpftrace/run-intp-bpftrace.sh --interval 1 --duration 60
-sudo ./variants/v3-ebpf-ring/intp-ebpf --interval 1 --duration 60
+sudo ./variants/v3-ebpf-ring/intp-ebpf-ring --interval 1 --duration 60
 
 # Cross-variant comparison
 sudo ./shared/validate-cross-variant.sh --start-workload --duration 30
@@ -312,9 +312,9 @@ ls /sys/devices/amd_df*/ 2>/dev/null && echo "AMD DF: available"
 cat /sys/fs/resctrl/info/L3_MON/mon_features
 
 # Run (identical commands)
-sudo ./variants/v2-c-abi/intp-hybrid --interval 1 --duration 60
+sudo ./variants/v2-c-abi/intp-c-abi --interval 1 --duration 60
 sudo ./variants/v3.1-bpftrace/run-intp-bpftrace.sh --interval 1 --duration 60
-sudo ./variants/v3-ebpf-ring/intp-ebpf --interval 1 --duration 60
+sudo ./variants/v3-ebpf-ring/intp-ebpf-ring --interval 1 --duration 60
 ```
 
 ### 6.3 ARM64 (Neoverse N2/V0.1, Graviton 4)
@@ -336,9 +336,9 @@ cat /sys/fs/resctrl/info/L3_MON/mon_features 2>/dev/null || echo "No MPAM — mb
 ls /sys/devices/arm_cmn*/ 2>/dev/null && echo "ARM CMN: available"
 
 # Run
-sudo ./variants/v2-c-abi/intp-hybrid --interval 1 --duration 60
+sudo ./variants/v2-c-abi/intp-c-abi --interval 1 --duration 60
 sudo ./variants/v3.1-bpftrace/run-intp-bpftrace.sh --interval 1 --duration 60
-sudo ./variants/v3-ebpf-ring/intp-ebpf --interval 1 --duration 60
+sudo ./variants/v3-ebpf-ring/intp-ebpf-ring --interval 1 --duration 60
 ```
 
 ---

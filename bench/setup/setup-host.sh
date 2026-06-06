@@ -364,9 +364,9 @@ selftest() {
         fi
     fi
 
-    if [ -x "$REPO_ROOT/variants/v2-c-abi/intp-hybrid" ]; then
-        if "$REPO_ROOT/variants/v2-c-abi/intp-hybrid" --list-backends >/dev/null 2>&1; then
-            log "  v2          OK ($(${REPO_ROOT}/variants/v2-c-abi/intp-hybrid --list-backends 2>&1 | head -1))"
+    if [ -x "$REPO_ROOT/variants/v2-c-abi/intp-c-abi" ]; then
+        if "$REPO_ROOT/variants/v2-c-abi/intp-c-abi" --list-backends >/dev/null 2>&1; then
+            log "  v2          OK ($(${REPO_ROOT}/variants/v2-c-abi/intp-c-abi --list-backends 2>&1 | head -1))"
         else
             warn "  v2          FAIL (--list-backends returned non-zero)"
         fi
@@ -378,8 +378,8 @@ selftest() {
         else
             warn "  bpftrace    missing"
         fi
-        if [ -x "$REPO_ROOT/variants/v3-ebpf-ring/intp-ebpf" ]; then
-            if "$REPO_ROOT/variants/v3-ebpf-ring/intp-ebpf" --list-capabilities >/dev/null 2>&1; then
+        if [ -x "$REPO_ROOT/variants/v3-ebpf-ring/intp-ebpf-ring" ]; then
+            if "$REPO_ROOT/variants/v3-ebpf-ring/intp-ebpf-ring" --list-capabilities >/dev/null 2>&1; then
                 log "  v3          OK"
             else
                 warn "  v3          FAIL"

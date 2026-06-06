@@ -8,14 +8,14 @@
 #            results-YYYYMMDD-HHMMSS/comparison.md (if compare script succeeds)
 #
 # VM mode is enabled by setting INTP_VM_IMAGE to a QCOW2 image that already
-# contains an intp-hybrid binary at /usr/local/bin/intp-hybrid and whatever
+# contains an intp-c-abi binary at /usr/local/bin/intp-c-abi and whatever
 # tooling the workload needs. The image is expected to listen on SSH port
 # 2222 on localhost and accept the key pointed to by INTP_VM_SSH_KEY with
 # user INTP_VM_SSH_USER (default "root").
 #
 # Example image-prep hints (commented; the script does not build an image):
 #   virt-customize -a base.qcow2 \
-#       --copy-in intp-hybrid:/usr/local/bin/ \
+#       --copy-in intp-c-abi:/usr/local/bin/ \
 #       --run-command 'systemctl enable ssh'
 #   virt-customize -a base.qcow2 \
 #       --ssh-inject root:file:path/to/pub
@@ -38,7 +38,7 @@ WORKLOAD=$1
 DURATION=${2:-60}
 SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
 ROOT_DIR=$(cd "$SCRIPT_DIR/.." && pwd)
-INTP=${INTP:-$ROOT_DIR/intp-hybrid}
+INTP=${INTP:-$ROOT_DIR/intp-c-abi}
 OUTDIR=$ROOT_DIR/results-$(date +%Y%m%d-%H%M%S)
 
 # In dry-run mode, run will just echo the command and not execute it.
@@ -69,7 +69,7 @@ if [[ ! -x "$INTP" ]]; then
     if (( DRY_RUN )); then
         echo "DRY: (would verify $INTP is executable)"
     else
-        echo "intp-hybrid binary not found at $INTP -- run 'make' first" >&2
+        echo "intp-c-abi binary not found at $INTP -- run 'make' first" >&2
         exit 1
     fi
 fi
@@ -88,7 +88,7 @@ if command -v docker >/dev/null 2>&1; then
         -v "$OUTDIR":/out \
         ubuntu:24.04 bash -lc "
             apt-get update >/dev/null 2>&1 || true
-            /intp/intp-hybrid --interval 1 --duration $DURATION --output tsv \
+            /intp/intp-c-abi --interval 1 --duration $DURATION --output tsv \
                 > /out/container.tsv &
             INTP_PID=\$!
             ( $WORKLOAD ) &
@@ -160,7 +160,7 @@ run_vm_capture() {
     remote="set -e
         mkdir -p /mnt/intp_out
         mountpoint -q /mnt/intp_out || mount -t 9p -o trans=virtio intp_out /mnt/intp_out
-        /usr/local/bin/intp-hybrid --interval 1 --duration $DURATION --output tsv \
+        /usr/local/bin/intp-c-abi --interval 1 --duration $DURATION --output tsv \
             > /mnt/intp_out/vm.tsv &
         INTP_PID=\$!
         ( $WORKLOAD ) &

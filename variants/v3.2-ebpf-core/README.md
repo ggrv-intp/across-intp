@@ -66,26 +66,26 @@ sudo apt install clang libbpf-dev libelf-dev zlib1g-dev \
 make
 
 # Print detected capabilities (no root needed for read-only checks).
-sudo ./intp-eBPF-CORE --list-capabilities
+sudo ./intp-ebpf-core --list-capabilities
 
 # Run system-wide, 1-second samples, IntP-compatible TSV output
 # (8 columns: 7 canonical + mbw_raw_mbps diagnostic).
-sudo ./intp-eBPF-CORE --interval 1
+sudo ./intp-ebpf-core --interval 1
 
 # Match ebpf-ring's column shape exactly (no mbw_raw_mbps).
-sudo ./intp-eBPF-CORE --interval 1 --no-raw-mbw
+sudo ./intp-ebpf-core --interval 1 --no-raw-mbw
 
 # Restore the legacy ebpf-ring cap-at-99 clip on mbw (default is unclipped).
-sudo ./intp-eBPF-CORE --interval 1 --clip-mbw
+sudo ./intp-ebpf-core --interval 1 --clip-mbw
 
 # Monitor specific PIDs for 60 seconds.
-sudo ./intp-eBPF-CORE --pids 1234,5678 --interval 1 --duration 60
+sudo ./intp-ebpf-core --pids 1234,5678 --interval 1 --duration 60
 ```
 
 ## Output format
 
 The 7 canonical IntP columns come first (byte-compatible with ebpf-ring's
-`intp-ebpf` output and the IADA contract). eBPF-CORE appends one trailing
+`intp-ebpf-ring` output and the IADA contract). eBPF-CORE appends one trailing
 column, `mbw_raw_mbps`, with the underlying memory-bandwidth reading
 in megabytes per second. The new column is suppressed with
 `--no-raw-mbw`.

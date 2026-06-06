@@ -23,15 +23,15 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="${REPO_ROOT:-$(cd "$SCRIPT_DIR/.." && pwd)}"
 # Variant under test for this noise-floor / composite-mechanism rerun.
-#   v3   → variants/v3-ebpf-ring/intp-ebpf         (per-event ring buffer)
-#   v3.2 → variants/v3.2-ebpf-core/intp-eBPF-CORE (in-kernel aggregation)
+#   v3   → variants/v3-ebpf-ring/intp-ebpf-ring         (per-event ring buffer)
+#   v3.2 → variants/v3.2-ebpf-core/intp-ebpf-core (in-kernel aggregation)
 # Both are ring-buffer eBPF variants, so the same noise-floor / pidstat
 # experiment applies. For any other binary, set INTP_EBPF_BIN explicitly.
 INTP_AUX_VARIANT="${INTP_AUX_VARIANT:-v3}"
 case "$INTP_AUX_VARIANT" in
-    v3)   _aux_default_bin="$REPO_ROOT/variants/v3-ebpf-ring/intp-ebpf" ;;
-    v3.2) _aux_default_bin="$REPO_ROOT/variants/v3.2-ebpf-core/intp-eBPF-CORE" ;;
-    *)    _aux_default_bin="$REPO_ROOT/variants/v3-ebpf-ring/intp-ebpf" ;;
+    v3)   _aux_default_bin="$REPO_ROOT/variants/v3-ebpf-ring/intp-ebpf-ring" ;;
+    v3.2) _aux_default_bin="$REPO_ROOT/variants/v3.2-ebpf-core/intp-ebpf-core" ;;
+    *)    _aux_default_bin="$REPO_ROOT/variants/v3-ebpf-ring/intp-ebpf-ring" ;;
 esac
 INTP_EBPF_BIN="${INTP_EBPF_BIN:-$_aux_default_bin}"
 unset _aux_default_bin
@@ -83,7 +83,7 @@ echo "Binary:    $INTP_EBPF_BIN"
 echo "Output:    $OUT_DIR"
 echo
 
-[ -x "$INTP_EBPF_BIN" ] || { echo "FATAL: intp-ebpf not found at $INTP_EBPF_BIN"; exit 1; }
+[ -x "$INTP_EBPF_BIN" ] || { echo "FATAL: intp-ebpf-ring not found at $INTP_EBPF_BIN"; exit 1; }
 command -v pidstat   >/dev/null || { echo "FATAL: pidstat not found (apt install sysstat)"; exit 1; }
 command -v perf      >/dev/null || { echo "FATAL: perf not found (apt install linux-tools-common)"; exit 1; }
 command -v stress-ng >/dev/null || { echo "FATAL: stress-ng not found"; exit 1; }
@@ -131,7 +131,7 @@ done
 
 python3 - <<'PY'
 import csv, glob, statistics as st, os
-# Metrics emitted by intp-ebpf --output tsv. All values are integer percentages (0-100),
+# Metrics emitted by intp-ebpf-ring --output tsv. All values are integer percentages (0-100),
 # despite the comment-header in the TSV listing the underlying eBPF source (e.g. cpu:sched_switch).
 metrics = ['netp','nets','blk','mbw','llcmr','llcocc','cpu']
 out_dir = os.environ["OUT_DIR"]
@@ -139,7 +139,7 @@ rows = []
 for rep in sorted(glob.glob(f"{out_dir}/noise_floor/rep*/profiler.tsv")):
     try:
         with open(rep) as f:
-            # intp-ebpf prefixes the TSV with "# ..." metadata lines; DictReader would otherwise treat them as the header.
+            # intp-ebpf-ring prefixes the TSV with "# ..." metadata lines; DictReader would otherwise treat them as the header.
             data_lines = [ln for ln in f if not ln.startswith('#') and ln.strip()]
         for row in csv.DictReader(data_lines, delimiter='\t'):
             try:
@@ -169,8 +169,8 @@ PY
 # ============================================================================
 # Experiment #5 -- pidstat + perf -p breakdown for V3 composite hypothesis
 # For each ref_* load, 3 reps with V3 attached. Captures:
-#   - pidstat 1Hz CPU% of intp-ebpf consumer  (the "CPU stealing" axis)
-#   - perf stat -p intp-ebpf context-switches (the consumer's own ctx-switches)
+#   - pidstat 1Hz CPU% of intp-ebpf-ring consumer  (the "CPU stealing" axis)
+#   - perf stat -p intp-ebpf-ring context-switches (the consumer's own ctx-switches)
 #   - perf stat -a sched:sched_switch          (system-wide, for delta vs baseline)
 # Also 3 baseline reps per ref_load (no profiler) for the sched_switch delta.
 # ============================================================================
@@ -210,8 +210,8 @@ for ref in ref_cpu ref_disk ref_stream; do
         sudo "$INTP_EBPF_BIN" --interval 1.0 --duration $DURATION --output tsv \
           > "$run_dir/intp.tsv" 2> "$run_dir/intp.err" &
         INTP_LAUNCHER_PID=$!
-        # Poll up to 5s for the real intp-ebpf process to appear. -nx matches the exact
-        # comm name (basename), so it skips the "sudo" wrapper which also has "intp-ebpf"
+        # Poll up to 5s for the real intp-ebpf-ring process to appear. -nx matches the exact
+        # comm name (basename), so it skips the "sudo" wrapper which also has "intp-ebpf-ring"
         # in its full command line. The previous -nf was catching the sudo PID, making
         # pidstat/perf-stat unable to find threads ("Problems finding threads of monitor").
         EBPF_BASENAME="$(basename "$INTP_EBPF_BIN")"
@@ -221,14 +221,14 @@ for ref in ref_cpu ref_disk ref_stream; do
           sleep 0.5
         done
         if [ -n "$EBPF_PID" ]; then
-          echo "    intp-ebpf consumer PID=$EBPF_PID"
+          echo "    intp-ebpf-ring consumer PID=$EBPF_PID"
           pidstat -p "$EBPF_PID" -u 1 $DURATION > "$run_dir/pidstat.txt" 2>&1 &
           PIDSTAT_PID=$!
           sudo perf stat -p "$EBPF_PID" -e context-switches,task-clock,cpu-migrations \
             -- sleep $DURATION 2> "$run_dir/perf_consumer.txt" &
           PERF_C_PID=$!
         else
-          echo "  WARN: intp-ebpf PID not found after 5s; consumer-side measurements skipped"
+          echo "  WARN: intp-ebpf-ring PID not found after 5s; consumer-side measurements skipped"
         fi
       fi
 

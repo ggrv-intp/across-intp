@@ -25,19 +25,19 @@ Build (no external dependencies beyond glibc + libpthread):
 Detect what backends will be used on this host (no monitoring, just a
 capability dump):
 
-    ./intp-hybrid --list-backends
+    ./intp-c-abi --list-backends
 
 Run system-wide, IntP-compatible 7-column TSV at 1-second resolution:
 
-    sudo ./intp-hybrid --interval 1
+    sudo ./intp-c-abi --interval 1
 
 Per-PID monitoring, JSON line-delimited output:
 
-    sudo ./intp-hybrid --pids 1234,5678 --output json
+    sudo ./intp-c-abi --pids 1234,5678 --output json
 
 Prometheus exposition (intended for `textfile_collector`):
 
-    sudo ./intp-hybrid --output prometheus --duration 1
+    sudo ./intp-c-abi --output prometheus --duration 1
 
 ## Output format
 
@@ -89,8 +89,8 @@ DESIGN.md); `proxy` = llcocc derived from llcmr (directional only);
 For evaluation runs that need a specific backend (e.g. comparing resctrl
 MBM against uncore IMC on the same Intel host):
 
-    ./intp-hybrid --force-backend mbw:perf_uncore_imc
-    ./intp-hybrid --disable-metric nets
+    ./intp-c-abi --force-backend mbw:perf_uncore_imc
+    ./intp-c-abi --disable-metric nets
 
 ## Layout
 

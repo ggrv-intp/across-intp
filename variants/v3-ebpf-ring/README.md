@@ -72,16 +72,16 @@ sudo apt install clang libbpf-dev libelf-dev zlib1g-dev \
 make
 
 # Print detected capabilities (no root needed for read-only checks).
-sudo ./intp-ebpf --list-capabilities
+sudo ./intp-ebpf-ring --list-capabilities
 
 # Run system-wide, 1-second samples, IntP-compatible TSV output.
-sudo ./intp-ebpf --interval 1
+sudo ./intp-ebpf-ring --interval 1
 
 # Monitor specific PIDs for 60 seconds.
-sudo ./intp-ebpf --pids 1234,5678 --interval 1 --duration 60
+sudo ./intp-ebpf-ring --pids 1234,5678 --interval 1 --duration 60
 
 # Monitor a cgroup v2 path.
-sudo ./intp-ebpf --cgroup /sys/fs/cgroup/myservice --interval 0.5
+sudo ./intp-ebpf-ring --cgroup /sys/fs/cgroup/myservice --interval 0.5
 ```
 
 ## Output format

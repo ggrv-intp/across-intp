@@ -190,7 +190,7 @@ if hardware is unavailable.
 ```bash
 cd variants/v2-c-abi
 make
-sudo ./intp-hybrid -p <PID> -i <interval_ms>
+sudo ./intp-c-abi -p <PID> -i <interval_ms>
 ```
 
 No framework dependencies. Requires: resctrl for mbw/llcocc.
@@ -209,7 +209,7 @@ Requires: bpftrace, kernel BTF, resctrl for mbw/llcocc.
 ```bash
 cd variants/v3-ebpf-ring
 make
-sudo ./intp-ebpf -p <PID> -i <interval_ms>
+sudo ./intp-ebpf-ring -p <PID> -i <interval_ms>
 ```
 
 Requires: libbpf, clang, kernel BTF, resctrl for mbw/llcocc.
@@ -219,7 +219,7 @@ Requires: libbpf, clang, kernel BTF, resctrl for mbw/llcocc.
 ```bash
 cd variants/v3.2-ebpf-core
 make
-sudo ./intp-eBPF-CORE --pids <PID> --interval <seconds>
+sudo ./intp-ebpf-core --pids <PID> --interval <seconds>
 
 # Critical acceptance gate before campaign inclusion:
 sudo make test-amplification

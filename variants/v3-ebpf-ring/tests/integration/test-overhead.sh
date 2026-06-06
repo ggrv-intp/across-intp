@@ -8,7 +8,7 @@
 
 set -eu
 
-BIN=${BIN:-./intp-ebpf}
+BIN=${BIN:-./intp-ebpf-ring}
 if [ ! -x "$BIN" ]; then
     echo "ERROR: $BIN not built"
     exit 1
@@ -25,7 +25,7 @@ sleep "$WINDOW"
 t1=$(awk '{print $1+$2+$3+$4+$5+$6+$7}' /proc/stat | head -1)
 base_used=$(( t1 - t0 ))
 
-echo "== phase 2: with intp-ebpf running ($WINDOW s) =="
+echo "== phase 2: with intp-ebpf-ring running ($WINDOW s) =="
 "$BIN" --duration "$WINDOW" --interval 1 --no-resctrl --no-perf-events \
     > /dev/null 2>&1 &
 PID=$!

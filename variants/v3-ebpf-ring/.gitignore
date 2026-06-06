@@ -14,7 +14,7 @@ detect/*.o
 tests/unit/*.o
 
 # Binaries
-intp-ebpf
+intp-ebpf-ring
 tests/unit/test-detect
 
 # Editor scratch

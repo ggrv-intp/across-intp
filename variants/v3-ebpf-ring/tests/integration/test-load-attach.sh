@@ -1,10 +1,10 @@
 #!/bin/bash
-# test-load-attach.sh -- smoke test: launch intp-ebpf, verify programs
+# test-load-attach.sh -- smoke test: launch intp-ebpf-ring, verify programs
 # load and attach, let it run briefly, check no programs leak.
 
 set -eu
 
-BIN=${BIN:-./intp-ebpf}
+BIN=${BIN:-./intp-ebpf-ring}
 DURATION=${DURATION:-3}
 
 if [ ! -x "$BIN" ]; then

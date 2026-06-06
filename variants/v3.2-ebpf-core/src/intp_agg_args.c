@@ -1,5 +1,5 @@
 /*
- * intp_agg_args.c -- argument parser for intp-eBPF-CORE (V3.2).
+ * intp_agg_args.c -- argument parser for intp-ebpf-core (V3.2).
  *
  * Differs from V3 only in the deltas listed in intp_agg_args.h.
  */

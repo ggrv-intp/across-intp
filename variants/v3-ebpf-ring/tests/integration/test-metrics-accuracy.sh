@@ -8,7 +8,7 @@
 
 set -eu
 
-BIN=${BIN:-./intp-ebpf}
+BIN=${BIN:-./intp-ebpf-ring}
 if [ ! -x "$BIN" ]; then
     echo "ERROR: $BIN not built"
     exit 1

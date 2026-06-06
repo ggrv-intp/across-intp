@@ -14,7 +14,7 @@ detect/*.o
 tests/unit/*.o
 
 # Binaries
-intp-eBPF-CORE
+intp-ebpf-core
 tests/unit/test-counter-snapshot
 
 # Editor scratch

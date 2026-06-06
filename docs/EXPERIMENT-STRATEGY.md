@@ -436,7 +436,7 @@ zeros.
    - **softirq_entry + napi:napi_poll tracepoint pair** (last
      resort, `status=degraded`).
 
-   The chosen backend is logged at `intp-ebpf --list-capabilities`.
+   The chosen backend is logged at `intp-ebpf-ring --list-capabilities`.
 
 2. **Ring buffer drops** if event rate exceeds drain rate. At 16 MiB
    and ~1M events/s on Xeon Platinum 8360Y this is not observed; on
@@ -452,10 +452,10 @@ zeros.
 
 ```bash
 # Capability declaration
-./intp-ebpf --list-capabilities
+./intp-ebpf-ring --list-capabilities
 
 # All 7 metrics non-zero on a representative load
-./intp-ebpf -p $(pgrep -f stress-ng) -i 1000 -d 30
+./intp-ebpf-ring -p $(pgrep -f stress-ng) -i 1000 -d 30
 ```
 
 ---
@@ -521,10 +521,10 @@ container/VM machinery via `_inguest_profiler_cmd`.
 
 ```bash
 # Capability declaration (no probes; just print detect_all output).
-sudo ./intp-eBPF-CORE --list-capabilities
+sudo ./intp-ebpf-core --list-capabilities
 
 # All 7 metrics non-zero on a representative load.
-sudo ./intp-eBPF-CORE --pids $(pgrep -nf stress-ng) -i 1 -d 30
+sudo ./intp-ebpf-core --pids $(pgrep -nf stress-ng) -i 1 -d 30
 
 # Equivalence vs V3.
 sudo bash tests/integration/test-metrics-equivalence.sh

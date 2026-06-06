@@ -9,7 +9,7 @@ CFLAGS  ?= $(CSTD) $(WARN) $(OPT) -D_GNU_SOURCE -Iinclude -Isrc
 LDFLAGS ?=
 LDLIBS   = -lpthread -lm
 
-TARGET   = intp-hybrid
+TARGET   = intp-c-abi
 
 SRCS = \
 	intp-hybrid.c \

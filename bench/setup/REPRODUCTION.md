@@ -305,10 +305,10 @@ After `setup-host.sh`, validate each variant:
 which stap && stap -V
 
 # V2 (C hybrid)
-variants/v2-c-abi/intp-hybrid --list-backends
+variants/v2-c-abi/intp-c-abi --list-backends
 
 # V3 (eBPF/libbpf)
-variants/v3-ebpf-ring/intp-ebpf --list-capabilities
+variants/v3-ebpf-ring/intp-ebpf-ring --list-capabilities
 ls /sys/kernel/btf/vmlinux   # must exist
 
 # V3.1 (bpftrace)

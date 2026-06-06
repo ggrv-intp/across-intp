@@ -54,7 +54,7 @@ USER_SRCS   := $(SRC_DIR)/intp.c $(SRC_DIR)/intp_args.c \
                $(RESCTRL_DIR)/resctrl.c $(DETECT_DIR)/detect.c
 USER_OBJS   := $(USER_SRCS:.c=.o)
 
-BINARY      := intp-ebpf
+BINARY      := intp-ebpf-ring
 
 INCLUDES    := -I$(SRC_DIR) -I$(RESCTRL_DIR) -I$(DETECT_DIR)
 

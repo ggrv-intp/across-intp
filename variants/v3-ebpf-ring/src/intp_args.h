@@ -1,5 +1,5 @@
 /*
- * intp_args.h -- command-line arguments for intp-ebpf.
+ * intp_args.h -- command-line arguments for intp-ebpf-ring.
  */
 
 #ifndef INTP_V3_ARGS_H

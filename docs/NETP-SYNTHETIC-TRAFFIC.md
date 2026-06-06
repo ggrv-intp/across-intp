@@ -77,7 +77,7 @@ so they accept `--pids`):
 
 ```bash
 sudo INTP_BENCH_V46_PID_FILTER=1 \
-    variants/v3-ebpf-ring/intp-ebpf --pids "$WL_PID" --duration 90 --output tsv
+    variants/v3-ebpf-ring/intp-ebpf-ring --pids "$WL_PID" --duration 90 --output tsv
 ```
 
 ### 3. Tear down

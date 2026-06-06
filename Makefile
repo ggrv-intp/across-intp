@@ -141,17 +141,17 @@ smoke-v0.2: v0.2
 	@echo "[v0.2] smoke not applicable (helper, not standalone profiler)"
 
 smoke-v2: v2
-	@$(V2_DIR)/intp-hybrid --interval 1 --duration 5 >/dev/null && echo "[v2] smoke OK"
+	@$(V2_DIR)/intp-c-abi --interval 1 --duration 5 >/dev/null && echo "[v2] smoke OK"
 
 smoke-v3: v3
-	@$(V3_DIR)/intp-ebpf --interval 1 --duration 5 >/dev/null && echo "[v3] smoke OK"
+	@$(V3_DIR)/intp-ebpf-ring --interval 1 --duration 5 >/dev/null && echo "[v3] smoke OK"
 
 smoke-v3.1:
 	@$(V31_DIR)/run-intp-bpftrace.sh --interval 1 --duration 5 >/dev/null \
 		&& echo "[v3.1] smoke OK"
 
 smoke-v3.2: v3.2
-	@$(V32_DIR)/intp-eBPF-CORE --interval 1 --duration 5 >/dev/null && echo "[v3.2] smoke OK"
+	@$(V32_DIR)/intp-ebpf-core --interval 1 --duration 5 >/dev/null && echo "[v3.2] smoke OK"
 
 # ---- help -------------------------------------------------------------------
 

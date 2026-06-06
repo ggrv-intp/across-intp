@@ -43,10 +43,10 @@ V0_2_TEMPLATE="$REPO_ROOT/variants/v0.2-legacy-intp-baseline/intp.stp.template"
 V0_2_GENERATOR="$REPO_ROOT/variants/v0.2-legacy-intp-baseline/generate-stp.sh"
 V0_2_RECAL_STP="$REPO_ROOT/variants/v0.2-legacy-intp-baseline/intp.recal.stp"
 V0_2_HELPER="$REPO_ROOT/variants/v0.2-legacy-intp-baseline/intp-helper"
-V2_BIN="$REPO_ROOT/variants/v2-c-abi/intp-hybrid"
+V2_BIN="$REPO_ROOT/variants/v2-c-abi/intp-c-abi"
 V3_1_RUNNER="$REPO_ROOT/variants/v3.1-bpftrace/run-intp-bpftrace.sh"
-V3_BIN="$REPO_ROOT/variants/v3-ebpf-ring/intp-ebpf"
-V3_2_BIN="$REPO_ROOT/variants/v3.2-ebpf-core/intp-eBPF-CORE"
+V3_BIN="$REPO_ROOT/variants/v3-ebpf-ring/intp-ebpf-ring"
+V3_2_BIN="$REPO_ROOT/variants/v3.2-ebpf-core/intp-ebpf-core"
 
 # Defaults
 SIZE="${SIZE:-medium}"
@@ -440,7 +440,7 @@ stop_profiler() {
         pre_kids=$(pgrep -P "$PROFILER_PID" 2>/dev/null | tr '\n' ' ')
         log "  [stop_profiler] PROFILER_PID=$PROFILER_PID children='${pre_kids}'"
         _kill_tree KILL "$PROFILER_PID"
-        pkill -KILL -f 'intp-hybrid|intp-ebpf|intp-eBPF-CORE|run-intp-bpftrace|orchestrator/aggregator\.py' 2>/dev/null
+        pkill -KILL -f 'intp-c-abi|intp-ebpf-ring|intp-ebpf-core|run-intp-bpftrace|orchestrator/aggregator\.py' 2>/dev/null
         pkill -KILL -f 'bpftrace -q' 2>/dev/null
         local k=0
         while [ $k -lt 8 ] && kill -0 "$PROFILER_PID" 2>/dev/null; do
@@ -1539,7 +1539,7 @@ cleanup_stale_orphans() {
     # eating RAM and signals get throttled, causing the next run to hang.
     [ "$DRY_RUN" -eq 1 ] && return 0
     local victims
-    victims=$(pgrep -f 'intp-hybrid|intp-ebpf|run-intp-bpftrace|orchestrator/aggregator\.py|bench/hibench/run-hibench-subset|stress-ng' 2>/dev/null \
+    victims=$(pgrep -f 'intp-c-abi|intp-ebpf-ring|run-intp-bpftrace|orchestrator/aggregator\.py|bench/hibench/run-hibench-subset|stress-ng' 2>/dev/null \
               | grep -v "^$$\$" || true)
     if [ -n "$victims" ]; then
         warn "[preflight] killing stale processes: $(echo $victims | tr '\n' ' ')"
@@ -1613,7 +1613,7 @@ _on_exit() {
         _kill_tree KILL "$STAP_PID" 2>/dev/null || true
     fi
     # Belt-and-suspenders for any profiler binary that escaped tracking
-    pkill -KILL -f 'intp-hybrid|intp-ebpf|run-intp-bpftrace|orchestrator/aggregator\.py' 2>/dev/null || true
+    pkill -KILL -f 'intp-c-abi|intp-ebpf-ring|run-intp-bpftrace|orchestrator/aggregator\.py' 2>/dev/null || true
     pkill -KILL -f 'bpftrace -q' 2>/dev/null || true
     # Stressor last (lower data-integrity priority; clean up RAM)
     stop_stressor
