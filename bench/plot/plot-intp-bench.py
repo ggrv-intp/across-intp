@@ -1358,13 +1358,131 @@ def fig_workload_clustermap(means: pd.DataFrame, outdir: Path) -> None:
 # ---------------------------------------------------------------------------
 # Fig 11 — IADA Fig. 6 inspired: Δ pairwise − solo per resource
 # ---------------------------------------------------------------------------
+#
+# Each bar is a *difference of means*: mean(pairwise reps) − mean(solo reps),
+# aggregated into the resource family exactly as the pipeline aggregates
+# (s[members].mean().mean(), pandas skipna=True). Each bar carries a 95 %
+# bootstrap CI of that difference, drawn as an asymmetric error bar. TWO CI
+# methods are computed for every cell (both written to idi_resource.csv); the
+# `--idi-ci` flag / IDI_CI_METHOD selects which one is plotted:
+#
+#   "rep"  (PRIMARY — the design that ships to the paper)
+#       Cluster/block bootstrap by REPETITION ROUND. The rep ids 1..12 are
+#       shared across every workload/pair; each iteration draws 12 rep ids from
+#       {1..12} WITH REPLACEMENT, independently for the solo and pairwise sides,
+#       and keeps ALL workloads/pairs for the drawn reps. This isolates the
+#       rep-level *measurement* noise: the large structural variation between
+#       workloads/pairs is identical in every round and cancels in the
+#       difference, so the CI answers "is this Δ distinguishable from zero given
+#       measurement noise?". Balanced design → the bootstrap centres on the bar.
+#
+#   "unit"  (ARTIFACT — kept for the record, NOT used in the paper)
+#       Cluster bootstrap by STRUCTURAL UNIT: resample the solo workloads (17)
+#       and the pairwise pairs (6) themselves, with replacement. This folds the
+#       between-unit structural variance into the error bar. For the
+#       family-averaged IDI that variance is dominated by structural mismatch —
+#       only ~1 of the 6 pairs stresses any given family — so the CIs balloon
+#       (±25–60 pp) and even the modern variants' unambiguous signals (e.g. the
+#       +17 pp disk delta) cross zero. It conflates structural mismatch with
+#       measurement noise and is retained only as a reproducible counterpoint.
+#
+# Exactness: the bootstrap aggregation reproduces s[members].mean().mean()
+# (skipna) to machine precision, so a full all-clusters-once sample gives back
+# the plotted bar. Each method has its own fixed-seed RNG stream → re-renders
+# are deterministic.
+# ---------------------------------------------------------------------------
 
-def fig_idi_bars(means: pd.DataFrame, outdir: Path) -> None:
+IDI_CI_METHOD = "rep"          # plotted CI: "rep" (paper) | "unit" (artifact)
+IDI_CI_METHODS = ("rep", "unit")    # both always computed into idi_resource.csv
+_IDI_GROUP_COL = {"rep": "rep", "unit": "workload"}   # cluster column per method
+IDI_CI_TITLE = {"rep": "rep-round", "unit": "between-pair"}  # short CI tag in title
+IDI_BOOTSTRAP_N = 10000
+IDI_BOOTSTRAP_SEED = 20260607
+IDI_CI_COLOR = "#333333"
+
+
+def _idi_cluster_tables(d: pd.DataFrame, members: list[str], group_col: str):
+    """Fold a side's rows into per-cluster nansum/count, one column per family
+    member. Clusters are the distinct values of `group_col` — rep ids for the
+    rep-round bootstrap, workloads/pairs for the between-unit bootstrap.
+
+    Returns (RS, RC, groups) with RS[m, k] = nansum of members[m] over the rows
+    in cluster groups[k] and RC[m, k] the matching non-NaN count. For a resample
+    with cluster multiplicities `mult` (len == len(groups)) the per-column mean
+    is (Σ_k mult_k·RS[m,k]) / (Σ_k mult_k·RC[m,k]) — exactly pandas' skipna
+    column mean — and the family value is the nanmean over members of those,
+    exactly matching d[members].mean().mean().
+    """
+    groups = sorted(d[group_col].unique())
+    idx = {g: i for i, g in enumerate(groups)}
+    K = len(groups)
+    M = len(members)
+    RS = np.zeros((M, K))
+    RC = np.zeros((M, K))
+    arr = d[members].to_numpy(dtype=float)
+    gvals = d[group_col].to_numpy()
+    for r in range(len(d)):
+        k = idx[gvals[r]]
+        row = arr[r]
+        valid = ~np.isnan(row)
+        RS[valid, k] += row[valid]
+        RC[valid, k] += 1.0
+    return RS, RC, groups
+
+
+def _idi_family_value(RS: np.ndarray, RC: np.ndarray, mult: np.ndarray) -> float:
+    """Family aggregate for one resample = nanmean over members of the
+    multiplicity-weighted per-column means. Mirrors .mean().mean() (skipna)."""
+    num = (RS * mult).sum(axis=1)
+    den = (RC * mult).sum(axis=1)
+    with np.errstate(invalid="ignore", divide="ignore"):
+        colmean = np.where(den > 0, num / den, np.nan)
+    if np.all(np.isnan(colmean)):
+        return np.nan
+    return float(np.nanmean(colmean))
+
+
+def _idi_cluster_ci(s: pd.DataFrame, p: pd.DataFrame, members: list[str],
+                    rng: np.random.Generator, group_col: str
+                    ) -> tuple[float, float, float]:
+    """95 % cluster-bootstrap CI of Δ = family(pairwise) − family(solo),
+    resampling the `group_col` clusters with replacement independently per side.
+
+    Returns (delta, ci_lo, ci_hi); `delta` is the exact point estimate (the
+    plotted bar). CI bounds are NaN when a side has no usable data, so callers
+    skip the bar's error bar gracefully.
+    """
+    RSs, RCs, gs = _idi_cluster_tables(s, members, group_col)
+    RSp, RCp, gp = _idi_cluster_tables(p, members, group_col)
+    Ks, Kp = len(gs), len(gp)
+    delta = (_idi_family_value(RSp, RCp, np.ones(Kp))
+             - _idi_family_value(RSs, RCs, np.ones(Ks)))
+    if Ks == 0 or Kp == 0 or np.isnan(delta):
+        return delta, np.nan, np.nan
+    # Drawing K clusters with replacement and counting multiplicities is one
+    # multinomial(K, uniform) draw; vectorise over all N iterations at once.
+    ms = rng.multinomial(Ks, np.full(Ks, 1.0 / Ks), size=IDI_BOOTSTRAP_N).astype(float)
+    mp = rng.multinomial(Kp, np.full(Kp, 1.0 / Kp), size=IDI_BOOTSTRAP_N).astype(float)
+    den_s = ms @ RCs.T
+    den_p = mp @ RCp.T
+    with np.errstate(invalid="ignore", divide="ignore"):
+        cm_s = np.where(den_s > 0, (ms @ RSs.T) / den_s, np.nan)   # (N, M_s)
+        cm_p = np.where(den_p > 0, (mp @ RSp.T) / den_p, np.nan)
+    deltas = np.nanmean(cm_p, axis=1) - np.nanmean(cm_s, axis=1)
+    if not np.any(np.isfinite(deltas)):
+        return delta, np.nan, np.nan
+    ci_lo, ci_hi = np.nanpercentile(deltas, [2.5, 97.5])
+    return delta, float(ci_lo), float(ci_hi)
+
+
+def fig_idi_bars(means: pd.DataFrame, outdir: Path, ci_method: str | None = None) -> None:
     """Resource-level interference degradation: (pairwise mean) − (solo mean).
 
     Mirrors IADA Fig. 6 where each resource has bars per intensity level. Here
     the levels are the variants, and the resource families are the IntP groups
-    {cpu, memory, disk, cache, network}.
+    {cpu, memory, disk, cache, network}. Every cell gets BOTH bootstrap CIs
+    (see the IDI_CI_* config above) written to idi_resource.csv; the error bars
+    drawn on the figure use `ci_method` (default IDI_CI_METHOD = "rep").
     """
     if {"solo", "pairwise"} - set(means["stage"].unique()):
         print("[idi] need both solo and pairwise — skip")
@@ -1374,6 +1492,13 @@ def fig_idi_bars(means: pd.DataFrame, outdir: Path) -> None:
     variants = _ordered_variants(sub["variant"].unique())
     if not variants:
         return
+    method = ci_method or IDI_CI_METHOD
+    if method not in IDI_CI_METHODS:
+        print(f"[idi] unknown ci method {method!r} — using 'rep'")
+        method = "rep"
+    # One fixed-seed RNG stream per method → deterministic, independent CIs.
+    rngs = {m: np.random.default_rng(IDI_BOOTSTRAP_SEED + i)
+            for i, m in enumerate(IDI_CI_METHODS)}
     rows = []
     for variant in variants:
         s = sub[(sub.variant == variant) & (sub.stage == "solo")]
@@ -1385,28 +1510,58 @@ def fig_idi_bars(means: pd.DataFrame, outdir: Path) -> None:
             s_v = s[members].mean().mean()
             p_v = p[members].mean().mean()
             if pd.isna(s_v) or pd.isna(p_v): continue
-            rows.append(dict(variant=variant, resource=fam,
-                             solo=s_v, pair=p_v, delta=p_v - s_v))
+            rec = dict(variant=variant, resource=fam,
+                       solo=s_v, pair=p_v, delta=p_v - s_v)
+            # Both CI methods, each from its own stream. crosses_zero: the 95 %
+            # CI contains 0 → Δ not distinguishable from zero (NaN if undefined).
+            for m in IDI_CI_METHODS:
+                _, lo, hi = _idi_cluster_ci(s, p, members, rngs[m], _IDI_GROUP_COL[m])
+                cz = (np.nan if (pd.isna(lo) or pd.isna(hi))
+                      else bool(lo <= 0.0 <= hi))
+                rec[f"ci_{m}_lo"] = lo
+                rec[f"ci_{m}_hi"] = hi
+                rec[f"{m}_crosses_zero"] = cz
+            rows.append(rec)
     if not rows:
         return
     df = pd.DataFrame(rows)
     df.to_csv(outdir / "idi_resource.csv", index=False)
+    lo_col, hi_col = f"ci_{method}_lo", f"ci_{method}_hi"
     resources = list(RESOURCE_FAMILY.keys())
     fig, ax = plt.subplots(figsize=_clamp_figsize(7.2, 3.6))
     x = np.arange(len(resources))
     width = 0.8 / max(1, len(variants))
     for vi, variant in enumerate(variants):
         offsets = (vi - (len(variants) - 1) / 2) * width
-        vals = [df[(df.variant == variant) & (df.resource == r)]["delta"].mean()
-                for r in resources]
+        vals, lowers, uppers = [], [], []
+        for r in resources:
+            cell = df[(df.variant == variant) & (df.resource == r)]
+            if cell.empty:
+                vals.append(np.nan); lowers.append(0.0); uppers.append(0.0)
+                continue
+            d = cell["delta"].mean()
+            lo = cell[lo_col].mean(); hi = cell[hi_col].mean()
+            vals.append(d)
+            # Asymmetric bars from the selected method's CI; clip ≥0 to guard FP
+            # noise. NaN bound (family entirely NaN on a side) → no error bar.
+            if pd.isna(lo) or pd.isna(hi):
+                lowers.append(0.0); uppers.append(0.0)
+            else:
+                lowers.append(max(0.0, d - lo))
+                uppers.append(max(0.0, hi - d))
         ax.bar(x + offsets, vals, width=width,
                color=VARIANT_COLORS.get(variant, f"C{vi}"),
                edgecolor="white", linewidth=0.4, label=_variant_label(variant))
+        yerr = np.array([lowers, uppers])
+        if np.any(yerr > 0):
+            ax.errorbar(x + offsets, vals, yerr=yerr, fmt="none",
+                        ecolor=IDI_CI_COLOR, elinewidth=0.8, capsize=2,
+                        capthick=0.8, zorder=5)
     ax.set_xticks(x); ax.set_xticklabels(resources)
     ax.axhline(0, color="black", linewidth=0.5)
     ax.set_ylabel("Δ interference (pairwise − solo, %)")
-    ax.set_title(f"Interference discrimination index (IDI) by resource — env={env}",
-                 fontsize=10)
+    ax.set_title(f"Interference discrimination index (IDI) by resource — "
+                 f"env={env}, {IDI_CI_TITLE[method]} CI", fontsize=10)
     ax.legend(ncol=len(variants), fontsize=8.5, loc="upper center",
               bbox_to_anchor=(0.5, -0.12))
     fig.tight_layout()
@@ -1703,6 +1858,12 @@ def main() -> None:
     p.add_argument("--formats", type=str, default="png,pdf",
                    help="Comma-separated output formats (default: png,pdf). "
                         "Each format is written under <out>/<format>/.")
+    p.add_argument("--idi-ci", choices=["rep", "unit"], default="rep",
+                   help="fig11 error-bar method: 'rep' = rep-round bootstrap "
+                        "(rep-noise only; the paper figure), 'unit' = "
+                        "between-pair/workload bootstrap (structural variance; "
+                        "kept as a reproducible artifact). Both CIs are always "
+                        "written to idi_resource.csv regardless of this flag.")
     args = p.parse_args()
     if not args.results_dir.exists():
         sys.exit(f"results_dir does not exist: {args.results_dir}")
@@ -1748,7 +1909,7 @@ def main() -> None:
     fig_metric_availability(means, outdir)       # fig08
     fig_radar_fingerprint(means, outdir)         # fig09  new
     fig_workload_clustermap(means, outdir)       # fig10  new
-    fig_idi_bars(means, outdir)                  # fig11  IDI; cf. IADA Fig.6
+    fig_idi_bars(means, outdir, ci_method=args.idi_ci)  # fig11  IDI; cf. IADA Fig.6
     fig_pairwise_timeseries(args.results_dir, outdir)  # fig12 IntP Fig.8
     fig_iada_segmented(args.results_dir, outdir)       # fig13 IADA Fig.5
     fig_variant_resource_heatmap(means, outdir)        # fig14 new summary
