@@ -24,7 +24,7 @@
 #   fig08_metric_availability.png (extended)    metric coverage map
 #   fig09_radar_fingerprint.png  (IntP Fig. 4 alt) per-workload radar
 #   fig10_workload_clustermap.png (new)          hierarchical workload cluster
-#   fig11_idi_bars.png           (IADA Fig. 6)  Δ pairwise − solo per resource
+#   fig11_idi_bars.png           (IDI; cf. IADA Fig. 6)  Δ pairwise − solo per resource
 #   fig12_pairwise_timeseries.png (IntP Fig. 8) multi-metric trace per pair
 #   fig13_iada_segmented.png     (IADA Fig. 5)  Loess-smoothed segmented trace
 #   fig14_variant_resource_heatmap.png (new)    variants × resources summary
@@ -1405,7 +1405,7 @@ def fig_idi_bars(means: pd.DataFrame, outdir: Path) -> None:
     ax.set_xticks(x); ax.set_xticklabels(resources)
     ax.axhline(0, color="black", linewidth=0.5)
     ax.set_ylabel("Δ interference (pairwise − solo, %)")
-    ax.set_title(f"Interference degradation by resource — env={env}",
+    ax.set_title(f"Interference discrimination index (IDI) by resource — env={env}",
                  fontsize=10)
     ax.legend(ncol=len(variants), fontsize=8.5, loc="upper center",
               bbox_to_anchor=(0.5, -0.12))
@@ -1748,7 +1748,7 @@ def main() -> None:
     fig_metric_availability(means, outdir)       # fig08
     fig_radar_fingerprint(means, outdir)         # fig09  new
     fig_workload_clustermap(means, outdir)       # fig10  new
-    fig_idi_bars(means, outdir)                  # fig11  IADA Fig.6
+    fig_idi_bars(means, outdir)                  # fig11  IDI; cf. IADA Fig.6
     fig_pairwise_timeseries(args.results_dir, outdir)  # fig12 IntP Fig.8
     fig_iada_segmented(args.results_dir, outdir)       # fig13 IADA Fig.5
     fig_variant_resource_heatmap(means, outdir)        # fig14 new summary
