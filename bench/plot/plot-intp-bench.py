@@ -1395,7 +1395,7 @@ def fig_workload_clustermap(means: pd.DataFrame, outdir: Path) -> None:
 IDI_CI_METHOD = "rep"          # plotted CI: "rep" (paper) | "unit" (artifact)
 IDI_CI_METHODS = ("rep", "unit")    # both always computed into idi_resource.csv
 _IDI_GROUP_COL = {"rep": "rep", "unit": "workload"}   # cluster column per method
-IDI_CI_TITLE = {"rep": "rep-round", "unit": "between-pair"}  # short CI tag in title
+IDI_CI_TITLE = {"rep": "rep-level 95%", "unit": "unit-level 95%"}  # reader-facing CI tag in title
 IDI_BOOTSTRAP_N = 10000
 IDI_BOOTSTRAP_SEED = 20260607
 IDI_CI_COLOR = "#333333"
