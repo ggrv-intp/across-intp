@@ -530,14 +530,26 @@ def fig_per_variant_bars(means: pd.DataFrame, outdir: Path) -> None:
     if n == 0:
         return
     workloads = sorted(grouped["workload"].unique())
-    nrows, ncols = _grid_dims(n)
-    panel_h = 0.26 * len(workloads) + 1.4   # per-panel target height in inches
-    # Widen the per-panel slot enough that the right-column panels'
-    # y-tick labels (the longest are app08/09_classification and
-    # app15_query_merge — ~19 chars at 7-pt) sit fully in the inter-panel
-    # gutter without crossing into the adjacent panel's heatmap.
-    fig = plt.figure(figsize=_clamp_figsize(5.6 * ncols, panel_h * nrows))
-    axes_flat, _, _ = _make_axes_grid(fig, n, wspace=3.2, hspace=0.30)
+    spec = (paper_style.spec_for(PAPER_SUBSET, "fig01b_per_variant_bars")
+            if CAMERA_READY else None)
+    if spec is not None:
+        # Camera-ready: the paper subsets are 1 panel (baseline) or 2 (new), so
+        # a single row is the right shape and constrained_layout can pack the
+        # long y-labels against the panel that owns them instead of parking
+        # them in a wide gutter. Same rows, columns, order and colour scale as
+        # the exploratory layout below — only the geometry differs.
+        fig, axes = plt.subplots(1, n, figsize=(spec.width, spec.height),
+                                 layout="constrained", squeeze=False)
+        axes_flat = list(axes[0])
+    else:
+        nrows, ncols = _grid_dims(n)
+        panel_h = 0.26 * len(workloads) + 1.4   # per-panel target height (in)
+        # Widen the per-panel slot enough that the right-column panels'
+        # y-tick labels (the longest are app08/09_classification and
+        # app15_query_merge — ~19 chars at 7-pt) sit fully in the inter-panel
+        # gutter without crossing into the adjacent panel's heatmap.
+        fig = plt.figure(figsize=_clamp_figsize(5.6 * ncols, panel_h * nrows))
+        axes_flat, _, _ = _make_axes_grid(fig, n, wspace=3.2, hspace=0.30)
     im = None
     for idx, (env, variant) in enumerate(pairs):
         ax = axes_flat[idx]
@@ -558,22 +570,36 @@ def fig_per_variant_bars(means: pd.DataFrame, outdir: Path) -> None:
                     continue
                 txt_color = "black" if val < 55 else "white"
                 ax.text(j, i, f"{val:.0f}", ha="center", va="center",
-                        color=txt_color, fontsize=5.8)
+                        color=txt_color,
+                        fontsize=_cr(paper_style.ANNOT, 5.8))
         # Thin row separators help the eye tell adjacent workloads apart
         # (especially the app01/02/03_ml_llc-style sibling triplets).
         for i in range(1, len(workloads)):
             ax.axhline(i - 0.5, color="white", linewidth=0.45, alpha=0.55)
         ax.set_xticks(range(len(METRICS)))
         ax.set_xticklabels([METRIC_LABEL[m] for m in METRICS],
-                           rotation=45, ha="right", fontsize=7)
+                           rotation=_cr(40, 45), ha="right",
+                           fontsize=_cr(paper_style.BODY, 7),
+                           rotation_mode="anchor")
         ax.set_yticks(range(len(workloads)))
-        ax.set_yticklabels(workloads, fontsize=7)
-        ax.set_title(f"{env} / {_variant_label(variant)}", fontsize=9.5)
+        ax.set_yticklabels(workloads, fontsize=_cr(paper_style.BODY, 7))
+        ax.set_title(f"{env} / {_variant_label(variant)}",
+                     fontsize=_cr(paper_style.TITLE, 9.5))
         ax.grid(False)
     if im is not None:
-        fig.colorbar(im, ax=axes_flat, shrink=0.6, label="interference (%)")
-    _centered_suptitle(fig, axes_flat,
-                       "Per (env, variant) workload fingerprint")
+        # One colorbar shared by every panel (not one per panel): it is
+        # attached to the whole axes list, so it steals a single strip of
+        # width from the row rather than repeating the scale n times.
+        cbar = fig.colorbar(im, ax=axes_flat,
+                            shrink=_cr(1.0, 0.6),
+                            pad=_cr(0.015, 0.05),
+                            fraction=_cr(0.04, 0.15),
+                            label="interference (%)")
+        if CAMERA_READY:
+            cbar.ax.tick_params(labelsize=paper_style.BODY)
+            cbar.set_label("interference (%)", size=paper_style.BODY)
+            cbar.outline.set_linewidth(0.5)
+    _suptitle(fig, axes_flat, "Per (env, variant) workload fingerprint")
     _save(fig, outdir / "fig01b_per_variant_bars.png", "fig01b")
 
 
