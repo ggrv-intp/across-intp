@@ -3,42 +3,19 @@
 paper_style.py -- Shared camera-ready typography and sizing for the SBAC-PAD
 2026 paper figures.
 
-Reviewer 3 asked for the multi-panel figures to be resized so their labels stay
-legible at printed size. The pre-camera-ready pipeline rendered every figure
-large (7-15 in wide) and let ``\\includegraphics`` scale it down to the column
-or text width, which multiplied every font size by the same factor: an 8 pt
-tick label inside a 12 in figure placed at 3.45 in prints at 2.3 pt.
+Each figure is rendered at its *exact printed size*: LaTeX includes the PDF
+at scale 1.0, so a font size set here is a true printed point size. The
+7 pt body / 6.5 pt annotation sizes are floors, not suggestions. Width
+targets use IEEEtran conference geometry (``\\columnwidth`` = 3.45 in,
+``\\textwidth`` = 7.16 in).
 
-The fix implemented here is to render each figure at its *exact printed size*,
-so a font size set in the script is a true printed point size and LaTeX
-includes the PDF at scale 1.0. Two things follow from that:
+``FLOATS`` records which PDFs compose which paper float and what each costs
+in points of column-space, against its pre-consolidation cost -- the QA gate
+(``qa_fig_fonts.py``) reports against it.
 
-* the point sizes below (7 pt body, 6.5 pt annotations) are what the reader
-  actually sees, so they are floors, not suggestions; and
-* the figure has far less canvas to spend, so the in-figure suptitles that
-  duplicate the LaTeX captions are dropped (see ``SUPPRESSED_SUPTITLES`` in the
-  plot scripts) and panel spacing is tightened.
-
-IEEEtran conference geometry, used for the width targets:
-    \\columnwidth = 3.45 in     \\textwidth = 7.16 in
-
-Addendum B then made the same argument about *floats*. The paper was over the
-SBAC-PAD 10-page limit and its nine figures cost about a quarter of it, and by
-that point neither font size nor margins were still available -- Addendum A
-had spent them, and going below the 7 pt floor would undo the promise made to
-Reviewer 3. What was left was the count: of panels, and of floats. So panels
-were merged (the legacy and modern fingerprints into one figure), transposed
-(the seven-panel HiBench grid into one heatmap that fits a column), and
-relocated (a nine-value Pearson matrix into a TSV the author can set as a
-table). ``FLOATS`` below records what each float now costs, in points of
-column-space, against what it cost before.
-
-Only size, layout and typography are affected. No figure's numeric content,
-ordering, colour-to-variant mapping or colour scale is touched by this module
--- it deliberately exposes no data-shaping knobs. Addendum B does change which
-panels share a float and which axis furniture is drawn once instead of per
-panel, but never a number, and the QA gate's content diff is the audit for
-that.
+This module deliberately exposes no data-shaping knobs: only size, layout
+and typography. Rationale and history of the camera-ready passes are in
+``bench/plot/README.md``.
 """
 
 from __future__ import annotations

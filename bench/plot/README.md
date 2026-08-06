@@ -215,6 +215,19 @@ The three plotters take `--camera-ready --paper-subset {baseline,new,merged}`
 individually; the driver just sequences them. **Without those flags nothing
 changes**, so the exploratory figure sets are unaffected.
 
+Why printed size: the pre-camera-ready pipeline rendered every figure large
+(7–15 in wide) and let `\includegraphics` scale it down to the column or text
+width, which multiplied every font size by the same factor — an 8 pt tick
+inside a 12 in figure placed at 3.45 in prints at ~2.3 pt. Reviewer 3 asked
+for legible labels at printed size; rendering at scale 1.0 makes the 7 pt
+body / 6.5 pt annotation sizes true printed floors. That left the paper over
+the SBAC-PAD page limit with fonts and margins already spent, so the second
+pass reduced the *count* of panels and floats instead: panels were merged
+(legacy + modern fingerprints into one figure), transposed (the seven-panel
+HiBench grid into one column-width heatmap) or relocated (the Pearson matrix
+into a TSV set as a table). Only size, layout and typography changed — the
+QA gate's content diff is the audit that no number moved.
+
 Nine of the eleven PDFs are placed in the paper; two —
 `baseline-fig01b_per_variant_bars.pdf` and `merged-fig05_fidelity_matrix.pdf`
 — are rendered as *alternatives* to floats that were consolidated away, so
