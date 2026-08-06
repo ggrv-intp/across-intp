@@ -40,6 +40,9 @@ from sklearn.decomposition import PCA
 from sklearn.cluster import KMeans
 from scipy.cluster.hierarchy import linkage, dendrogram, set_link_color_palette
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import paper_style  # noqa: E402  (shared camera-ready typography)
+
 METRICS = ["netp", "nets", "blk", "mbw", "llcmr", "llcocc", "cpu"]
 VARIANT_ORDER = ["v0.2", "v1.1", "v2", "v3.2"]
 VARIANT_MARKERS = {"v0.2": "P", "v1.1": "o", "v2": "s", "v3.2": "*"}
@@ -96,9 +99,23 @@ def per_workload_variant_means(df):
     return df.groupby(["workload", "variant"])[METRICS].mean().fillna(0)
 
 
-def main(csv_path, outdir, variants=None):
+def main(csv_path, outdir, variants=None, camera_ready=False,
+         paper_subset="merged"):
     outdir = Path(outdir)
     outdir.mkdir(parents=True, exist_ok=True)
+
+    # Camera-ready: render at the exact printed width so LaTeX includes the
+    # PDF at scale 1.0. The dendrogram leaf labels are the reason this figure
+    # was flagged — at the old 9.5 in render scaled to 5.87 in they printed at
+    # ~4.3 pt. Same data, same clusters, same colours and markers.
+    spec = (paper_style.spec_for(paper_subset, "fig02_pca_dendro")
+            if camera_ready else None)
+    if spec is not None:
+        paper_style.apply()
+
+    def _cr(camera_value, default):
+        """Pick the camera-ready value when rendering for the paper."""
+        return camera_value if spec is not None else default
 
     # Optional subset (e.g. "v0.2" or "v2,v3.2") for the per-paper published/
     # figures; default plots the full VARIANT_ORDER set present in the data.
@@ -158,8 +175,12 @@ def main(csv_path, outdir, variants=None):
         for c in range(k)
     ])
 
-    fig = plt.figure(figsize=(10.0, 4.0))
-    gs = gridspec.GridSpec(1, 2, width_ratios=[1.55, 1.0], wspace=0.15)
+    if spec is not None:
+        fig = plt.figure(figsize=(spec.width, spec.height), layout="constrained")
+        gs = gridspec.GridSpec(1, 2, width_ratios=[1.55, 1.0], figure=fig)
+    else:
+        fig = plt.figure(figsize=(10.0, 4.0))
+        gs = gridspec.GridSpec(1, 2, width_ratios=[1.55, 1.0], wspace=0.15)
 
     # --- Panel A: PCA scatter ---
     ax_pca = fig.add_subplot(gs[0, 0])
@@ -173,8 +194,8 @@ def main(csv_path, outdir, variants=None):
                 p["PC1"], p["PC2"],
                 marker=VARIANT_MARKERS.get(variant, "o"),
                 facecolor=cluster_color[cluster_of[wl]],
-                edgecolor="black", linewidth=0.45,
-                s=55, alpha=0.95, zorder=3,
+                edgecolor="black", linewidth=_cr(0.35, 0.45),
+                s=_cr(20, 55), alpha=0.95, zorder=3,
             )
         # thin polygon connecting variants of the same workload
         pts = []
@@ -189,16 +210,17 @@ def main(csv_path, outdir, variants=None):
             ax_pca.plot(
                 list(xs) + [xs[0]], list(ys) + [ys[0]],
                 color=cluster_color[cluster_of[wl]],
-                linewidth=0.45, alpha=0.35, zorder=1,
+                linewidth=_cr(0.35, 0.45), alpha=0.35, zorder=1,
             )
 
     ax_pca.axhline(0, color="#cccccc", linewidth=0.5, zorder=0)
     ax_pca.axvline(0, color="#cccccc", linewidth=0.5, zorder=0)
-    ax_pca.set_xlabel(f"PC1 ({pc1_var:.1f}%)", fontsize=9)
-    ax_pca.set_ylabel(f"PC2 ({pc2_var:.1f}%)", fontsize=9)
-    ax_pca.set_title("(A) PCA + K-means (K=4)", fontsize=10)
+    ax_pca.set_xlabel(f"PC1 ({pc1_var:.1f}%)", fontsize=_cr(paper_style.BODY, 9))
+    ax_pca.set_ylabel(f"PC2 ({pc2_var:.1f}%)", fontsize=_cr(paper_style.BODY, 9))
+    ax_pca.set_title("(A) PCA + K-means (K=4)",
+                     fontsize=_cr(paper_style.TITLE, 10))
     ax_pca.grid(True, linestyle=":", alpha=0.4)
-    ax_pca.tick_params(labelsize=8)
+    ax_pca.tick_params(labelsize=_cr(paper_style.BODY, 8))
 
     # Add top headroom so the in-panel legends sit in an empty band above the
     # scatter. The descriptive variant names (legacy-intp-baseline, eBPF-CORE, ...) are
@@ -212,7 +234,7 @@ def main(csv_path, outdir, variants=None):
     var_handles = [
         Line2D([0], [0], marker=VARIANT_MARKERS[v], color="w",
                markerfacecolor="lightgray", markeredgecolor="black",
-               markersize=7, label=variant_label(v))
+               markersize=_cr(4.5, 7), label=variant_label(v))
         for v in vorder
     ]
     cluster_handles = [
@@ -223,14 +245,20 @@ def main(csv_path, outdir, variants=None):
     # Variant markers stay in the top-left corner (their original spot, clear
     # of data); only the cluster colour key moves to the top-right corner, so
     # neither legend covers the scatter.
+    _leg_kw = dict(
+        fontsize=_cr(paper_style.LEGEND, 7),
+        title_fontsize=_cr(paper_style.LEGEND, 7.5),
+        frameon=True,
+        handlelength=_cr(1.0, 2.0), handletextpad=_cr(0.35, 0.8),
+        labelspacing=_cr(0.25, 0.5), borderpad=_cr(0.25, 0.4),
+    )
     leg_var = ax_pca.legend(
-        handles=var_handles, loc="upper left", fontsize=7,
-        title="variant", title_fontsize=7.5, frameon=True,
+        handles=var_handles, loc="upper left", title="variant", **_leg_kw,
     )
     ax_pca.add_artist(leg_var)
     ax_pca.legend(
-        handles=cluster_handles, loc="upper right", fontsize=7,
-        title="cluster (dominant resource)", title_fontsize=7.5, frameon=True,
+        handles=cluster_handles, loc="upper right",
+        title="cluster (dominant resource)", **_leg_kw,
     )
 
     # --- Panel B: Ward dendrogram ---
@@ -246,11 +274,14 @@ def main(csv_path, outdir, variants=None):
         ax=ax_dn,
         color_threshold=0,
         above_threshold_color="#666666",
-        leaf_font_size=7,
+        # 7 pt is a true printed 7 pt now that the figure is rendered at its
+        # final width; previously it was scaled down to ~4.3 pt.
+        leaf_font_size=_cr(paper_style.BODY, 7),
     )
-    ax_dn.set_title("(B) Ward-linkage dendrogram", fontsize=10)
-    ax_dn.set_xlabel("distance", fontsize=8)
-    ax_dn.tick_params(axis="x", labelsize=7)
+    ax_dn.set_title("(B) Ward-linkage dendrogram",
+                    fontsize=_cr(paper_style.TITLE, 10))
+    ax_dn.set_xlabel("distance", fontsize=_cr(paper_style.BODY, 8))
+    ax_dn.tick_params(axis="x", labelsize=_cr(paper_style.BODY, 7))
     # Move the leaf labels to the outer (right) side, away from Panel A, and
     # drop the tick marks so only the colored names remain.
     ax_dn.yaxis.tick_right()
@@ -266,10 +297,11 @@ def main(csv_path, outdir, variants=None):
         if wl in cluster_of:
             tick.set_color(cluster_color[cluster_of[wl]])
 
-    fig.suptitle(
-        "PCA + K-means + Ward dendrogram (env=bare, joint fit over per-(workload, variant) rows)",
-        fontsize=10, y=1.005,
-    )
+    if spec is None:
+        fig.suptitle(
+            "PCA + K-means + Ward dendrogram (env=bare, joint fit over per-(workload, variant) rows)",
+            fontsize=10, y=1.005,
+        )
 
     # Mirror plot-intp-bench.py's layout: <outdir>/pdf/ and <outdir>/png/,
     # so this figure lands beside fig02_pca_kmeans in the same plots/ tree.
@@ -280,10 +312,16 @@ def main(csv_path, outdir, variants=None):
     png_dir.mkdir(parents=True, exist_ok=True)
     pdf_path = pdf_dir / f"{stem}.pdf"
     png_path = png_dir / f"{stem}.png"
-    fig.savefig(pdf_path, bbox_inches="tight")
-    fig.savefig(png_path, bbox_inches="tight", dpi=220)
-    print(f"wrote {pdf_path}")
-    print(f"wrote {png_path}")
+    if spec is not None:
+        w, h = paper_style.save(fig, pdf_path, spec)
+        paper_style.save(fig, png_path, spec)
+        print(f"wrote {pdf_path}  [{w:.2f}x{h:.2f}in target {spec.width:.2f}in]")
+        print(f"wrote {png_path}")
+    else:
+        fig.savefig(pdf_path, bbox_inches="tight")
+        fig.savefig(png_path, bbox_inches="tight", dpi=220)
+        print(f"wrote {pdf_path}")
+        print(f"wrote {png_path}")
     print(f"PC1={pc1_var:.2f}%  PC2={pc2_var:.2f}%  K-means(k={k})")
     for c in sorted(cluster_members.keys()):
         if cluster_members[c]:
@@ -296,11 +334,18 @@ if __name__ == "__main__":
     # "v2,v3.2") used to render the per-paper published/ figures.
     args = [a for a in sys.argv[1:] if not a.startswith("-")]
     variants = None
+    camera_ready = False
+    paper_subset = "merged"
     for a in sys.argv[1:]:
         if a.startswith("--variants="):
             variants = a.split("=", 1)[1]
+        elif a == "--camera-ready":
+            camera_ready = True
+        elif a.startswith("--paper-subset="):
+            paper_subset = a.split("=", 1)[1]
     csv_path = Path(args[0]) if len(args) > 0 else Path("aggregate-means.csv")
     outdir = Path(args[1]) if len(args) > 1 else Path("out")
     if variants is None and len(args) > 2:
         variants = args[2]
-    main(csv_path, outdir, variants)
+    main(csv_path, outdir, variants, camera_ready=camera_ready,
+         paper_subset=paper_subset)
