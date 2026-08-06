@@ -107,21 +107,32 @@ names is `VERSIONS.md`. The four measured versions are v0.2
 ## Published artifact
 
 The public data pointer cited by the paper is release **v0.1.0** (tag at
-commit `9795c5b`), asset `across-intp-sbac-results-v0.1.0.tar.gz`:
+commit `9795c5b`). It carries three assets:
+
+**`across-intp-sbac-results-v0.1.0.tar.gz`** — the anonymized artifact:
 
 - `sbac_results-publish/` — the anonymized fusion tree (layout in
   `sbac-results/README.md`), plus `MANIFEST-full.txt`, `index-full.tsv`
   and `metadata-full.txt` as the file-level audit trail.
 - `published/{baseline,new,merged}/` — the reduced-variant figure sets
-  used by the paper.
+  used by the paper (refreshed 2026-08-06 with the camera-ready render).
 - `extra/intp-aux-rerun-{v3,v3.2}-*/` — self-contained auxiliary reruns
   (2026-05-24, distinct from the earlier 2026-05-17/18 pre-rename pair):
   each dir carries its own raw `noise_floor/` and `ringbuf_pidstat/`
   traces, `env.txt`, `run.log` and the `plots/` cited by Fig. 6.
 
+**`consolidation-raw.tar.gz`** (added 2026-08-06) — the pre-anonymization
+raw sources behind the artifact: the five measurement sessions, the
+published auxiliary reruns, and the fusion trees (`ub24-concat`,
+`ub22-and-24-full`) with their PROVENANCE records, a README and a file
+MANIFEST. Published deliberately after the testbed nodes were
+decommissioned; for v0.2 stall counts the published fragility tables
+remain canonical.
+
+**`SHA256SUMS`** — integrity reference covering both tarballs.
+
 Release assets are updated in place when figures are regenerated; the tag
-does not move. `SHA256SUMS` published with the release is the integrity
-reference for the current assets.
+does not move.
 
 ## Figure regeneration (camera-ready)
 

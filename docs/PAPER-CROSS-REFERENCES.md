@@ -1,5 +1,10 @@
 # Paper Cross-References
 
+> **Historical (writing-phase) document.** The paper was accepted at
+> SBAC-PAD 2026; the placeholders below refer to the draft, not the
+> camera-ready. Kept as the index of which repository content grounds
+> which claim.
+
 This document maps each `[TODO: ...]` placeholder in the paper draft to the
 repository content that grounds it. Use it during writing as a "where do I
 get the material to fill this in" index.

@@ -179,9 +179,16 @@ with generic placeholders (hostnames → `anon-host`, internal IPs → `10.0.0.x
 build paths → `/path/to/across-intp`). See `ANONYMIZATION.md` in the payload for
 the full redaction record.
 
-The legacy-intp-baseline `stall-monitor/` raw kernel/journal dumps are **omitted for privacy**
-(they captured system journald output, including third-party SSH-spam). The legacy-intp-baseline
-stall evidence is retained as counts in the shipped `fragility-summary.tsv` /
+The legacy-intp-baseline `stall-monitor/` raw kernel/journal dumps are **omitted from
+this payload** (they captured system journald output, including host auth logs).
+The stall evidence is retained as counts in the shipped `fragility-summary.tsv` /
 `fragility-aggregated.tsv` — do **not** regenerate these with
 `extract-fragility.py` against this tree, since the raw dumps needed to recount
-stalls are intentionally absent.
+stalls are absent here.
+
+Since 2026-08-06 the release also ships **`consolidation-raw.tar.gz`**: the
+pre-anonymization source campaigns, the Fig. 6 auxiliary reruns and the fusion
+trees, including the `stall-monitor/` dumps with their auth-log content
+redacted (see `ANONYMIZATION.md` in the payload for the exact policy). The
+fragility tables in this payload remain the canonical stall counts. The full
+provenance chain is documented in `PROVENANCE.md` next to this file.

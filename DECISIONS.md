@@ -122,3 +122,33 @@ Anonymization) is left intact and cross-referenced rather than duplicated, plus
 a note that `hibench-sample-loss.py` is safe to re-run on the published tree
 (writes only `fragility-hibench-*.tsv`) whereas `extract-fragility.py` would
 rewrite the stall-bearing tables.
+
+## D10 — camera-ready release refresh: two assets, redacted raws, recreated tag
+
+The camera-ready figure pipeline merged as `862dc6d` (no-ff, PR #1). The
+release plan changed twice from the original "tag never moves, assets
+clobbered in place" stance, both by author decision:
+
+1. **The raw sources are now public.** `consolidation-raw.tar.gz` joins the
+   anonymized artifact as a second release asset: the five source campaign
+   sessions (two hosts), the Fig. 6 auxiliary reruns, and the fusion trees
+   (`ub24-concat`, `ub22-and-24-full`) with their PROVENANCE records. The
+   original privacy rationale had weakened — the rented testbed nodes are
+   decommissioned and the hostname/IP mapping was already public in
+   `ANONYMIZATION.md`.
+2. **The tag is recreated, not preserved.** `v0.1.0` is deleted and re-cut
+   at the final post-merge commit so the release's source snapshot matches
+   the code that produced the camera-ready figures. Acceptable because the
+   camera-ready (due 2026-09-05) is not yet submitted; the risk that a
+   submission-phase evaluator pinned the old `9795c5b` hash is accepted.
+
+One redaction was applied to the raws before publication, after an audit
+found host auth-log content in `stall-monitor/`: the `journal tail` section
+of every heartbeat (5,292 files) and the auth units (sshd, CRON, PAM,
+systemd-logind) of every `stall-dump-*/journal.txt` (262 files, 1,454
+lines) exposed login source IPs and an SSH key fingerprint. Kernel,
+SystemTap and stress-ng journal lines — the stall evidence — are untouched;
+each touched file carries a marker. A full-tree scan for auth patterns,
+key material and platform tokens is clean. The published fragility tables
+remain the canonical v0.2 stall counts; `ANONYMIZATION.md` in the payload
+was rewritten to record both assets' policies.

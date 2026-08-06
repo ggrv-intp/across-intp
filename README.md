@@ -54,9 +54,11 @@ the original SystemTap approach across kernel versions and hardware architecture
 
 ### Citation
 
-If you use this software in your research, please cite it using the metadata in
-[CITATION.cff](CITATION.cff). A full thesis citation will be added upon defense
-(expected until March 2027).
+This repository is the companion artifact of a paper accepted at
+**SBAC-PAD 2026**; release `v0.1.0` carries the measurement data behind its
+figures and tables. If you use this software in your research, please cite it
+using the metadata in [CITATION.cff](CITATION.cff). A full thesis citation
+will be added upon defense (expected until March 2027).
 
 ## Variant Comparison
 

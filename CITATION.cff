@@ -26,7 +26,32 @@ keywords:
   - performance monitoring
   - cloud computing
 version: "0.1.0"
-date-released: "2026-05-24"
+date-released: "2026-08-06"
+preferred-citation:
+  type: conference-paper
+  title: "Cross-Application Interference Profiling in Consolidated Cloud Servers: Improving Portability, Overhead and Fidelity in IntP"
+  authors:
+    - family-names: "Sacilotto"
+      given-names: "André"
+      affiliation: "School of Technology, Pontifícia Universidade Católica do Rio Grande do Sul (PUCRS)"
+      orcid: "https://orcid.org/0000-0002-1639-3238"
+    - family-names: "Xavier"
+      given-names: "Miguel G."
+      affiliation: "School of Technology, Pontifícia Universidade Católica do Rio Grande do Sul (PUCRS)"
+    - family-names: "Becker"
+      given-names: "Sören"
+      affiliation: "Technische Universität Berlin"
+    - family-names: "De Rose"
+      given-names: "Cesar A. F."
+      affiliation: "School of Technology, Pontifícia Universidade Católica do Rio Grande do Sul (PUCRS)"
+    - family-names: "Kao"
+      given-names: "Odej"
+      affiliation: "Technische Universität Berlin"
+  conference:
+    name: "38th IEEE International Symposium on Computer Architecture and High Performance Computing (SBAC-PAD)"
+  year: 2026
+  status: "in-press"
+  notes: "Accepted; camera-ready due 2026-09-05. DOI and pages to be added upon publication."
 references:
   - type: conference-paper
     title: "IntP: Quantifying Cross-Application Interference via System-Level Instrumentation"
