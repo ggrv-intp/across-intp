@@ -164,6 +164,14 @@ RESOURCE_COLORS = {
 # Style helpers
 # ---------------------------------------------------------------------------
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import paper_style  # noqa: E402  (shared camera-ready typography)
+
+# Camera-ready mode (--camera-ready); see plot-intp-bench.py for the rationale.
+# Off by default so the exploratory HiBench figure set is unaffected.
+CAMERA_READY = False
+PAPER_SUBSET: str | None = None
+
 # Raised together so the inch-clamp keeps the same figure proportions while
 # every raster gets ~1.4x more pixels (matches plot-intp-bench.py).
 MAX_PIXELS = 3600
@@ -226,15 +234,22 @@ def _save(fig, path: Path, label: str) -> None:
     so paper-bound PDFs and README-friendly PNGs coexist."""
     base_dir = path.parent
     stem = path.stem
+    spec = paper_style.spec_for(PAPER_SUBSET, stem) if CAMERA_READY else None
     written = []
     for fmt in FORMATS:
         sub = base_dir / fmt
         sub.mkdir(parents=True, exist_ok=True)
         out = sub / f"{stem}.{fmt}"
-        fig.savefig(out, bbox_inches="tight")
+        if spec is not None:
+            w, h = paper_style.save(fig, out, spec)
+        else:
+            fig.savefig(out, bbox_inches="tight")
         written.append(f"{fmt}/{out.name}")
     plt.close(fig)
-    print(f"[{label}] " + "  ".join(written))
+    suffix = ""
+    if spec is not None:
+        suffix = f"  [{w:.2f}x{h:.2f}in target {spec.width:.2f}in]"
+    print(f"[{label}] " + "  ".join(written) + suffix)
 
 
 def _ordered_variants(values) -> list[str]:
@@ -1083,12 +1098,27 @@ def fig_variant_resource_heatmap(df: pd.DataFrame, outdir: Path) -> None:
     n_v = rdf["variant"].nunique()
     resources = list(RESOURCE_FAMILY.keys())
 
+    spec = (paper_style.spec_for(PAPER_SUBSET,
+                                 "fig10_variant_resource_heatmap")
+            if CAMERA_READY else None)
+    if spec is not None:
+        # Addendum B.2 item 2: one heatmap instead of a panel grid.
+        #
+        # The grid encoded (profile) x (variant x family) as 7 panels, which
+        # repeated the same 5 x-tick labels seven times, the same 3 y-tick
+        # labels seven times, and 7 panel titles — axis furniture costing more
+        # space than the 105 numbers it framed, and it needed the full text
+        # width to hold it. Transposed into a single (variant x profile) x
+        # family matrix the same numbers fit one column, which is where the
+        # ~290 pt comes from: the float stops spanning the page.
+        _render_variant_resource_single(rdf, profiles, resources, spec, outdir)
+        return
     # Stacked-rows layout: at n=7 profiles _grid_dims returns 3×3 and
     # centres the partial last row. Earlier 1×7 layout cramped the
     # x-axis labels (cache, cpu, disk, memory, network) into overlap.
     nrows, ncols = _grid_dims(n_p)
-    panel_w = 2.4 + 0.6 * len(resources)            # wide enough for x labels
-    panel_h = 0.55 * n_v + 1.4                      # room for variant rows + title
+    panel_w = 2.4 + 0.6 * len(resources)        # wide enough for x labels
+    panel_h = 0.55 * n_v + 1.4                  # variant rows + title
     fig = plt.figure(figsize=_clamp_figsize(panel_w * ncols, panel_h * nrows))
     axes_flat, _, _ = _make_axes_grid(fig, n_p, wspace=1.1, hspace=0.45)
 
@@ -1106,7 +1136,8 @@ def fig_variant_resource_heatmap(df: pd.DataFrame, outdir: Path) -> None:
         ax.set_xticks(range(len(resources)))
         ax.set_xticklabels(resources, fontsize=8.5)
         ax.set_yticks(range(len(pivot.index)))
-        ax.set_yticklabels([variant_label(v) for v in pivot.index], fontsize=8.5)
+        ax.set_yticklabels([variant_label(v) for v in pivot.index],
+                           fontsize=8.5)
         ax.set_title(f"profile={profile}", fontsize=10)
         for (yi, xi), v in np.ndenumerate(pivot.values):
             if not np.isnan(v):
@@ -1117,9 +1148,76 @@ def fig_variant_resource_heatmap(df: pd.DataFrame, outdir: Path) -> None:
     if im is not None:
         fig.colorbar(im, ax=axes_flat, fraction=0.035, shrink=0.7,
                      label="mean interference (%)")
-    _centered_suptitle(fig, axes_flat,
-                       "HiBench variant × resource family — mean interference",
-                       fontsize=12)
+    _centered_suptitle(
+        fig, axes_flat,
+        "HiBench variant × resource family — mean interference",
+        fontsize=12)
+    _save(fig, outdir / "fig10_variant_resource_heatmap.png", "fig10")
+
+
+def _render_variant_resource_single(rdf, profiles, resources, spec,
+                                    outdir: Path) -> None:
+    """Paper Fig. 5: one heatmap, rows = (variant × profile), cols = family.
+
+    Reading order is variant-major so the paper's claim — that the three
+    endpoints disagree about *which* family lights up, consistently across
+    every co-runner profile — is a comparison between the three row blocks
+    rather than between seven panels. The blocks are separated by a rule and
+    named once, in the gutter, so the profile names are the only per-row text.
+    """
+    variants = _ordered_variants(rdf["variant"].unique())
+    # Row order: variant-major, profiles in canonical order inside each block.
+    order = [(v, p) for v in variants for p in profiles]
+    data = np.full((len(order), len(resources)), np.nan)
+    lookup = {(r.variant, r.profile, r.resource): r.mean
+              for r in rdf.itertuples()}
+    for i, (v, p) in enumerate(order):
+        for j, res in enumerate(resources):
+            val = lookup.get((v, p, res))
+            if val is not None:
+                data[i, j] = val
+
+    # A narrow frameless axes on the left holds the rotated block labels, so
+    # their room is reserved by the layout engine instead of guessed against
+    # the width of the profile tick labels.
+    fig, (lax, ax) = plt.subplots(
+        1, 2, figsize=(spec.width, spec.height),
+        width_ratios=[0.045, 1.0], layout="constrained")
+    lax.set_axis_off()
+
+    cmap = plt.get_cmap("Blues").copy()
+    cmap.set_bad(color="#cccccc")
+    im = ax.imshow(np.ma.masked_invalid(data), cmap=cmap, vmin=0, vmax=100,
+                   aspect="auto", interpolation="nearest")
+    ax.set_xticks(range(len(resources)))
+    # At column width the five families sit on a ~0.50 in pitch and "memory"
+    # and "network" butt together horizontally; 30° separates them for ~0.1 in
+    # of height, which is cheaper than any of the alternatives.
+    ax.set_xticklabels(resources, fontsize=paper_style.BODY,
+                       rotation=30, ha="right", rotation_mode="anchor")
+    ax.set_yticks(range(len(order)))
+    ax.set_yticklabels([p for _v, p in order], fontsize=paper_style.BODY)
+    ax.tick_params(length=0)
+    for (yi, xi), v in np.ndenumerate(data):
+        if not np.isnan(v):
+            ax.text(xi, yi, f"{v:.0f}", ha="center", va="center",
+                    fontsize=paper_style.ANNOT, fontweight="bold",
+                    color="white" if v > 50 else "black")
+    # Block rules on the variant boundaries, and the block name in the gutter.
+    n_p = len(profiles)
+    for b in range(1, len(variants)):
+        ax.axhline(b * n_p - 0.5, color="black", linewidth=0.8)
+    for b, v in enumerate(variants):
+        centre = 1.0 - (b * n_p + n_p / 2.0) / len(order)
+        lax.text(0.5, centre, variant_label(v), rotation=90,
+                 ha="center", va="center", fontsize=paper_style.BODY,
+                 transform=lax.transAxes)
+    ax.grid(False)
+    cbar = fig.colorbar(im, ax=ax, fraction=0.055, pad=0.02,
+                        label="mean interference (%)")
+    cbar.ax.tick_params(labelsize=paper_style.BODY)
+    cbar.set_label("mean interference (%)", size=paper_style.BODY)
+    cbar.outline.set_linewidth(0.5)
     _save(fig, outdir / "fig10_variant_resource_heatmap.png", "fig10")
 
 
@@ -1327,7 +1425,19 @@ def main() -> None:
                    help="Comma-separated subset of variants to plot (e.g. "
                         "'v0.2' or 'v2,v3.2'). Default: all present. Used to "
                         "render the per-paper published/ figures.")
+    p.add_argument("--camera-ready", action="store_true",
+                   help="Render the paper figure (fig10) at exact printed "
+                        "size with the shared camera-ready typography "
+                        "(bench/plot/paper_style.py). Requires "
+                        "--paper-subset.")
+    p.add_argument("--paper-subset", choices=["baseline", "new", "merged"],
+                   default=None,
+                   help="Which variant subset this render is for; selects the "
+                        "printed size.")
     args = p.parse_args()
+    if args.camera_ready and not args.paper_subset:
+        sys.exit("--camera-ready requires --paper-subset "
+                 "{baseline,new,merged}")
 
     hdir = args.hibench_dir
     if (hdir / "hibench").is_dir():
@@ -1341,6 +1451,13 @@ def main() -> None:
     FORMATS = [f.strip() for f in args.formats.split(",") if f.strip()] or ["png"]
 
     setup_style()
+    global CAMERA_READY, PAPER_SUBSET
+    CAMERA_READY = args.camera_ready
+    PAPER_SUBSET = args.paper_subset
+    if CAMERA_READY:
+        paper_style.apply()   # after setup_style() so these win
+        print(f"Camera-ready mode: subset={PAPER_SUBSET}, "
+              f"{paper_style.BODY} pt body / {paper_style.ANNOT} pt annotations")
 
     print(f"Loading hibench results from {hdir}")
     df, run_dirs = load_hibench_dir(hdir)
@@ -1356,6 +1473,12 @@ def main() -> None:
     print(f"  profiles : {sorted(df['profile'].unique())}")
     print(f"  workloads: {sorted(df['workload'].unique())}")
     df.to_csv(outdir / "combined-means.csv", index=False)
+
+    if CAMERA_READY:
+        # Only the figure the camera-ready paper takes from this script.
+        fig_variant_resource_heatmap(df, outdir)   # fig10 → paper Fig. 6
+        print(f"Done. Figures in {outdir}")
+        return
 
     fig_canonical_intp_fig4(df, outdir)        # fig00  IntP Fig.4 canonical (per profile)
     fig_fingerprint(df, outdir)                # fig01  (per profile)

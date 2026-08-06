@@ -71,6 +71,17 @@ try:
 except ImportError:
     HAS_SCIPY = False
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import paper_style  # noqa: E402  (shared camera-ready typography)
+
+# Camera-ready mode (--camera-ready). When on, the paper figures are rendered
+# at their exact printed size with the paper_style typography, in-figure
+# suptitles that duplicate the LaTeX captions are dropped, and only the paper
+# figure set is emitted. Off by default so every existing consumer of this
+# script (the 15-figure exploratory set) is unaffected.
+CAMERA_READY = False
+PAPER_SUBSET: str | None = None
+
 # ---------------------------------------------------------------------------
 # Constants — palette aligned with IntP Fig. 8 / IADA Fig. 5 conventions:
 #   Cache = orange, CPU = black/dark, Disk = green, Memory = blue, Network = pink.
@@ -244,15 +255,40 @@ def _save(fig, path: Path, label: str) -> None:
     grade quality without an Inkscape round-trip."""
     base_dir = path.parent
     stem = path.stem
+    spec = paper_style.spec_for(PAPER_SUBSET, stem) if CAMERA_READY else None
     written = []
     for fmt in FORMATS:
         sub = base_dir / fmt
         sub.mkdir(parents=True, exist_ok=True)
         out = sub / f"{stem}.{fmt}"
-        fig.savefig(out, bbox_inches="tight")
+        if spec is not None:
+            # Exact printed width, so LaTeX includes the PDF at scale 1.0 and
+            # the point sizes in the file are the point sizes on paper.
+            w, h = paper_style.save(fig, out, spec)
+        else:
+            fig.savefig(out, bbox_inches="tight")
         written.append(f"{fmt}/{out.name}")
     plt.close(fig)
-    print(f"[{label}] " + "  ".join(written))
+    suffix = ""
+    if spec is not None:
+        suffix = f"  [{w:.2f}x{h:.2f}in target {spec.width:.2f}in]"
+    print(f"[{label}] " + "  ".join(written) + suffix)
+
+
+def _cr(camera_value, default):
+    """Pick the camera-ready value when rendering for the paper."""
+    return camera_value if CAMERA_READY else default
+
+
+def _suptitle(fig, axes, text, **kwargs) -> None:
+    """Suptitle, suppressed in camera-ready mode.
+
+    Every in-figure suptitle in the paper set restates its LaTeX caption, so at
+    printed size it is pure vertical cost. Dropping it is the cheapest height
+    recovery available and declutters the panels."""
+    if CAMERA_READY:
+        return
+    _centered_suptitle(fig, axes, text, **kwargs)
 
 
 # ---------------------------------------------------------------------------
@@ -494,14 +530,33 @@ def fig_per_variant_bars(means: pd.DataFrame, outdir: Path) -> None:
     if n == 0:
         return
     workloads = sorted(grouped["workload"].unique())
-    nrows, ncols = _grid_dims(n)
-    panel_h = 0.26 * len(workloads) + 1.4   # per-panel target height in inches
-    # Widen the per-panel slot enough that the right-column panels'
-    # y-tick labels (the longest are app08/09_classification and
-    # app15_query_merge — ~19 chars at 7-pt) sit fully in the inter-panel
-    # gutter without crossing into the adjacent panel's heatmap.
-    fig = plt.figure(figsize=_clamp_figsize(5.6 * ncols, panel_h * nrows))
-    axes_flat, _, _ = _make_axes_grid(fig, n, wspace=3.2, hspace=0.30)
+    spec = (paper_style.spec_for(PAPER_SUBSET, "fig01b_per_variant_bars")
+            if CAMERA_READY else None)
+    if spec is not None:
+        # Camera-ready: one row, so constrained_layout can pack the long
+        # y-labels against the panel that owns them instead of parking them in
+        # a wide gutter. Same rows, columns, order and colour scale as the
+        # exploratory layout below — only the geometry differs.
+        #
+        # sharey: Addendum B merges the legacy panel and the modern pair into
+        # one three-panel float, and every panel has the identical 18 workload
+        # rows in the identical order. Drawn once on the leftmost panel, the
+        # label column is paid for once instead of n times — which is what
+        # buys the third panel its width. With n == 1 (the standalone legacy
+        # alternative) this is a no-op.
+        fig, axes = plt.subplots(1, n, figsize=(spec.width, spec.height),
+                                 layout="constrained", squeeze=False,
+                                 sharey=True)
+        axes_flat = list(axes[0])
+    else:
+        nrows, ncols = _grid_dims(n)
+        panel_h = 0.26 * len(workloads) + 1.4   # per-panel target height (in)
+        # Widen the per-panel slot enough that the right-column panels'
+        # y-tick labels (the longest are app08/09_classification and
+        # app15_query_merge — ~19 chars at 7-pt) sit fully in the inter-panel
+        # gutter without crossing into the adjacent panel's heatmap.
+        fig = plt.figure(figsize=_clamp_figsize(5.6 * ncols, panel_h * nrows))
+        axes_flat, _, _ = _make_axes_grid(fig, n, wspace=3.2, hspace=0.30)
     im = None
     for idx, (env, variant) in enumerate(pairs):
         ax = axes_flat[idx]
@@ -522,22 +577,43 @@ def fig_per_variant_bars(means: pd.DataFrame, outdir: Path) -> None:
                     continue
                 txt_color = "black" if val < 55 else "white"
                 ax.text(j, i, f"{val:.0f}", ha="center", va="center",
-                        color=txt_color, fontsize=5.8)
+                        color=txt_color,
+                        fontsize=_cr(paper_style.ANNOT, 5.8))
         # Thin row separators help the eye tell adjacent workloads apart
         # (especially the app01/02/03_ml_llc-style sibling triplets).
         for i in range(1, len(workloads)):
             ax.axhline(i - 0.5, color="white", linewidth=0.45, alpha=0.55)
         ax.set_xticks(range(len(METRICS)))
         ax.set_xticklabels([METRIC_LABEL[m] for m in METRICS],
-                           rotation=45, ha="right", fontsize=7)
+                           rotation=_cr(40, 45), ha="right",
+                           fontsize=_cr(paper_style.BODY, 7),
+                           rotation_mode="anchor")
         ax.set_yticks(range(len(workloads)))
-        ax.set_yticklabels(workloads, fontsize=7)
-        ax.set_title(f"{env} / {_variant_label(variant)}", fontsize=9.5)
+        ax.set_yticklabels(workloads, fontsize=_cr(paper_style.BODY, 7))
+        if spec is not None and idx > 0:
+            # sharey hides the ticks but not labels set explicitly above.
+            ax.tick_params(labelleft=False)
+        # The env is constant across the paper panels and the caption says it,
+        # so the camera-ready title is the variant alone — it also lets the
+        # three merged panels keep a title that fits their narrower slot.
+        ax.set_title(_variant_label(variant) if CAMERA_READY
+                     else f"{env} / {_variant_label(variant)}",
+                     fontsize=_cr(paper_style.TITLE, 9.5))
         ax.grid(False)
     if im is not None:
-        fig.colorbar(im, ax=axes_flat, shrink=0.6, label="interference (%)")
-    _centered_suptitle(fig, axes_flat,
-                       "Per (env, variant) workload fingerprint")
+        # One colorbar shared by every panel (not one per panel): it is
+        # attached to the whole axes list, so it steals a single strip of
+        # width from the row rather than repeating the scale n times.
+        cbar = fig.colorbar(im, ax=axes_flat,
+                            shrink=_cr(1.0, 0.6),
+                            pad=_cr(0.015, 0.05),
+                            fraction=_cr(0.04, 0.15),
+                            label="interference (%)")
+        if CAMERA_READY:
+            cbar.ax.tick_params(labelsize=paper_style.BODY)
+            cbar.set_label("interference (%)", size=paper_style.BODY)
+            cbar.outline.set_linewidth(0.5)
+    _suptitle(fig, axes_flat, "Per (env, variant) workload fingerprint")
     _save(fig, outdir / "fig01b_per_variant_bars.png", "fig01b")
 
 
@@ -883,6 +959,11 @@ def _collect_overhead_rows(results_dir: Path) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
+# Which of the three overhead PDFs carries the legend shared by all three.
+# It is the leftmost panel of the assembled float (see paper_style.FLOATS).
+OVERHEAD_LEGEND_PANEL = "fig04_overhead_throughput"
+
+
 def _render_overhead_bars(summary: pd.DataFrame, mean_col: str, std_col: str | None,
                           ylabel: str, path: Path, label: str, *, title: str) -> None:
     """Per-(env) panel grid: x=ref, grouped bars=variant, y=mean (± std)."""
@@ -891,9 +972,28 @@ def _render_overhead_bars(summary: pd.DataFrame, mean_col: str, std_col: str | N
         return
     refs = sorted(summary["ref"].unique())
     envs = _ordered_envs(summary["env"].unique())
-    fig, axes = plt.subplots(len(envs), 1,
-                             figsize=_clamp_figsize(7.5, 2.8 * len(envs) + 0.4),
-                             squeeze=False, sharey=True)
+    spec = (paper_style.spec_for(PAPER_SUBSET, path.stem)
+            if CAMERA_READY else None)
+    if spec is not None:
+        # Camera-ready: each of the three overhead views is its own PDF at
+        # 0.325\linewidth, assembled side by side into one float.
+        #
+        # Addendum B.2 item 5: all three panels showed the same three-variant
+        # legend, so two of the three were pure duplication. Only the left
+        # panel draws it now, which makes the left PDF taller than the other
+        # two by exactly the legend strip — and since \includegraphics boxes
+        # in a row sit on a common baseline, the three plot areas land level
+        # and the float's height is the left panel's rather than every
+        # panel's. The cost is that the centre and right PDFs are no longer
+        # individually self-contained; see QA-FIGS.md.
+        fig, axes = plt.subplots(len(envs), 1,
+                                 figsize=(spec.width, spec.height),
+                                 squeeze=False, sharey=True,
+                                 layout="constrained")
+    else:
+        fig, axes = plt.subplots(len(envs), 1,
+                                 figsize=_clamp_figsize(7.5, 2.8 * len(envs) + 0.4),
+                                 squeeze=False, sharey=True)
     all_variants: list[str] = []
     for i, env in enumerate(envs):
         ax = axes[i][0]
@@ -914,11 +1014,33 @@ def _render_overhead_bars(summary: pd.DataFrame, mean_col: str, std_col: str | N
                    yerr=errs, width=width,
                    color=VARIANT_COLORS.get(v, f"C{j}"),
                    label=_variant_label(v) if i == 0 else None, capsize=2)
-        ax.set_xticks(x); ax.set_xticklabels(refs, rotation=15)
-        ax.set_ylabel(ylabel); ax.set_title(f"env={env}")
+        ax.set_xticks(x)
+        ax.set_xticklabels(refs, rotation=_cr(20, 15),
+                           ha=_cr("right", "center"),
+                           rotation_mode=_cr("anchor", None))
+        ax.set_ylabel(ylabel)
+        if not CAMERA_READY:
+            ax.set_title(f"env={env}")   # single env in the paper; caption says it
         ax.axhline(0, color="black", linewidth=0.5)
+        if CAMERA_READY:
+            # The 1e6 exponent that matplotlib parks above the y-axis is an
+            # axis label in all but name and must clear the 7 pt floor.
+            ax.yaxis.get_offset_text().set_fontsize(paper_style.BODY)
     handles = [plt.Rectangle((0, 0), 1, 1, color=VARIANT_COLORS.get(v, "C0"))
                for v in all_variants]
+    if CAMERA_READY:
+        if path.stem == OVERHEAD_LEGEND_PANEL:
+            # One compact row, no "variant" title (the labels are self-evident
+            # and the title would cost a second row at this width). Drawn on
+            # the leftmost panel only — it serves all three.
+            fig.legend(handles, [_variant_label(v) for v in all_variants],
+                       loc="outside upper center",
+                       ncol=max(1, len(all_variants)),
+                       frameon=False, fontsize=paper_style.LEGEND,
+                       handlelength=1.0, handletextpad=0.35,
+                       columnspacing=0.7, borderaxespad=0.1)
+        _save(fig, path, label)
+        return
     fig.legend(handles, [_variant_label(v) for v in all_variants], loc="upper center",
                bbox_to_anchor=(0.5, 1.04),
                ncol=max(1, len(all_variants)), frameon=False, fontsize=9,
@@ -1001,7 +1123,11 @@ def fig_overhead_bars(results_dir: Path, outdir: Path) -> None:
     _render_overhead_bars(
         summary,
         "cpu_extra_jiffies_mean", "cpu_extra_jiffies_std",
-        "Δ busy jiffies (arm − baseline)",
+        # A y-axis label is as tall as it is long, so on a panel this short it
+        # is the binding constraint on the float's height: the full phrase
+        # needs 106 pt of the 106 pt page. The qualifier moves to the caption
+        # (Addendum B.2 item 5) — it is the same definition either way.
+        _cr("Δ busy jiffies", "Δ busy jiffies (arm − baseline)"),
         outdir / "fig04b_overhead_cpu_jiffies.png", "fig04b",
         title="Extra system-wide CPU induced by the profiler\n"
               "/proc/stat busy jiffies over the steady-state window")
@@ -1011,7 +1137,7 @@ def fig_overhead_bars(results_dir: Path, outdir: Path) -> None:
         _render_overhead_bars(
             summary,
             "delta_ss_mean", "delta_ss_std",
-            "Δ sched:sched_switch events",
+            _cr("Δ sched_switch", "Δ sched:sched_switch events"),
             outdir / "fig04c_overhead_sched_switch.png", "fig04c",
             title="Volpert-flavoured scheduler perturbation\n"
                   "Δ sched:sched_switch over the steady-state window "
@@ -1084,7 +1210,22 @@ def fig_fidelity_matrix(results_dir: Path, outdir: Path) -> None:
     pivot = df.pivot_table(index="variant", columns="metric", values="r", aggfunc="mean")
     pivot = pivot.reindex(index=_ordered_variants(pivot.index),
                           columns=[m for m in pair_map if m in pivot.columns])
-    fig, ax = plt.subplots(figsize=_clamp_figsize(6.5, 0.7 * len(pivot) + 1.4))
+    # Addendum B.2 item 3: the matrix is nine numbers, which a three-row table
+    # or a sentence carries as well as a float does and for none of the page
+    # cost. Emitted with the paper-facing variant names and the same +0.00
+    # formatting the cells use, so it can be pasted straight into main.tex.
+    tsv = pivot.rename(index=_variant_label)
+    tsv.index.name = "variant"
+    tsv.to_csv(outdir / "pearson_ground_truth.tsv", sep="\t",
+               float_format="%+.2f", na_rep="n/a")
+    spec = (paper_style.spec_for(PAPER_SUBSET, "fig05_fidelity_matrix")
+            if CAMERA_READY else None)
+    if spec is not None:
+        fig, ax = plt.subplots(figsize=(spec.width, spec.height),
+                               layout="constrained")
+    else:
+        fig, ax = plt.subplots(
+            figsize=_clamp_figsize(6.5, 0.7 * len(pivot) + 1.4))
     masked = np.ma.masked_invalid(pivot.values)
     cmap = plt.get_cmap("RdBu_r").copy()
     cmap.set_bad(color="#dddddd")
@@ -1094,14 +1235,24 @@ def fig_fidelity_matrix(results_dir: Path, outdir: Path) -> None:
     ax.set_yticks(range(len(pivot.index)));   ax.set_yticklabels([_variant_label(v) for v in pivot.index])
     for (i, j), v in np.ndenumerate(pivot.values):
         if np.isnan(v):
-            ax.text(j, i, "n/a", ha="center", va="center", fontsize=8, color="#666")
+            ax.text(j, i, "n/a", ha="center", va="center",
+                    fontsize=_cr(paper_style.ANNOT, 8), color="#666")
         else:
             ax.text(j, i, f"{v:+.2f}", ha="center", va="center",
-                    fontsize=8, color="black" if abs(v) < 0.5 else "white")
-    ax.set_title("Profiler vs ground-truth Pearson r (solo)")
-    cbar = fig.colorbar(im, ax=ax, fraction=0.04, label="Pearson r")
-    cbar.ax.tick_params(labelsize=7)
+                    fontsize=_cr(paper_style.ANNOT, 8),
+                    color="black" if abs(v) < 0.5 else "white")
+    if not CAMERA_READY:
+        # The Pearson header repeats the caption; dropped for the paper.
+        ax.set_title("Profiler vs ground-truth Pearson r (solo)")
+    cbar = fig.colorbar(im, ax=ax, fraction=_cr(0.05, 0.04),
+                        pad=_cr(0.03, 0.05), label="Pearson r")
+    cbar.ax.tick_params(labelsize=_cr(paper_style.BODY, 7))
     ax.grid(False)
+    if CAMERA_READY:
+        cbar.set_label("Pearson r", size=paper_style.BODY)
+        cbar.outline.set_linewidth(0.5)
+        _save(fig, outdir / "fig05_fidelity_matrix.png", "fig05")
+        return
     fig.tight_layout()
     _save(fig, outdir / "fig05_fidelity_matrix.png", "fig05")
 
@@ -1172,13 +1323,25 @@ def fig_pairwise_heatmap(means: pd.DataFrame, outdir: Path) -> None:
         if sub_env.empty: continue
         variants = _ordered_variants(sub_env["variant"].unique())
         nv = len(variants)
-        nrows, ncols = _grid_dims(nv)
-        fig = plt.figure(figsize=_clamp_figsize(
-            5.2 * ncols, (0.30 * len(workloads) + 1.4) * nrows))
-        # Long workload names ("cpu_v_cache", "tcp_v_tcp_veth") need extra
-        # horizontal gap to keep y-labels out of the adjacent panel.
-        axes_flat, _, _ = _make_axes_grid(fig, nv, sharey=True, wspace=1.4,
-                                          hspace=0.30)
+        spec = (paper_style.spec_for(PAPER_SUBSET,
+                                     f"fig07_pairwise_heatmap_{env}")
+                if CAMERA_READY else None)
+        if spec is not None:
+            # Camera-ready: three panels in one single-column row, y-labels
+            # paid for once via sharey. Intrinsically tight at 3.45 in — see
+            # the QA report for the figure* promotion recommendation.
+            fig, axes = plt.subplots(1, nv, figsize=(spec.width, spec.height),
+                                     squeeze=False, sharey=True,
+                                     layout="constrained")
+            axes_flat = list(axes[0])
+        else:
+            nrows, ncols = _grid_dims(nv)
+            fig = plt.figure(figsize=_clamp_figsize(
+                5.2 * ncols, (0.30 * len(workloads) + 1.4) * nrows))
+            # Long workload names ("cpu_v_cache", "tcp_v_tcp_veth") need extra
+            # horizontal gap to keep y-labels out of the adjacent panel.
+            axes_flat, _, _ = _make_axes_grid(fig, nv, sharey=True, wspace=1.4,
+                                              hspace=0.30)
         im = None
         for idx, variant in enumerate(variants):
             ax = axes_flat[idx]
@@ -1194,14 +1357,29 @@ def fig_pairwise_heatmap(means: pd.DataFrame, outdir: Path) -> None:
             cmap.set_bad(color="#cccccc")
             im = ax.imshow(masked, cmap=cmap, aspect="auto", vmin=0, vmax=100,
                            interpolation="nearest")
-            ax.set_xticks(range(len(METRICS))); ax.set_xticklabels(METRICS, rotation=45, ha="right", fontsize=7)
-            ax.set_yticks(range(len(workloads))); ax.set_yticklabels(workloads, fontsize=7)
-            ax.set_title(f"variant={_variant_label(variant)}", fontsize=9)
+            ax.set_xticks(range(len(METRICS)))
+            # 90° at camera-ready: the panels are ~0.8 in wide, so a 45°
+            # label runs into its neighbour; vertical labels cost width 0.
+            ax.set_xticklabels(METRICS, rotation=_cr(90, 45),
+                               ha=_cr("center", "right"),
+                               fontsize=_cr(paper_style.BODY, 7))
+            ax.set_yticks(range(len(workloads)))
+            ax.set_yticklabels(workloads, fontsize=_cr(paper_style.BODY, 7))
+            ax.set_title(f"{_variant_label(variant)}" if CAMERA_READY
+                         else f"variant={_variant_label(variant)}",
+                         fontsize=_cr(paper_style.TITLE, 9))
             ax.grid(False)
         if im is not None:
-            fig.colorbar(im, ax=axes_flat, shrink=0.8, label="interference (%)")
-        _centered_suptitle(fig, axes_flat,
-                           f"Pairwise interference signal — env={env}")
+            cbar = fig.colorbar(im, ax=axes_flat,
+                                shrink=_cr(1.0, 0.8),
+                                pad=_cr(0.02, 0.05),
+                                fraction=_cr(0.05, 0.15),
+                                label="interference (%)")
+            if CAMERA_READY:
+                cbar.ax.tick_params(labelsize=paper_style.BODY)
+                cbar.set_label("interference (%)", size=paper_style.BODY)
+                cbar.outline.set_linewidth(0.5)
+        _suptitle(fig, axes_flat, f"Pairwise interference signal — env={env}")
         _save(fig, outdir / f"fig07_pairwise_heatmap_{env}.png", f"fig07-{env}")
 
 
@@ -1528,7 +1706,13 @@ def fig_idi_bars(means: pd.DataFrame, outdir: Path, ci_method: str | None = None
     df.to_csv(outdir / "idi_resource.csv", index=False)
     lo_col, hi_col = f"ci_{method}_lo", f"ci_{method}_hi"
     resources = list(RESOURCE_FAMILY.keys())
-    fig, ax = plt.subplots(figsize=_clamp_figsize(7.2, 3.6))
+    spec = (paper_style.spec_for(PAPER_SUBSET, "fig11_idi_bars")
+            if CAMERA_READY else None)
+    if spec is not None:
+        fig, ax = plt.subplots(figsize=(spec.width, spec.height),
+                               layout="constrained")
+    else:
+        fig, ax = plt.subplots(figsize=_clamp_figsize(7.2, 3.6))
     x = np.arange(len(resources))
     width = 0.8 / max(1, len(variants))
     for vi, variant in enumerate(variants):
@@ -1560,6 +1744,15 @@ def fig_idi_bars(means: pd.DataFrame, outdir: Path, ci_method: str | None = None
     ax.set_xticks(x); ax.set_xticklabels(resources)
     ax.axhline(0, color="black", linewidth=0.5)
     ax.set_ylabel("Δ interference (pairwise − solo, %)")
+    if CAMERA_READY:
+        # In-plot header dropped: the LaTeX caption already names the index,
+        # the env and the CI method.
+        ax.legend(ncol=len(variants), fontsize=paper_style.LEGEND,
+                  loc="upper center", bbox_to_anchor=(0.5, -0.10),
+                  frameon=False, handlelength=1.0, handletextpad=0.35,
+                  columnspacing=0.8, borderaxespad=0.0)
+        _save(fig, outdir / "fig11_idi_bars.png", "fig11")
+        return
     ax.set_title(f"Interference discrimination index (IDI) by resource — "
                  f"env={env}, {IDI_CI_TITLE[method]} CI", fontsize=10)
     ax.legend(ncol=len(variants), fontsize=8.5, loc="upper center",
@@ -1654,9 +1847,19 @@ def fig_iada_segmented(results_dir: Path, outdir: Path, n_segments: int = 4) -> 
     n = len(files)
     cols = min(2, n)
     rows = (n + cols - 1) // cols
-    fig, axes = plt.subplots(rows, cols,
-                             figsize=_clamp_figsize(7.6 * cols, 3.0 * rows),
-                             squeeze=False, sharex=False)
+    spec = (paper_style.spec_for(PAPER_SUBSET, "fig13_iada_segmented")
+            if CAMERA_READY else None)
+    if spec is not None:
+        # Camera-ready: full \textwidth, panels side by side, y-axis shared so
+        # only the leftmost panel pays for tick labels.
+        fig, axes = plt.subplots(rows, cols,
+                                 figsize=(spec.width, spec.height),
+                                 squeeze=False, sharex=False, sharey=True,
+                                 layout="constrained")
+    else:
+        fig, axes = plt.subplots(rows, cols,
+                                 figsize=_clamp_figsize(7.6 * cols, 3.0 * rows),
+                                 squeeze=False, sharex=False)
     last = -1
     for idx, f in enumerate(sorted(files)):
         last = idx
@@ -1674,7 +1877,8 @@ def fig_iada_segmented(results_dir: Path, outdir: Path, n_segments: int = 4) -> 
             if not members: continue
             mean_series = df[members].mean(axis=1).fillna(0).values
             ys = _loess_smooth(mean_series, frac=0.18)
-            ax.plot(t, ys, color=RESOURCE_COLORS[fam], linewidth=1.5,
+            ax.plot(t, ys, color=RESOURCE_COLORS[fam],
+                    linewidth=_cr(1.1, 1.5),
                     label=fam.capitalize(), alpha=0.95)
         # Segment dividers
         if len(t) > 1:
@@ -1686,14 +1890,28 @@ def fig_iada_segmented(results_dir: Path, outdir: Path, n_segments: int = 4) -> 
             for s in range(n_segments):
                 xpos = tmax * (s + 0.5) / n_segments
                 ax.text(xpos, 102, f"seg {s+1}", ha="center", va="bottom",
-                        fontsize=7, color="#333")
+                        fontsize=_cr(paper_style.ANNOT, 7), color="#333")
         ax.set_title(f"{env} / {_variant_label(variant)}")
         ax.set_xlabel("time (s)")
-        ax.set_ylabel("interference (%)")
+        # With sharey the right panel repeats the label for no benefit.
+        if not CAMERA_READY or idx % cols == 0:
+            ax.set_ylabel("interference (%)")
         ax.set_ylim(-2, 110)
     for j in range(last + 1, rows * cols):
         axes[j // cols][j % cols].axis("off")
     handles, labels = axes[0][0].get_legend_handles_labels()
+    if CAMERA_READY:
+        if handles:
+            # One shared single-row legend above both panels. "outside upper
+            # center" lets constrained_layout reserve the strip for it, so it
+            # cannot overlap the segment tags at this height.
+            fig.legend(handles, labels, loc="outside upper center",
+                       ncol=len(handles), frameon=False,
+                       fontsize=paper_style.LEGEND,
+                       handlelength=1.4, handletextpad=0.4,
+                       columnspacing=1.2, borderaxespad=0.1)
+        _save(fig, outdir / "fig13_iada_segmented.png", "fig13")
+        return
     if handles:
         fig.legend(handles, labels, loc="upper center",
                    bbox_to_anchor=(0.5, 1.02),
@@ -1864,7 +2082,21 @@ def main() -> None:
                         "between-pair/workload bootstrap (structural variance; "
                         "kept as a reproducible artifact). Both CIs are always "
                         "written to idi_resource.csv regardless of this flag.")
+    p.add_argument("--camera-ready", action="store_true",
+                   help="Render the paper figure set at exact printed size "
+                        "with the shared camera-ready typography "
+                        "(bench/plot/paper_style.py). Requires "
+                        "--paper-subset. Only the figures the paper uses are "
+                        "emitted; the exploratory set is skipped.")
+    p.add_argument("--paper-subset", choices=["baseline", "new", "merged"],
+                   default=None,
+                   help="Which variant subset this render is for. Selects the "
+                        "printed size of each figure. baseline=v0.2, "
+                        "new=v2+v3.2, merged=v0.2+v2+v3.2.")
     args = p.parse_args()
+    if args.camera_ready and not args.paper_subset:
+        sys.exit("--camera-ready requires --paper-subset "
+                 "{baseline,new,merged}")
     if not args.results_dir.exists():
         sys.exit(f"results_dir does not exist: {args.results_dir}")
     outdir = args.out or (args.results_dir / "plots")
@@ -1873,6 +2105,13 @@ def main() -> None:
     FORMATS = [f.strip() for f in args.formats.split(",") if f.strip()] or ["png"]
 
     setup_style()
+    global CAMERA_READY, PAPER_SUBSET
+    CAMERA_READY = args.camera_ready
+    PAPER_SUBSET = args.paper_subset
+    if CAMERA_READY:
+        paper_style.apply()   # after setup_style() so these win
+        print(f"Camera-ready mode: subset={PAPER_SUBSET}, "
+              f"{paper_style.BODY} pt body / {paper_style.ANNOT} pt annotations")
 
     print(f"Loading runs from {args.results_dir}")
     means = collect_means(args.results_dir)
@@ -1896,6 +2135,20 @@ def main() -> None:
     print(f"Loaded {len(means)} runs across "
           f"{means['env'].nunique()} envs, {means['variant'].nunique()} variants, "
           f"{means['stage'].nunique()} stages")
+
+    if CAMERA_READY:
+        # Only the figures the camera-ready paper includes. fig02_pca_dendro
+        # (paper Fig. 4) comes from plot_pca_dendro.py and
+        # fig10_variant_resource_heatmap (paper Fig. 6) from plot-hibench.py;
+        # render-paper-figures.sh drives all three scripts.
+        fig_per_variant_bars(means, outdir)          # fig01b → paper Fig. 2/3
+        fig_overhead_bars(args.results_dir, outdir)  # fig04{,b,c} → Fig. 7
+        fig_fidelity_matrix(args.results_dir, outdir)      # fig05 → Fig. 9R
+        fig_pairwise_heatmap(means, outdir)                # fig07 → Fig. 8
+        fig_idi_bars(means, outdir, ci_method=args.idi_ci)  # fig11 → Fig. 9L
+        fig_iada_segmented(args.results_dir, outdir)       # fig13 → Fig. 5
+        print(f"All figures written to {outdir}")
+        return
 
     fig_canonical_intp_fig4(means, outdir)       # fig00  IntP Fig.4 canonical
     fig_per_workload_bars(means, outdir)         # fig01  IntP Fig.4 panel grid
