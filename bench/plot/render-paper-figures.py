@@ -116,17 +116,23 @@ def main() -> None:
                  "--variants", variants, "--out", subdir,
                  "--camera-ready", "--paper-subset", subset])
 
-    # Collect under the paper's filenames.
-    print(f"\n=== collecting into {figures} ===")
+    # Collect twice, under both names the project uses for these figures:
+    #   figures/           the paper's names, a drop-in for the Overleaf project
+    #   published/<subset>/ the campaign artifact's layout (see sbac-results/)
+    published = out / "published"
+    print(f"\n=== collecting into {figures} and {published} ===")
     collected = 0
     for (subset, stem), spec in sorted(paper_style.PAPER_FIGURES.items()):
         src = out / subset / "pdf" / f"{stem}.pdf"
         if not src.exists():
             sys.exit(f"expected render is missing: {src}")
         shutil.copyfile(src, figures / spec.out_name)
+        (published / subset).mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(src, published / subset / f"{stem}.pdf")
         png = out / subset / "png" / f"{stem}.png"
         if png.exists():
             shutil.copyfile(png, figures / (spec.out_name[:-4] + ".png"))
+            shutil.copyfile(png, published / subset / f"{stem}.png")
         print(f"  {spec.out_name:46s} <- {subset}/pdf/{stem}.pdf")
         collected += 1
 
