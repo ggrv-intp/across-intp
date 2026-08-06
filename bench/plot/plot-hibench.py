@@ -164,10 +164,23 @@ RESOURCE_COLORS = {
 # Style helpers
 # ---------------------------------------------------------------------------
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import paper_style  # noqa: E402  (shared camera-ready typography)
+
+# Camera-ready mode (--camera-ready); see plot-intp-bench.py for the rationale.
+# Off by default so the exploratory HiBench figure set is unaffected.
+CAMERA_READY = False
+PAPER_SUBSET: str | None = None
+
 # Raised together so the inch-clamp keeps the same figure proportions while
 # every raster gets ~1.4x more pixels (matches plot-intp-bench.py).
 MAX_PIXELS = 3600
 SAVE_DPI = 220
+
+
+def _cr(camera_value, default):
+    """Pick the camera-ready value when rendering for the paper."""
+    return camera_value if CAMERA_READY else default
 
 
 def _clamp_figsize(width: float, height: float) -> tuple[float, float]:
@@ -226,15 +239,22 @@ def _save(fig, path: Path, label: str) -> None:
     so paper-bound PDFs and README-friendly PNGs coexist."""
     base_dir = path.parent
     stem = path.stem
+    spec = paper_style.spec_for(PAPER_SUBSET, stem) if CAMERA_READY else None
     written = []
     for fmt in FORMATS:
         sub = base_dir / fmt
         sub.mkdir(parents=True, exist_ok=True)
         out = sub / f"{stem}.{fmt}"
-        fig.savefig(out, bbox_inches="tight")
+        if spec is not None:
+            w, h = paper_style.save(fig, out, spec)
+        else:
+            fig.savefig(out, bbox_inches="tight")
         written.append(f"{fmt}/{out.name}")
     plt.close(fig)
-    print(f"[{label}] " + "  ".join(written))
+    suffix = ""
+    if spec is not None:
+        suffix = f"  [{w:.2f}x{h:.2f}in target {spec.width:.2f}in]"
+    print(f"[{label}] " + "  ".join(written) + suffix)
 
 
 def _ordered_variants(values) -> list[str]:
@@ -1083,14 +1103,38 @@ def fig_variant_resource_heatmap(df: pd.DataFrame, outdir: Path) -> None:
     n_v = rdf["variant"].nunique()
     resources = list(RESOURCE_FAMILY.keys())
 
-    # Stacked-rows layout: at n=7 profiles _grid_dims returns 3×3 and
-    # centres the partial last row. Earlier 1×7 layout cramped the
-    # x-axis labels (cache, cpu, disk, memory, network) into overlap.
-    nrows, ncols = _grid_dims(n_p)
-    panel_w = 2.4 + 0.6 * len(resources)            # wide enough for x labels
-    panel_h = 0.55 * n_v + 1.4                      # room for variant rows + title
-    fig = plt.figure(figsize=_clamp_figsize(panel_w * ncols, panel_h * nrows))
-    axes_flat, _, _ = _make_axes_grid(fig, n_p, wspace=1.1, hspace=0.45)
+    spec = (paper_style.spec_for(PAPER_SUBSET,
+                                 "fig10_variant_resource_heatmap")
+            if CAMERA_READY else None)
+    cbar_ax = None
+    if spec is not None:
+        # Camera-ready reflow: 7 profiles into a 4×2 grid, with the colorbar
+        # occupying the free eighth slot. The exploratory 3+3+1 layout wastes
+        # a full panel row on one centred panel, which at 6.80 in costs more
+        # height than the height budget allows.
+        nrows, ncols = 2, 4
+        fig, axes = plt.subplots(nrows, ncols,
+                                 figsize=(spec.width, spec.height),
+                                 squeeze=False, sharey=True,
+                                 layout="constrained")
+        axes_flat = [axes[i // ncols][i % ncols] for i in range(n_p)]
+        # Free slots: the last one hosts the shared colorbar, any others go.
+        free = [axes[i // ncols][i % ncols]
+                for i in range(n_p, nrows * ncols)]
+        for spare in free[:-1]:
+            spare.set_visible(False)
+        if free:
+            cbar_ax = free[-1]
+            cbar_ax.set_axis_off()
+    else:
+        # Stacked-rows layout: at n=7 profiles _grid_dims returns 3×3 and
+        # centres the partial last row. Earlier 1×7 layout cramped the
+        # x-axis labels (cache, cpu, disk, memory, network) into overlap.
+        nrows, ncols = _grid_dims(n_p)
+        panel_w = 2.4 + 0.6 * len(resources)        # wide enough for x labels
+        panel_h = 0.55 * n_v + 1.4                  # variant rows + title
+        fig = plt.figure(figsize=_clamp_figsize(panel_w * ncols, panel_h * nrows))
+        axes_flat, _, _ = _make_axes_grid(fig, n_p, wspace=1.1, hspace=0.45)
 
     cmap = plt.get_cmap("Blues").copy()
     cmap.set_bad(color="#cccccc")
@@ -1104,22 +1148,39 @@ def fig_variant_resource_heatmap(df: pd.DataFrame, outdir: Path) -> None:
         im = ax.imshow(masked, cmap=cmap, vmin=0, vmax=100, aspect="auto",
                        interpolation="nearest")
         ax.set_xticks(range(len(resources)))
-        ax.set_xticklabels(resources, fontsize=8.5)
+        # At 4 columns across 6.80 in each panel is ~1.5 in wide, so the
+        # 7-character "network" needs rotating to clear its neighbour.
+        ax.set_xticklabels(resources, fontsize=_cr(paper_style.BODY, 8.5),
+                           rotation=_cr(45, 0),
+                           ha=_cr("right", "center"),
+                           rotation_mode=_cr("anchor", None))
         ax.set_yticks(range(len(pivot.index)))
-        ax.set_yticklabels([variant_label(v) for v in pivot.index], fontsize=8.5)
-        ax.set_title(f"profile={profile}", fontsize=10)
+        ax.set_yticklabels([variant_label(v) for v in pivot.index],
+                           fontsize=_cr(paper_style.BODY, 8.5))
+        ax.set_title(f"profile={profile}", fontsize=_cr(paper_style.TITLE, 10))
         for (yi, xi), v in np.ndenumerate(pivot.values):
             if not np.isnan(v):
                 ax.text(xi, yi, f"{v:.0f}", ha="center", va="center",
-                        fontsize=8.5, fontweight="bold",
+                        fontsize=_cr(paper_style.ANNOT, 8.5), fontweight="bold",
                         color="white" if v > 50 else "black")
         ax.grid(False)
     if im is not None:
-        fig.colorbar(im, ax=axes_flat, fraction=0.035, shrink=0.7,
-                     label="mean interference (%)")
-    _centered_suptitle(fig, axes_flat,
-                       "HiBench variant × resource family — mean interference",
-                       fontsize=12)
+        if cbar_ax is not None:
+            # Colorbar in the free eighth grid slot rather than stealing width
+            # from the panel row.
+            cbar = fig.colorbar(im, ax=cbar_ax, fraction=0.30, shrink=0.92,
+                                label="mean interference (%)")
+            cbar.ax.tick_params(labelsize=paper_style.BODY)
+            cbar.set_label("mean interference (%)", size=paper_style.BODY)
+            cbar.outline.set_linewidth(0.5)
+        else:
+            fig.colorbar(im, ax=axes_flat, fraction=0.035, shrink=0.7,
+                         label="mean interference (%)")
+    if not CAMERA_READY:
+        _centered_suptitle(
+            fig, axes_flat,
+            "HiBench variant × resource family — mean interference",
+            fontsize=12)
     _save(fig, outdir / "fig10_variant_resource_heatmap.png", "fig10")
 
 
@@ -1327,7 +1388,19 @@ def main() -> None:
                    help="Comma-separated subset of variants to plot (e.g. "
                         "'v0.2' or 'v2,v3.2'). Default: all present. Used to "
                         "render the per-paper published/ figures.")
+    p.add_argument("--camera-ready", action="store_true",
+                   help="Render the paper figure (fig10) at exact printed "
+                        "size with the shared camera-ready typography "
+                        "(bench/plot/paper_style.py). Requires "
+                        "--paper-subset.")
+    p.add_argument("--paper-subset", choices=["baseline", "new", "merged"],
+                   default=None,
+                   help="Which variant subset this render is for; selects the "
+                        "printed size.")
     args = p.parse_args()
+    if args.camera_ready and not args.paper_subset:
+        sys.exit("--camera-ready requires --paper-subset "
+                 "{baseline,new,merged}")
 
     hdir = args.hibench_dir
     if (hdir / "hibench").is_dir():
@@ -1341,6 +1414,13 @@ def main() -> None:
     FORMATS = [f.strip() for f in args.formats.split(",") if f.strip()] or ["png"]
 
     setup_style()
+    global CAMERA_READY, PAPER_SUBSET
+    CAMERA_READY = args.camera_ready
+    PAPER_SUBSET = args.paper_subset
+    if CAMERA_READY:
+        paper_style.apply()   # after setup_style() so these win
+        print(f"Camera-ready mode: subset={PAPER_SUBSET}, "
+              f"{paper_style.BODY} pt body / {paper_style.ANNOT} pt annotations")
 
     print(f"Loading hibench results from {hdir}")
     df, run_dirs = load_hibench_dir(hdir)
@@ -1356,6 +1436,12 @@ def main() -> None:
     print(f"  profiles : {sorted(df['profile'].unique())}")
     print(f"  workloads: {sorted(df['workload'].unique())}")
     df.to_csv(outdir / "combined-means.csv", index=False)
+
+    if CAMERA_READY:
+        # Only the figure the camera-ready paper takes from this script.
+        fig_variant_resource_heatmap(df, outdir)   # fig10 → paper Fig. 6
+        print(f"Done. Figures in {outdir}")
+        return
 
     fig_canonical_intp_fig4(df, outdir)        # fig00  IntP Fig.4 canonical (per profile)
     fig_fingerprint(df, outdir)                # fig01  (per profile)
