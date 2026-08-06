@@ -1176,7 +1176,14 @@ def fig_fidelity_matrix(results_dir: Path, outdir: Path) -> None:
     pivot = df.pivot_table(index="variant", columns="metric", values="r", aggfunc="mean")
     pivot = pivot.reindex(index=_ordered_variants(pivot.index),
                           columns=[m for m in pair_map if m in pivot.columns])
-    fig, ax = plt.subplots(figsize=_clamp_figsize(6.5, 0.7 * len(pivot) + 1.4))
+    spec = (paper_style.spec_for(PAPER_SUBSET, "fig05_fidelity_matrix")
+            if CAMERA_READY else None)
+    if spec is not None:
+        fig, ax = plt.subplots(figsize=(spec.width, spec.height),
+                               layout="constrained")
+    else:
+        fig, ax = plt.subplots(
+            figsize=_clamp_figsize(6.5, 0.7 * len(pivot) + 1.4))
     masked = np.ma.masked_invalid(pivot.values)
     cmap = plt.get_cmap("RdBu_r").copy()
     cmap.set_bad(color="#dddddd")
@@ -1186,14 +1193,24 @@ def fig_fidelity_matrix(results_dir: Path, outdir: Path) -> None:
     ax.set_yticks(range(len(pivot.index)));   ax.set_yticklabels([_variant_label(v) for v in pivot.index])
     for (i, j), v in np.ndenumerate(pivot.values):
         if np.isnan(v):
-            ax.text(j, i, "n/a", ha="center", va="center", fontsize=8, color="#666")
+            ax.text(j, i, "n/a", ha="center", va="center",
+                    fontsize=_cr(paper_style.ANNOT, 8), color="#666")
         else:
             ax.text(j, i, f"{v:+.2f}", ha="center", va="center",
-                    fontsize=8, color="black" if abs(v) < 0.5 else "white")
-    ax.set_title("Profiler vs ground-truth Pearson r (solo)")
-    cbar = fig.colorbar(im, ax=ax, fraction=0.04, label="Pearson r")
-    cbar.ax.tick_params(labelsize=7)
+                    fontsize=_cr(paper_style.ANNOT, 8),
+                    color="black" if abs(v) < 0.5 else "white")
+    if not CAMERA_READY:
+        # The Pearson header repeats the caption; dropped for the paper.
+        ax.set_title("Profiler vs ground-truth Pearson r (solo)")
+    cbar = fig.colorbar(im, ax=ax, fraction=_cr(0.05, 0.04),
+                        pad=_cr(0.03, 0.05), label="Pearson r")
+    cbar.ax.tick_params(labelsize=_cr(paper_style.BODY, 7))
     ax.grid(False)
+    if CAMERA_READY:
+        cbar.set_label("Pearson r", size=paper_style.BODY)
+        cbar.outline.set_linewidth(0.5)
+        _save(fig, outdir / "fig05_fidelity_matrix.png", "fig05")
+        return
     fig.tight_layout()
     _save(fig, outdir / "fig05_fidelity_matrix.png", "fig05")
 
@@ -1264,13 +1281,25 @@ def fig_pairwise_heatmap(means: pd.DataFrame, outdir: Path) -> None:
         if sub_env.empty: continue
         variants = _ordered_variants(sub_env["variant"].unique())
         nv = len(variants)
-        nrows, ncols = _grid_dims(nv)
-        fig = plt.figure(figsize=_clamp_figsize(
-            5.2 * ncols, (0.30 * len(workloads) + 1.4) * nrows))
-        # Long workload names ("cpu_v_cache", "tcp_v_tcp_veth") need extra
-        # horizontal gap to keep y-labels out of the adjacent panel.
-        axes_flat, _, _ = _make_axes_grid(fig, nv, sharey=True, wspace=1.4,
-                                          hspace=0.30)
+        spec = (paper_style.spec_for(PAPER_SUBSET,
+                                     f"fig07_pairwise_heatmap_{env}")
+                if CAMERA_READY else None)
+        if spec is not None:
+            # Camera-ready: three panels in one single-column row, y-labels
+            # paid for once via sharey. Intrinsically tight at 3.45 in — see
+            # the QA report for the figure* promotion recommendation.
+            fig, axes = plt.subplots(1, nv, figsize=(spec.width, spec.height),
+                                     squeeze=False, sharey=True,
+                                     layout="constrained")
+            axes_flat = list(axes[0])
+        else:
+            nrows, ncols = _grid_dims(nv)
+            fig = plt.figure(figsize=_clamp_figsize(
+                5.2 * ncols, (0.30 * len(workloads) + 1.4) * nrows))
+            # Long workload names ("cpu_v_cache", "tcp_v_tcp_veth") need extra
+            # horizontal gap to keep y-labels out of the adjacent panel.
+            axes_flat, _, _ = _make_axes_grid(fig, nv, sharey=True, wspace=1.4,
+                                              hspace=0.30)
         im = None
         for idx, variant in enumerate(variants):
             ax = axes_flat[idx]
@@ -1286,14 +1315,29 @@ def fig_pairwise_heatmap(means: pd.DataFrame, outdir: Path) -> None:
             cmap.set_bad(color="#cccccc")
             im = ax.imshow(masked, cmap=cmap, aspect="auto", vmin=0, vmax=100,
                            interpolation="nearest")
-            ax.set_xticks(range(len(METRICS))); ax.set_xticklabels(METRICS, rotation=45, ha="right", fontsize=7)
-            ax.set_yticks(range(len(workloads))); ax.set_yticklabels(workloads, fontsize=7)
-            ax.set_title(f"variant={_variant_label(variant)}", fontsize=9)
+            ax.set_xticks(range(len(METRICS)))
+            # 90° at camera-ready: the panels are ~0.8 in wide, so a 45°
+            # label runs into its neighbour; vertical labels cost width 0.
+            ax.set_xticklabels(METRICS, rotation=_cr(90, 45),
+                               ha=_cr("center", "right"),
+                               fontsize=_cr(paper_style.BODY, 7))
+            ax.set_yticks(range(len(workloads)))
+            ax.set_yticklabels(workloads, fontsize=_cr(paper_style.BODY, 7))
+            ax.set_title(f"{_variant_label(variant)}" if CAMERA_READY
+                         else f"variant={_variant_label(variant)}",
+                         fontsize=_cr(paper_style.TITLE, 9))
             ax.grid(False)
         if im is not None:
-            fig.colorbar(im, ax=axes_flat, shrink=0.8, label="interference (%)")
-        _centered_suptitle(fig, axes_flat,
-                           f"Pairwise interference signal — env={env}")
+            cbar = fig.colorbar(im, ax=axes_flat,
+                                shrink=_cr(1.0, 0.8),
+                                pad=_cr(0.02, 0.05),
+                                fraction=_cr(0.05, 0.15),
+                                label="interference (%)")
+            if CAMERA_READY:
+                cbar.ax.tick_params(labelsize=paper_style.BODY)
+                cbar.set_label("interference (%)", size=paper_style.BODY)
+                cbar.outline.set_linewidth(0.5)
+        _suptitle(fig, axes_flat, f"Pairwise interference signal — env={env}")
         _save(fig, outdir / f"fig07_pairwise_heatmap_{env}.png", f"fig07-{env}")
 
 
@@ -1791,7 +1835,8 @@ def fig_iada_segmented(results_dir: Path, outdir: Path, n_segments: int = 4) -> 
             if not members: continue
             mean_series = df[members].mean(axis=1).fillna(0).values
             ys = _loess_smooth(mean_series, frac=0.18)
-            ax.plot(t, ys, color=RESOURCE_COLORS[fam], linewidth=1.5,
+            ax.plot(t, ys, color=RESOURCE_COLORS[fam],
+                    linewidth=_cr(1.1, 1.5),
                     label=fam.capitalize(), alpha=0.95)
         # Segment dividers
         if len(t) > 1:
@@ -1803,14 +1848,28 @@ def fig_iada_segmented(results_dir: Path, outdir: Path, n_segments: int = 4) -> 
             for s in range(n_segments):
                 xpos = tmax * (s + 0.5) / n_segments
                 ax.text(xpos, 102, f"seg {s+1}", ha="center", va="bottom",
-                        fontsize=7, color="#333")
+                        fontsize=_cr(paper_style.ANNOT, 7), color="#333")
         ax.set_title(f"{env} / {_variant_label(variant)}")
         ax.set_xlabel("time (s)")
-        ax.set_ylabel("interference (%)")
+        # With sharey the right panel repeats the label for no benefit.
+        if not CAMERA_READY or idx % cols == 0:
+            ax.set_ylabel("interference (%)")
         ax.set_ylim(-2, 110)
     for j in range(last + 1, rows * cols):
         axes[j // cols][j % cols].axis("off")
     handles, labels = axes[0][0].get_legend_handles_labels()
+    if CAMERA_READY:
+        if handles:
+            # One shared single-row legend above both panels. "outside upper
+            # center" lets constrained_layout reserve the strip for it, so it
+            # cannot overlap the segment tags at this height.
+            fig.legend(handles, labels, loc="outside upper center",
+                       ncol=len(handles), frameon=False,
+                       fontsize=paper_style.LEGEND,
+                       handlelength=1.4, handletextpad=0.4,
+                       columnspacing=1.2, borderaxespad=0.1)
+        _save(fig, outdir / "fig13_iada_segmented.png", "fig13")
+        return
     if handles:
         fig.legend(handles, labels, loc="upper center",
                    bbox_to_anchor=(0.5, 1.02),
