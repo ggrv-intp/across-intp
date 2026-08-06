@@ -953,9 +953,20 @@ def _render_overhead_bars(summary: pd.DataFrame, mean_col: str, std_col: str | N
         return
     refs = sorted(summary["ref"].unique())
     envs = _ordered_envs(summary["env"].unique())
-    fig, axes = plt.subplots(len(envs), 1,
-                             figsize=_clamp_figsize(7.5, 2.8 * len(envs) + 0.4),
-                             squeeze=False, sharey=True)
+    spec = (paper_style.spec_for(PAPER_SUBSET, path.stem)
+            if CAMERA_READY else None)
+    if spec is not None:
+        # Camera-ready: each of the three overhead views is its own PDF at
+        # 0.325\linewidth, so it must be self-contained — own legend, own
+        # axis labels — while costing as little width as possible.
+        fig, axes = plt.subplots(len(envs), 1,
+                                 figsize=(spec.width, spec.height),
+                                 squeeze=False, sharey=True,
+                                 layout="constrained")
+    else:
+        fig, axes = plt.subplots(len(envs), 1,
+                                 figsize=_clamp_figsize(7.5, 2.8 * len(envs) + 0.4),
+                                 squeeze=False, sharey=True)
     all_variants: list[str] = []
     for i, env in enumerate(envs):
         ax = axes[i][0]
@@ -976,11 +987,30 @@ def _render_overhead_bars(summary: pd.DataFrame, mean_col: str, std_col: str | N
                    yerr=errs, width=width,
                    color=VARIANT_COLORS.get(v, f"C{j}"),
                    label=_variant_label(v) if i == 0 else None, capsize=2)
-        ax.set_xticks(x); ax.set_xticklabels(refs, rotation=15)
-        ax.set_ylabel(ylabel); ax.set_title(f"env={env}")
+        ax.set_xticks(x)
+        ax.set_xticklabels(refs, rotation=_cr(20, 15),
+                           ha=_cr("right", "center"),
+                           rotation_mode=_cr("anchor", None))
+        ax.set_ylabel(ylabel)
+        if not CAMERA_READY:
+            ax.set_title(f"env={env}")   # single env in the paper; caption says it
         ax.axhline(0, color="black", linewidth=0.5)
+        if CAMERA_READY:
+            # The 1e6 exponent that matplotlib parks above the y-axis is an
+            # axis label in all but name and must clear the 7 pt floor.
+            ax.yaxis.get_offset_text().set_fontsize(paper_style.BODY)
     handles = [plt.Rectangle((0, 0), 1, 1, color=VARIANT_COLORS.get(v, "C0"))
                for v in all_variants]
+    if CAMERA_READY:
+        # One compact row, no "variant" title (the labels are self-evident and
+        # the title would cost a second row at this width).
+        fig.legend(handles, [_variant_label(v) for v in all_variants],
+                   loc="outside upper center", ncol=max(1, len(all_variants)),
+                   frameon=False, fontsize=paper_style.LEGEND,
+                   handlelength=1.0, handletextpad=0.35,
+                   columnspacing=0.7, borderaxespad=0.1)
+        _save(fig, path, label)
+        return
     fig.legend(handles, [_variant_label(v) for v in all_variants], loc="upper center",
                bbox_to_anchor=(0.5, 1.04),
                ncol=max(1, len(all_variants)), frameon=False, fontsize=9,
