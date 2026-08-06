@@ -20,6 +20,9 @@ covers the **standalone** invocation flow.
 | `extract-fragility.py`      | a `bench-full/` directory (SystemTap stap.log per run) | `<input>/fragility-summary.tsv` and `fragility-aggregated.tsv` | quantifying probe skips, overload, sample loss for the stap-2022 / stap-nollc / stap-nohelper / stap-modern stap variants |
 | `plot-cross-environment.py` | a `bench-full/` directory containing `aggregate-means.tsv` (>= 2 envs) | `<input>/cross-env/{summary,availability,stats}.tsv` + `plots/<variant>/<workload>.png` | comparing bare vs container vs vm under the same workload using Kruskal-Wallis + Mann-Whitney (Bonferroni) + Cliff's delta |
 | `cross-variant-correlation.py` | a campaign tree (publication or fused layout) | `--out` dir: `correlation-{4way,per-metric}-<env>.tsv`, `correlation-{family-summary,per-metric-family}.tsv`, `overhead-bounds.tsv` | reproducing the paper's §V cross-variant fingerprint correlations (per-metric + per-family, raw and z-scored) and per-variant throughput-overhead bounds from the merged `aggregate-means.tsv` + overhead `throughput.tsv` |
+| `render-paper-figures.py`   | a published campaign tree | `--out` dir: `figures/` (paper filenames), `published/<subset>/`, per-subset `{pdf,png}/` | regenerating the eleven SBAC-PAD camera-ready figures at their exact printed size |
+| `qa_fig_fonts.py`           | a directory of paper-named PDFs | `QA-FIGS.md` + `qa/` contact sheet | gating the camera-ready set on page width and minimum font size, and diffing content against the previously published render |
+| `paper_style.py`            | (imported, not run) | — | the shared camera-ready typography, page geometry and per-figure size table |
 
 ## Dependencies
 
@@ -191,6 +194,30 @@ python3 bench/plot/cross-variant-correlation.py \
 
 `run-big-batch.sh` invokes the script (without `--verify`) in its plot
 segment, writing `<campaign>/paper-tables/`.
+
+### render-paper-figures.py — SBAC-PAD camera-ready figure set
+
+```bash
+python3 bench/plot/render-paper-figures.py sbac-results --out /tmp/camera-ready
+python3 bench/plot/qa_fig_fonts.py /tmp/camera-ready/figures \
+    --out /tmp/camera-ready --compare-to <payload>/published
+```
+
+Regenerates the eleven figures the paper includes, each rendered at its
+**exact printed size** (`paper_style.py` holds the width/height table and the
+IEEEtran page geometry), so `\includegraphics` embeds them at scale 1.0 and a
+7 pt label is a printed 7 pt. Writes them twice — under the paper's filenames
+in `figures/` and in the artifact's `published/<subset>/` layout.
+
+The three plotters take `--camera-ready --paper-subset {baseline,new,merged}`
+individually; the driver just sequences them. **Without those flags nothing
+changes**, so the exploratory figure sets are unaffected.
+
+`qa_fig_fonts.py` is the gate: it re-opens each PDF, asserts the page width
+against the target and the 6.5 pt floor against the embedded text spans,
+diffs every visible string against the previous render, writes `QA-FIGS.md`
+plus a 300-dpi contact sheet under `qa/`, and exits nonzero on any violation.
+It needs `pymupdf` in addition to the dependencies above.
 
 ## Output sizing
 
