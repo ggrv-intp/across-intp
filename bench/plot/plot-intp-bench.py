@@ -71,6 +71,17 @@ try:
 except ImportError:
     HAS_SCIPY = False
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import paper_style  # noqa: E402  (shared camera-ready typography)
+
+# Camera-ready mode (--camera-ready). When on, the paper figures are rendered
+# at their exact printed size with the paper_style typography, in-figure
+# suptitles that duplicate the LaTeX captions are dropped, and only the paper
+# figure set is emitted. Off by default so every existing consumer of this
+# script (the 15-figure exploratory set) is unaffected.
+CAMERA_READY = False
+PAPER_SUBSET: str | None = None
+
 # ---------------------------------------------------------------------------
 # Constants — palette aligned with IntP Fig. 8 / IADA Fig. 5 conventions:
 #   Cache = orange, CPU = black/dark, Disk = green, Memory = blue, Network = pink.
@@ -244,15 +255,40 @@ def _save(fig, path: Path, label: str) -> None:
     grade quality without an Inkscape round-trip."""
     base_dir = path.parent
     stem = path.stem
+    spec = paper_style.spec_for(PAPER_SUBSET, stem) if CAMERA_READY else None
     written = []
     for fmt in FORMATS:
         sub = base_dir / fmt
         sub.mkdir(parents=True, exist_ok=True)
         out = sub / f"{stem}.{fmt}"
-        fig.savefig(out, bbox_inches="tight")
+        if spec is not None:
+            # Exact printed width, so LaTeX includes the PDF at scale 1.0 and
+            # the point sizes in the file are the point sizes on paper.
+            w, h = paper_style.save(fig, out, spec)
+        else:
+            fig.savefig(out, bbox_inches="tight")
         written.append(f"{fmt}/{out.name}")
     plt.close(fig)
-    print(f"[{label}] " + "  ".join(written))
+    suffix = ""
+    if spec is not None:
+        suffix = f"  [{w:.2f}x{h:.2f}in target {spec.width:.2f}in]"
+    print(f"[{label}] " + "  ".join(written) + suffix)
+
+
+def _cr(camera_value, default):
+    """Pick the camera-ready value when rendering for the paper."""
+    return camera_value if CAMERA_READY else default
+
+
+def _suptitle(fig, axes, text, **kwargs) -> None:
+    """Suptitle, suppressed in camera-ready mode.
+
+    Every in-figure suptitle in the paper set restates its LaTeX caption, so at
+    printed size it is pure vertical cost. Dropping it is the cheapest height
+    recovery available and declutters the panels."""
+    if CAMERA_READY:
+        return
+    _centered_suptitle(fig, axes, text, **kwargs)
 
 
 # ---------------------------------------------------------------------------
@@ -1864,7 +1900,21 @@ def main() -> None:
                         "between-pair/workload bootstrap (structural variance; "
                         "kept as a reproducible artifact). Both CIs are always "
                         "written to idi_resource.csv regardless of this flag.")
+    p.add_argument("--camera-ready", action="store_true",
+                   help="Render the paper figure set at exact printed size "
+                        "with the shared camera-ready typography "
+                        "(bench/plot/paper_style.py). Requires "
+                        "--paper-subset. Only the figures the paper uses are "
+                        "emitted; the exploratory set is skipped.")
+    p.add_argument("--paper-subset", choices=["baseline", "new", "merged"],
+                   default=None,
+                   help="Which variant subset this render is for. Selects the "
+                        "printed size of each figure. baseline=v0.2, "
+                        "new=v2+v3.2, merged=v0.2+v2+v3.2.")
     args = p.parse_args()
+    if args.camera_ready and not args.paper_subset:
+        sys.exit("--camera-ready requires --paper-subset "
+                 "{baseline,new,merged}")
     if not args.results_dir.exists():
         sys.exit(f"results_dir does not exist: {args.results_dir}")
     outdir = args.out or (args.results_dir / "plots")
@@ -1873,6 +1923,13 @@ def main() -> None:
     FORMATS = [f.strip() for f in args.formats.split(",") if f.strip()] or ["png"]
 
     setup_style()
+    global CAMERA_READY, PAPER_SUBSET
+    CAMERA_READY = args.camera_ready
+    PAPER_SUBSET = args.paper_subset
+    if CAMERA_READY:
+        paper_style.apply()   # after setup_style() so these win
+        print(f"Camera-ready mode: subset={PAPER_SUBSET}, "
+              f"{paper_style.BODY} pt body / {paper_style.ANNOT} pt annotations")
 
     print(f"Loading runs from {args.results_dir}")
     means = collect_means(args.results_dir)
@@ -1896,6 +1953,20 @@ def main() -> None:
     print(f"Loaded {len(means)} runs across "
           f"{means['env'].nunique()} envs, {means['variant'].nunique()} variants, "
           f"{means['stage'].nunique()} stages")
+
+    if CAMERA_READY:
+        # Only the figures the camera-ready paper includes. fig02_pca_dendro
+        # (paper Fig. 4) comes from plot_pca_dendro.py and
+        # fig10_variant_resource_heatmap (paper Fig. 6) from plot-hibench.py;
+        # render-paper-figures.sh drives all three scripts.
+        fig_per_variant_bars(means, outdir)          # fig01b → paper Fig. 2/3
+        fig_overhead_bars(args.results_dir, outdir)  # fig04{,b,c} → Fig. 7
+        fig_fidelity_matrix(args.results_dir, outdir)      # fig05 → Fig. 9R
+        fig_pairwise_heatmap(means, outdir)                # fig07 → Fig. 8
+        fig_idi_bars(means, outdir, ci_method=args.idi_ci)  # fig11 → Fig. 9L
+        fig_iada_segmented(args.results_dir, outdir)       # fig13 → Fig. 5
+        print(f"All figures written to {outdir}")
+        return
 
     fig_canonical_intp_fig4(means, outdir)       # fig00  IntP Fig.4 canonical
     fig_per_workload_bars(means, outdir)         # fig01  IntP Fig.4 panel grid
