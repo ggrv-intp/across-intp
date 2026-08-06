@@ -23,6 +23,10 @@ overhead/, hibench/ and aggregate-means.tsv. Nothing is written inside it.
 Outputs:
     <out>/figures/            the paper-named PDFs (+ PNG siblings)
     <out>/<subset>/{pdf,png}/ the raw per-subset renders
+    <out>/qa/pearson_ground_truth.tsv
+                              the nine profiler-vs-ground-truth Pearson r
+                              values, for inlining as a table or in running
+                              text instead of as a float (Addendum B.2)
 
 The run is deterministic: same inputs produce byte-identical layout, so the
 pipeline can be re-run and diffed.
@@ -135,6 +139,18 @@ def main() -> None:
             shutil.copyfile(png, published / subset / f"{stem}.png")
         print(f"  {spec.out_name:46s} <- {subset}/pdf/{stem}.pdf")
         collected += 1
+
+    # Addendum B.2 item 3 replaced the Pearson matrix float with nine numbers
+    # the author inlines as a table or in running text, so the numbers have to
+    # leave the pipeline as data, not only as a picture.
+    pearson = out / "merged" / "pearson_ground_truth.tsv"
+    if pearson.exists():
+        (out / "qa").mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(pearson, out / "qa" / "pearson_ground_truth.tsv")
+        print(f"  {'qa/pearson_ground_truth.tsv':46s} <- "
+              f"merged/pearson_ground_truth.tsv")
+    else:
+        sys.exit(f"expected ground-truth table is missing: {pearson}")
 
     print(f"\n{collected} paper figures written to {figures}")
     print("Next: python3 bench/plot/qa_fig_fonts.py "

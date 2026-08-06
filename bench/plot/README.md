@@ -207,17 +207,34 @@ Regenerates the eleven figures the paper includes, each rendered at its
 **exact printed size** (`paper_style.py` holds the width/height table and the
 IEEEtran page geometry), so `\includegraphics` embeds them at scale 1.0 and a
 7 pt label is a printed 7 pt. Writes them twice — under the paper's filenames
-in `figures/` and in the artifact's `published/<subset>/` layout.
+in `figures/` and in the artifact's `published/<subset>/` layout — plus
+`qa/pearson_ground_truth.tsv`, the nine profiler-vs-ground-truth Pearson r
+values as data rather than as a picture.
 
 The three plotters take `--camera-ready --paper-subset {baseline,new,merged}`
 individually; the driver just sequences them. **Without those flags nothing
 changes**, so the exploratory figure sets are unaffected.
 
+Nine of the eleven PDFs are placed in the paper; two —
+`baseline-fig01b_per_variant_bars.pdf` and `merged-fig05_fidelity_matrix.pdf`
+— are rendered as *alternatives* to floats that were consolidated away, so
+the author can put either back. `paper_style.FLOATS` records which PDFs make
+up which float and what each costs.
+
 `qa_fig_fonts.py` is the gate: it re-opens each PDF, asserts the page width
-against the target and the 6.5 pt floor against the embedded text spans,
-diffs every visible string against the previous render, writes `QA-FIGS.md`
-plus a 300-dpi contact sheet under `qa/`, and exits nonzero on any violation.
-It needs `pymupdf` in addition to the dependencies above.
+against the target, the 6.5 pt floor against the embedded text spans, and
+that no text runs off the page box; diffs every visible string against the
+previous render; reports each float's cost in points of column-space against
+the consolidation budget; writes `QA-FIGS.md` plus a 300-dpi contact sheet
+under `qa/`; and exits nonzero on any violation. It needs `pymupdf` in
+addition to the dependencies above.
+
+The off-the-page-box check exists because a figure can be shrunk until
+matplotlib centres a y-axis label — which is as tall as it is long — on an
+axes too short to hold it, and the ends fall outside the page. The page is
+still the right width and the fonts are still the right size, so nothing else
+in the gate notices that the label lost its last three characters. The fix is
+a shorter label or a taller figure, never a smaller font.
 
 ## Output sizing
 

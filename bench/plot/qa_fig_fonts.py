@@ -43,6 +43,12 @@ except ImportError:
 
 # Page width must match the target this closely, in inches.
 WIDTH_TOL = 0.05
+# How far a text span may reach past the page box before it counts as clipped,
+# in points. Measured across the camera-ready set, a healthy render's closest
+# span sits +0.18 pt *inside* the page and a cropped one lands outside it
+# (-0.23 pt for a y-label missing its last three characters, -2.2 pt for one
+# missing a word), so the sign is the signal and this only absorbs rounding.
+CLIP_TOL = 0.05
 # Contact-sheet render resolution.
 CONTACT_DPI = 300
 PT_PER_IN = 72.0
@@ -50,14 +56,45 @@ PT_PER_IN = 72.0
 
 def spans(page) -> list[tuple[float, str]]:
     """(size, text) for every non-blank text span on the page."""
+    return [(size, text) for size, text, _bbox in _spans_with_bbox(page)]
+
+
+def _spans_with_bbox(page) -> list[tuple[float, str, tuple]]:
+    """(size, text, bbox) for every non-blank text span on the page."""
     out = []
     for block in page.get_text("dict")["blocks"]:
         for line in block.get("lines", []):
             for span in line.get("spans", []):
                 text = span["text"].strip()
                 if text:
-                    out.append((round(span["size"], 2), text))
+                    out.append((round(span["size"], 2), text, span["bbox"]))
     return out
+
+
+def clipped(page) -> list[str]:
+    """Text that runs off the page box, i.e. the figure is cropped.
+
+    ``paper_style.save`` sizes the page from the figure's tight bounding box,
+    so in a correct render every glyph sits inside the page on all four sides.
+    A span that extends past it means the tight bbox did not own it and the
+    PDF is missing ink -- which is what happens when a figure is made short
+    enough that an axis label, being as tall as it is long, no longer fits:
+    matplotlib centres the label on the axes and the ends fall outside.
+
+    This is not hypothetical. The Addendum B height cuts produced exactly that
+    on the overhead panels, and nothing else in this gate saw it: the fonts
+    were the right size and the page was the right width, it was just missing
+    the second half of "Δ busy jiffies (arm − baseline)". Font size and page
+    width are worth nothing if the text is not on the page, so it fails here.
+    """
+    rect = page.rect
+    bad = []
+    for _size, text, bbox in _spans_with_bbox(page):
+        x0, y0, x1, y1 = bbox
+        outside = max(rect.x0 - x0, rect.y0 - y0, x1 - rect.x1, y1 - rect.y1)
+        if outside > CLIP_TOL:
+            bad.append(text)
+    return bad
 
 
 def text_counter(pdf: Path) -> Counter:
@@ -87,6 +124,10 @@ def main() -> int:
                          "beyond dropped titles, shared-axis de-duplication "
                          "and tick-locator thinning is a red flag.")
     args = ap.parse_args()
+
+    global PAPER_FIGURES_NAME
+    PAPER_FIGURES_NAME = {k: v.out_name
+                          for k, v in paper_style.PAPER_FIGURES.items()}
 
     out = args.out or args.figures.parent
     qa_dir = out / "qa"
@@ -129,6 +170,16 @@ def main() -> int:
                     f"{paper_style.ANNOT_FLOOR} pt floor "
                     f"(e.g. {', '.join(repr(w) for w in worst)})")
                 notes.append(f"below {paper_style.ANNOT_FLOOR} pt floor")
+
+        cut = clipped(page)
+        if cut:
+            shown = sorted(set(cut))[:3]
+            failures.append(
+                f"{spec.out_name}: text runs off the page box — the figure is "
+                f"cropped (e.g. {', '.join(repr(c) for c in shown)}). The "
+                f"figure is too short for its labels; shorten the label or "
+                f"raise the height, never the font.")
+            notes.append("clipped text")
 
         if abs(width - spec.width) > WIDTH_TOL:
             failures.append(
@@ -239,6 +290,118 @@ def main() -> int:
                                   for u in uniq)
                 return shown.replace("|", "\\|")
             lines.append(f"| `{name}` | {fmt(removed)} | {fmt(added)} |")
+
+    # ---- Addendum B: float-cost budget ------------------------------------
+    # Measured, not asserted: the drawing height of every float comes from the
+    # page boxes above, so this table cannot claim a saving the PDFs do not
+    # actually deliver.
+    height_of = {(subset, stem): height
+                 for spec, subset, stem, _w, height, *_ in rows}
+    minpt_of = {(subset, stem): min_pt
+                for spec, subset, stem, _w, _h, min_pt, *_ in rows}
+    lines += [
+        "",
+        "## Float-cost budget (Addendum B)",
+        "",
+        "What costs page space is a float, not a PDF: its drawing, its",
+        "caption and the separation around it — and a `figure*` pays all of",
+        "that twice because it consumes both columns. So the unit is points",
+        "of column-space, `span × (drawing + caption + separation)`, and one",
+        f"page holds {paper_style.PAGE_COLUMN_SPACE:.0f} pt of it (2 columns ×",
+        "684 pt). Drawing heights are the measured page heights above;",
+        "caption and separation are per float, carried over from the",
+        "measurements on the pre-consolidation PDF.",
+        "",
+        "| Float | Members | Span | Drawing (pt) | Cost before (pt) | "
+        "Cost after (pt) | Saving (pt) | ≥7 pt floor |",
+        "|---|---|---|---|---|---|---|---|",
+    ]
+    total_before = total_after = 0.0
+    for fl in paper_style.FLOATS:
+        heights = [height_of.get(m) for m in fl.members]
+        heights = [h for h in heights if h is not None]
+        draw_pt = max(heights) * PT_PER_IN if heights else 0.0
+        gone = not fl.now
+        cost_after = 0.0 if gone else fl.span * (draw_pt + fl.overhead_pt)
+        saving = fl.cost_before_pt - cost_after
+        total_before += fl.cost_before_pt
+        total_after += cost_after
+        mins = [minpt_of.get(m) for m in fl.members]
+        mins = [m for m in mins if m is not None]
+        floor = ("—" if not mins
+                 else "yes" if min(mins) >= paper_style.ANNOT_FLOOR - 1e-6
+                 else f"**NO ({min(mins):.2f} pt)**")
+        names = "<br>".join(f"`{PAPER_FIGURES_NAME[m]}`" for m in fl.members
+                            if m in PAPER_FIGURES_NAME)
+        who = f"{fl.was} → {fl.now}" if fl.now else f"{fl.was} → *removed*"
+        lines.append(
+            f"| {who} | {names} | {'—' if gone else fl.span} | "
+            f"{'—' if gone else format(draw_pt, '.0f')} | "
+            f"{fl.cost_before_pt:.0f} | {cost_after:.0f} | "
+            f"{saving:+.0f} | {floor} |")
+    saved = total_before - total_after
+    target = paper_style.SAVING_TARGET_PT
+    lines += [
+        f"| **total** | | | | **{total_before:.0f}** | **{total_after:.0f}** "
+        f"| **{saved:+.0f}** | |",
+        "",
+        f"**{saved:.0f} pt recovered against the {target:.0f} pt target** "
+        f"({saved / target * 100:.0f} %), which is "
+        f"{saved / paper_style.PAGE_COLUMN_SPACE:.2f} of a page. The figure",
+        f"set now costs {total_after:.0f} pt of column-space, down from "
+        f"{total_before:.0f} pt.",
+        "",
+        "Fig. 1 (the TikZ architecture diagram, 248 pt) is out of scope and is",
+        "excluded from both sides. Fig. 4 → Fig. 3 (PCA + dendrogram) is",
+        "deliberately untouched: its height is what made the dendrogram leaf",
+        "labels legible.",
+        "",
+        "Still rendered, no longer placed — the fallbacks, at zero cost unless",
+        "the author puts one back:",
+        "",
+    ]
+    for m, why in paper_style.unplaced():
+        spec = paper_style.PAPER_FIGURES[m]
+        h = height_of.get(m)
+        lines.append(
+            f"- `{spec.out_name}` — {why}"
+            + (f", {h * PT_PER_IN:.0f} pt tall" if h is not None else "")
+            + (f"; reinstating it as its own single-column float would cost "
+               f"about {h * PT_PER_IN + 38:.0f} pt." if h is not None else ""))
+
+    # ---- what main.tex has to change --------------------------------------
+    lines += [
+        "",
+        "## LaTeX-side changes",
+        "",
+        "This pipeline does not edit `main.tex`, and half of each saving",
+        "above is a LaTeX-side change: a float that stops spanning, an",
+        "`\\includegraphics` that goes away, a `width=` factor that no longer",
+        "matches the PDF it scales. A `width=` left at its old value is the",
+        "dangerous one — it silently rescales the PDF and re-shrinks every",
+        "label, which is exactly what Addendum A was for.",
+        "",
+        "**Worth checking while you are in there.** Addendum B.1 measured the",
+        "old Fig. 2 drawing at 241 pt, but the PDF this pipeline produces for",
+        "it, `baseline-fig01b_per_variant_bars.pdf`, is 299 pt tall — so",
+        "`main.tex` was including it at about 0.81 scale, and its 7 pt labels",
+        "were printing at roughly 5.7 pt. Every other float's measurement",
+        "reconciles with its PDF to within a point, so this looks like one",
+        "stale `width=` factor rather than a systematic problem. That figure",
+        "is being deleted either way, but the same check is worth running over",
+        "whatever `width=` values survive: each should make the PDF come out",
+        "at its natural size.",
+        "",
+    ]
+    for fl in paper_style.FLOATS:
+        changes = paper_style.LATEX_CHANGES.get(fl.was)
+        if not changes:
+            continue
+        who = f"{fl.was} → {fl.now}" if fl.now else f"{fl.was} (removed)"
+        lines.append(f"**{who}**")
+        lines.append("")
+        lines += [f"- {c}" for c in changes]
+        lines.append("")
 
     lines += ["", "## Result", ""]
     if failures:

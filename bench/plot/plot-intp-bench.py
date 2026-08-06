@@ -533,13 +533,20 @@ def fig_per_variant_bars(means: pd.DataFrame, outdir: Path) -> None:
     spec = (paper_style.spec_for(PAPER_SUBSET, "fig01b_per_variant_bars")
             if CAMERA_READY else None)
     if spec is not None:
-        # Camera-ready: the paper subsets are 1 panel (baseline) or 2 (new), so
-        # a single row is the right shape and constrained_layout can pack the
-        # long y-labels against the panel that owns them instead of parking
-        # them in a wide gutter. Same rows, columns, order and colour scale as
-        # the exploratory layout below — only the geometry differs.
+        # Camera-ready: one row, so constrained_layout can pack the long
+        # y-labels against the panel that owns them instead of parking them in
+        # a wide gutter. Same rows, columns, order and colour scale as the
+        # exploratory layout below — only the geometry differs.
+        #
+        # sharey: Addendum B merges the legacy panel and the modern pair into
+        # one three-panel float, and every panel has the identical 18 workload
+        # rows in the identical order. Drawn once on the leftmost panel, the
+        # label column is paid for once instead of n times — which is what
+        # buys the third panel its width. With n == 1 (the standalone legacy
+        # alternative) this is a no-op.
         fig, axes = plt.subplots(1, n, figsize=(spec.width, spec.height),
-                                 layout="constrained", squeeze=False)
+                                 layout="constrained", squeeze=False,
+                                 sharey=True)
         axes_flat = list(axes[0])
     else:
         nrows, ncols = _grid_dims(n)
@@ -583,7 +590,14 @@ def fig_per_variant_bars(means: pd.DataFrame, outdir: Path) -> None:
                            rotation_mode="anchor")
         ax.set_yticks(range(len(workloads)))
         ax.set_yticklabels(workloads, fontsize=_cr(paper_style.BODY, 7))
-        ax.set_title(f"{env} / {_variant_label(variant)}",
+        if spec is not None and idx > 0:
+            # sharey hides the ticks but not labels set explicitly above.
+            ax.tick_params(labelleft=False)
+        # The env is constant across the paper panels and the caption says it,
+        # so the camera-ready title is the variant alone — it also lets the
+        # three merged panels keep a title that fits their narrower slot.
+        ax.set_title(_variant_label(variant) if CAMERA_READY
+                     else f"{env} / {_variant_label(variant)}",
                      fontsize=_cr(paper_style.TITLE, 9.5))
         ax.grid(False)
     if im is not None:
@@ -945,6 +959,11 @@ def _collect_overhead_rows(results_dir: Path) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
+# Which of the three overhead PDFs carries the legend shared by all three.
+# It is the leftmost panel of the assembled float (see paper_style.FLOATS).
+OVERHEAD_LEGEND_PANEL = "fig04_overhead_throughput"
+
+
 def _render_overhead_bars(summary: pd.DataFrame, mean_col: str, std_col: str | None,
                           ylabel: str, path: Path, label: str, *, title: str) -> None:
     """Per-(env) panel grid: x=ref, grouped bars=variant, y=mean (± std)."""
@@ -957,8 +976,16 @@ def _render_overhead_bars(summary: pd.DataFrame, mean_col: str, std_col: str | N
             if CAMERA_READY else None)
     if spec is not None:
         # Camera-ready: each of the three overhead views is its own PDF at
-        # 0.325\linewidth, so it must be self-contained — own legend, own
-        # axis labels — while costing as little width as possible.
+        # 0.325\linewidth, assembled side by side into one float.
+        #
+        # Addendum B.2 item 5: all three panels showed the same three-variant
+        # legend, so two of the three were pure duplication. Only the left
+        # panel draws it now, which makes the left PDF taller than the other
+        # two by exactly the legend strip — and since \includegraphics boxes
+        # in a row sit on a common baseline, the three plot areas land level
+        # and the float's height is the left panel's rather than every
+        # panel's. The cost is that the centre and right PDFs are no longer
+        # individually self-contained; see QA-FIGS.md.
         fig, axes = plt.subplots(len(envs), 1,
                                  figsize=(spec.width, spec.height),
                                  squeeze=False, sharey=True,
@@ -1002,13 +1029,16 @@ def _render_overhead_bars(summary: pd.DataFrame, mean_col: str, std_col: str | N
     handles = [plt.Rectangle((0, 0), 1, 1, color=VARIANT_COLORS.get(v, "C0"))
                for v in all_variants]
     if CAMERA_READY:
-        # One compact row, no "variant" title (the labels are self-evident and
-        # the title would cost a second row at this width).
-        fig.legend(handles, [_variant_label(v) for v in all_variants],
-                   loc="outside upper center", ncol=max(1, len(all_variants)),
-                   frameon=False, fontsize=paper_style.LEGEND,
-                   handlelength=1.0, handletextpad=0.35,
-                   columnspacing=0.7, borderaxespad=0.1)
+        if path.stem == OVERHEAD_LEGEND_PANEL:
+            # One compact row, no "variant" title (the labels are self-evident
+            # and the title would cost a second row at this width). Drawn on
+            # the leftmost panel only — it serves all three.
+            fig.legend(handles, [_variant_label(v) for v in all_variants],
+                       loc="outside upper center",
+                       ncol=max(1, len(all_variants)),
+                       frameon=False, fontsize=paper_style.LEGEND,
+                       handlelength=1.0, handletextpad=0.35,
+                       columnspacing=0.7, borderaxespad=0.1)
         _save(fig, path, label)
         return
     fig.legend(handles, [_variant_label(v) for v in all_variants], loc="upper center",
@@ -1093,7 +1123,11 @@ def fig_overhead_bars(results_dir: Path, outdir: Path) -> None:
     _render_overhead_bars(
         summary,
         "cpu_extra_jiffies_mean", "cpu_extra_jiffies_std",
-        "Δ busy jiffies (arm − baseline)",
+        # A y-axis label is as tall as it is long, so on a panel this short it
+        # is the binding constraint on the float's height: the full phrase
+        # needs 106 pt of the 106 pt page. The qualifier moves to the caption
+        # (Addendum B.2 item 5) — it is the same definition either way.
+        _cr("Δ busy jiffies", "Δ busy jiffies (arm − baseline)"),
         outdir / "fig04b_overhead_cpu_jiffies.png", "fig04b",
         title="Extra system-wide CPU induced by the profiler\n"
               "/proc/stat busy jiffies over the steady-state window")
@@ -1103,7 +1137,7 @@ def fig_overhead_bars(results_dir: Path, outdir: Path) -> None:
         _render_overhead_bars(
             summary,
             "delta_ss_mean", "delta_ss_std",
-            "Δ sched:sched_switch events",
+            _cr("Δ sched_switch", "Δ sched:sched_switch events"),
             outdir / "fig04c_overhead_sched_switch.png", "fig04c",
             title="Volpert-flavoured scheduler perturbation\n"
                   "Δ sched:sched_switch over the steady-state window "
@@ -1176,6 +1210,14 @@ def fig_fidelity_matrix(results_dir: Path, outdir: Path) -> None:
     pivot = df.pivot_table(index="variant", columns="metric", values="r", aggfunc="mean")
     pivot = pivot.reindex(index=_ordered_variants(pivot.index),
                           columns=[m for m in pair_map if m in pivot.columns])
+    # Addendum B.2 item 3: the matrix is nine numbers, which a three-row table
+    # or a sentence carries as well as a float does and for none of the page
+    # cost. Emitted with the paper-facing variant names and the same +0.00
+    # formatting the cells use, so it can be pasted straight into main.tex.
+    tsv = pivot.rename(index=_variant_label)
+    tsv.index.name = "variant"
+    tsv.to_csv(outdir / "pearson_ground_truth.tsv", sep="\t",
+               float_format="%+.2f", na_rep="n/a")
     spec = (paper_style.spec_for(PAPER_SUBSET, "fig05_fidelity_matrix")
             if CAMERA_READY else None)
     if spec is not None:

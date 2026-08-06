@@ -178,11 +178,6 @@ MAX_PIXELS = 3600
 SAVE_DPI = 220
 
 
-def _cr(camera_value, default):
-    """Pick the camera-ready value when rendering for the paper."""
-    return camera_value if CAMERA_READY else default
-
-
 def _clamp_figsize(width: float, height: float) -> tuple[float, float]:
     max_in = MAX_PIXELS / SAVE_DPI
     scale = min(1.0, max_in / max(width, 1e-9), max_in / max(height, 1e-9))
@@ -1106,35 +1101,26 @@ def fig_variant_resource_heatmap(df: pd.DataFrame, outdir: Path) -> None:
     spec = (paper_style.spec_for(PAPER_SUBSET,
                                  "fig10_variant_resource_heatmap")
             if CAMERA_READY else None)
-    cbar_ax = None
     if spec is not None:
-        # Camera-ready reflow: 7 profiles into a 4×2 grid, with the colorbar
-        # occupying the free eighth slot. The exploratory 3+3+1 layout wastes
-        # a full panel row on one centred panel, which at 6.80 in costs more
-        # height than the height budget allows.
-        nrows, ncols = 2, 4
-        fig, axes = plt.subplots(nrows, ncols,
-                                 figsize=(spec.width, spec.height),
-                                 squeeze=False, sharey=True,
-                                 layout="constrained")
-        axes_flat = [axes[i // ncols][i % ncols] for i in range(n_p)]
-        # Free slots: the last one hosts the shared colorbar, any others go.
-        free = [axes[i // ncols][i % ncols]
-                for i in range(n_p, nrows * ncols)]
-        for spare in free[:-1]:
-            spare.set_visible(False)
-        if free:
-            cbar_ax = free[-1]
-            cbar_ax.set_axis_off()
-    else:
-        # Stacked-rows layout: at n=7 profiles _grid_dims returns 3×3 and
-        # centres the partial last row. Earlier 1×7 layout cramped the
-        # x-axis labels (cache, cpu, disk, memory, network) into overlap.
-        nrows, ncols = _grid_dims(n_p)
-        panel_w = 2.4 + 0.6 * len(resources)        # wide enough for x labels
-        panel_h = 0.55 * n_v + 1.4                  # variant rows + title
-        fig = plt.figure(figsize=_clamp_figsize(panel_w * ncols, panel_h * nrows))
-        axes_flat, _, _ = _make_axes_grid(fig, n_p, wspace=1.1, hspace=0.45)
+        # Addendum B.2 item 2: one heatmap instead of a panel grid.
+        #
+        # The grid encoded (profile) x (variant x family) as 7 panels, which
+        # repeated the same 5 x-tick labels seven times, the same 3 y-tick
+        # labels seven times, and 7 panel titles — axis furniture costing more
+        # space than the 105 numbers it framed, and it needed the full text
+        # width to hold it. Transposed into a single (variant x profile) x
+        # family matrix the same numbers fit one column, which is where the
+        # ~290 pt comes from: the float stops spanning the page.
+        _render_variant_resource_single(rdf, profiles, resources, spec, outdir)
+        return
+    # Stacked-rows layout: at n=7 profiles _grid_dims returns 3×3 and
+    # centres the partial last row. Earlier 1×7 layout cramped the
+    # x-axis labels (cache, cpu, disk, memory, network) into overlap.
+    nrows, ncols = _grid_dims(n_p)
+    panel_w = 2.4 + 0.6 * len(resources)        # wide enough for x labels
+    panel_h = 0.55 * n_v + 1.4                  # variant rows + title
+    fig = plt.figure(figsize=_clamp_figsize(panel_w * ncols, panel_h * nrows))
+    axes_flat, _, _ = _make_axes_grid(fig, n_p, wspace=1.1, hspace=0.45)
 
     cmap = plt.get_cmap("Blues").copy()
     cmap.set_bad(color="#cccccc")
@@ -1148,39 +1134,90 @@ def fig_variant_resource_heatmap(df: pd.DataFrame, outdir: Path) -> None:
         im = ax.imshow(masked, cmap=cmap, vmin=0, vmax=100, aspect="auto",
                        interpolation="nearest")
         ax.set_xticks(range(len(resources)))
-        # At 4 columns across 6.80 in each panel is ~1.5 in wide, so the
-        # 7-character "network" needs rotating to clear its neighbour.
-        ax.set_xticklabels(resources, fontsize=_cr(paper_style.BODY, 8.5),
-                           rotation=_cr(45, 0),
-                           ha=_cr("right", "center"),
-                           rotation_mode=_cr("anchor", None))
+        ax.set_xticklabels(resources, fontsize=8.5)
         ax.set_yticks(range(len(pivot.index)))
         ax.set_yticklabels([variant_label(v) for v in pivot.index],
-                           fontsize=_cr(paper_style.BODY, 8.5))
-        ax.set_title(f"profile={profile}", fontsize=_cr(paper_style.TITLE, 10))
+                           fontsize=8.5)
+        ax.set_title(f"profile={profile}", fontsize=10)
         for (yi, xi), v in np.ndenumerate(pivot.values):
             if not np.isnan(v):
                 ax.text(xi, yi, f"{v:.0f}", ha="center", va="center",
-                        fontsize=_cr(paper_style.ANNOT, 8.5), fontweight="bold",
+                        fontsize=8.5, fontweight="bold",
                         color="white" if v > 50 else "black")
         ax.grid(False)
     if im is not None:
-        if cbar_ax is not None:
-            # Colorbar in the free eighth grid slot rather than stealing width
-            # from the panel row.
-            cbar = fig.colorbar(im, ax=cbar_ax, fraction=0.30, shrink=0.92,
-                                label="mean interference (%)")
-            cbar.ax.tick_params(labelsize=paper_style.BODY)
-            cbar.set_label("mean interference (%)", size=paper_style.BODY)
-            cbar.outline.set_linewidth(0.5)
-        else:
-            fig.colorbar(im, ax=axes_flat, fraction=0.035, shrink=0.7,
-                         label="mean interference (%)")
-    if not CAMERA_READY:
-        _centered_suptitle(
-            fig, axes_flat,
-            "HiBench variant × resource family — mean interference",
-            fontsize=12)
+        fig.colorbar(im, ax=axes_flat, fraction=0.035, shrink=0.7,
+                     label="mean interference (%)")
+    _centered_suptitle(
+        fig, axes_flat,
+        "HiBench variant × resource family — mean interference",
+        fontsize=12)
+    _save(fig, outdir / "fig10_variant_resource_heatmap.png", "fig10")
+
+
+def _render_variant_resource_single(rdf, profiles, resources, spec,
+                                    outdir: Path) -> None:
+    """Paper Fig. 5: one heatmap, rows = (variant × profile), cols = family.
+
+    Reading order is variant-major so the paper's claim — that the three
+    endpoints disagree about *which* family lights up, consistently across
+    every co-runner profile — is a comparison between the three row blocks
+    rather than between seven panels. The blocks are separated by a rule and
+    named once, in the gutter, so the profile names are the only per-row text.
+    """
+    variants = _ordered_variants(rdf["variant"].unique())
+    # Row order: variant-major, profiles in canonical order inside each block.
+    order = [(v, p) for v in variants for p in profiles]
+    data = np.full((len(order), len(resources)), np.nan)
+    lookup = {(r.variant, r.profile, r.resource): r.mean
+              for r in rdf.itertuples()}
+    for i, (v, p) in enumerate(order):
+        for j, res in enumerate(resources):
+            val = lookup.get((v, p, res))
+            if val is not None:
+                data[i, j] = val
+
+    # A narrow frameless axes on the left holds the rotated block labels, so
+    # their room is reserved by the layout engine instead of guessed against
+    # the width of the profile tick labels.
+    fig, (lax, ax) = plt.subplots(
+        1, 2, figsize=(spec.width, spec.height),
+        width_ratios=[0.045, 1.0], layout="constrained")
+    lax.set_axis_off()
+
+    cmap = plt.get_cmap("Blues").copy()
+    cmap.set_bad(color="#cccccc")
+    im = ax.imshow(np.ma.masked_invalid(data), cmap=cmap, vmin=0, vmax=100,
+                   aspect="auto", interpolation="nearest")
+    ax.set_xticks(range(len(resources)))
+    # At column width the five families sit on a ~0.50 in pitch and "memory"
+    # and "network" butt together horizontally; 30° separates them for ~0.1 in
+    # of height, which is cheaper than any of the alternatives.
+    ax.set_xticklabels(resources, fontsize=paper_style.BODY,
+                       rotation=30, ha="right", rotation_mode="anchor")
+    ax.set_yticks(range(len(order)))
+    ax.set_yticklabels([p for _v, p in order], fontsize=paper_style.BODY)
+    ax.tick_params(length=0)
+    for (yi, xi), v in np.ndenumerate(data):
+        if not np.isnan(v):
+            ax.text(xi, yi, f"{v:.0f}", ha="center", va="center",
+                    fontsize=paper_style.ANNOT, fontweight="bold",
+                    color="white" if v > 50 else "black")
+    # Block rules on the variant boundaries, and the block name in the gutter.
+    n_p = len(profiles)
+    for b in range(1, len(variants)):
+        ax.axhline(b * n_p - 0.5, color="black", linewidth=0.8)
+    for b, v in enumerate(variants):
+        centre = 1.0 - (b * n_p + n_p / 2.0) / len(order)
+        lax.text(0.5, centre, variant_label(v), rotation=90,
+                 ha="center", va="center", fontsize=paper_style.BODY,
+                 transform=lax.transAxes)
+    ax.grid(False)
+    cbar = fig.colorbar(im, ax=ax, fraction=0.055, pad=0.02,
+                        label="mean interference (%)")
+    cbar.ax.tick_params(labelsize=paper_style.BODY)
+    cbar.set_label("mean interference (%)", size=paper_style.BODY)
+    cbar.outline.set_linewidth(0.5)
     _save(fig, outdir / "fig10_variant_resource_heatmap.png", "fig10")
 
 
