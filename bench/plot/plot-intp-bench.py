@@ -1590,7 +1590,13 @@ def fig_idi_bars(means: pd.DataFrame, outdir: Path, ci_method: str | None = None
     df.to_csv(outdir / "idi_resource.csv", index=False)
     lo_col, hi_col = f"ci_{method}_lo", f"ci_{method}_hi"
     resources = list(RESOURCE_FAMILY.keys())
-    fig, ax = plt.subplots(figsize=_clamp_figsize(7.2, 3.6))
+    spec = (paper_style.spec_for(PAPER_SUBSET, "fig11_idi_bars")
+            if CAMERA_READY else None)
+    if spec is not None:
+        fig, ax = plt.subplots(figsize=(spec.width, spec.height),
+                               layout="constrained")
+    else:
+        fig, ax = plt.subplots(figsize=_clamp_figsize(7.2, 3.6))
     x = np.arange(len(resources))
     width = 0.8 / max(1, len(variants))
     for vi, variant in enumerate(variants):
@@ -1622,6 +1628,15 @@ def fig_idi_bars(means: pd.DataFrame, outdir: Path, ci_method: str | None = None
     ax.set_xticks(x); ax.set_xticklabels(resources)
     ax.axhline(0, color="black", linewidth=0.5)
     ax.set_ylabel("Δ interference (pairwise − solo, %)")
+    if CAMERA_READY:
+        # In-plot header dropped: the LaTeX caption already names the index,
+        # the env and the CI method.
+        ax.legend(ncol=len(variants), fontsize=paper_style.LEGEND,
+                  loc="upper center", bbox_to_anchor=(0.5, -0.10),
+                  frameon=False, handlelength=1.0, handletextpad=0.35,
+                  columnspacing=0.8, borderaxespad=0.0)
+        _save(fig, outdir / "fig11_idi_bars.png", "fig11")
+        return
     ax.set_title(f"Interference discrimination index (IDI) by resource — "
                  f"env={env}, {IDI_CI_TITLE[method]} CI", fontsize=10)
     ax.legend(ncol=len(variants), fontsize=8.5, loc="upper center",
@@ -1716,9 +1731,19 @@ def fig_iada_segmented(results_dir: Path, outdir: Path, n_segments: int = 4) -> 
     n = len(files)
     cols = min(2, n)
     rows = (n + cols - 1) // cols
-    fig, axes = plt.subplots(rows, cols,
-                             figsize=_clamp_figsize(7.6 * cols, 3.0 * rows),
-                             squeeze=False, sharex=False)
+    spec = (paper_style.spec_for(PAPER_SUBSET, "fig13_iada_segmented")
+            if CAMERA_READY else None)
+    if spec is not None:
+        # Camera-ready: full \textwidth, panels side by side, y-axis shared so
+        # only the leftmost panel pays for tick labels.
+        fig, axes = plt.subplots(rows, cols,
+                                 figsize=(spec.width, spec.height),
+                                 squeeze=False, sharex=False, sharey=True,
+                                 layout="constrained")
+    else:
+        fig, axes = plt.subplots(rows, cols,
+                                 figsize=_clamp_figsize(7.6 * cols, 3.0 * rows),
+                                 squeeze=False, sharex=False)
     last = -1
     for idx, f in enumerate(sorted(files)):
         last = idx
