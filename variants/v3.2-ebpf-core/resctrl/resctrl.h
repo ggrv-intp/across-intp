@@ -14,9 +14,9 @@
  *     the new mbw_raw_mbps trailing column without double-advancing
  *     the prev_mbm_bytes counter.
  *   - The clip-at-100 behavior is OPT-IN (clip_at_100 flag), not the
- *     hard default the V3 helper hard-codes. The paper documents
- *     (section IV-E) that V3's silent clip is what produces the bimodal
- *     discrete pattern 96/80/64/48/32/16/0 -- not measurement.
+ *     hard default the V3 helper hard-codes. docs/V3-OVERHEAD-FINDINGS.md
+ *     section 3 documents that V3's silent clip is what produces the
+ *     bimodal discrete pattern 96/80/64/48/32/16/0 -- not measurement.
  */
 
 #ifndef INTP_V3_RESCTRL_H

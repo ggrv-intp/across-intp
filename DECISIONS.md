@@ -152,3 +152,60 @@ each touched file carries a marker. A full-tree scan for auth patterns,
 key material and platform tokens is clean. The published fragility tables
 remain the canonical v0.2 stall counts; `ANONYMIZATION.md` in the payload
 was rewritten to record both assets' policies.
+
+## D11 — post-camera-ready audit: stale amplification figure, draft section numbering
+
+An audit against the accepted camera-ready found the repository publishing a
+context-switch amplification figure the paper contradicts, plus cross-references
+to a draft section numbering that no longer exists.
+
+1. **`188-390x` was wrong; the correct figure is `194-416x`.** Recomputed from
+   the published artifact's raw `vmstat` traces
+   (`extra/intp-aux-rerun-v3-20260524-164742/`) with `parse_vmstat_cs` from
+   `bench/plot/plot-aux-rerun.py`, mean of 3 reps per cell: `ref_stream` 194x,
+   `ref_cpu` 404x, `ref_disk` 416x. The paper's §V-B figure is right and the
+   repository's was stale — it predates the 2026-05-24 auxiliary reruns and had
+   propagated to 22 sites across 12 files, including two C source comments and
+   the `test-no-ctxsw-amplification.sh` diagnostics. The 1.10 acceptance
+   threshold in that test is unchanged; only the messages were. The same
+   computation over `intp-aux-rerun-v3.2-*` gives 1.0x on all three loads,
+   confirming §V-B's "leaves vmstat unchanged".
+
+2. **`V3-OVERHEAD-FINDINGS.md` §1 had the workload attribution backwards.** It
+   claimed bursty I/O sat at the low end of the range and CPU-bound load at the
+   high end. `ref_disk` is in fact the maximum and `ref_stream` the minimum —
+   a case the sentence did not mention. Replaced with the measured table.
+
+3. **Draft section numbers swept to the camera-ready.** `section VIII` →
+   `§III-A`, `section V-D` and `section VI (overhead decomposition)` → `§V-B`,
+   `§IV-C` → `§IV` (which has no lettered subsections). `§IV-E` had no target
+   at all: the `mbw` silent-clip material was cut from the camera-ready, so
+   those five sites now point at `docs/V3-OVERHEAD-FINDINGS.md` §3. Two
+   references were deliberately left alone — `bench/OVERVIEW.md` §9.7 maps the
+   2022 IntP paper, and `v3-ebpf-ring/DESIGN.md` quotes iprof's paper §III.A.
+
+4. **`docs/READER-MAP.md` added.** The paper points readers at the companion
+   repository nine times without saying where; `PAPER-CROSS-REFERENCES.md` is
+   historical and uses draft numbering. The new map covers those promises plus
+   the `figures/` → `published/<subset>/` filename mapping, whose two aliases
+   (`new-fig01b_*` for the merged subset, `merged-fig11_rep_errorbars` for stem
+   `fig11_idi_bars`) were otherwise undiscoverable.
+
+5. **Two artifact-only figure specs.** `published/new/fig01b` and
+   `published/merged/fig13` were still pre-camera-ready renders: the refresh in
+   D10 only covered the eleven stems in `PAPER_FIGURES`, and those two are the
+   other subset's cut of the same panel, which no paper figure uses. They are
+   now specs with `artifact_only=True` — rendered at `TEXT_WIDTH` and gated like
+   the rest, but not copied into `figures/`, so the Overleaf drop-in still holds
+   exactly the eleven the paper includes. The gate report now ships as
+   `published/QA-FIGS.md`, which `PROVENANCE.md` had promised without delivering.
+
+6. **`PROVENANCE.md` no longer pins the tag's commit hash.** It claimed
+   `9795c5b` and "the tag does not move", both contradicted by D10. Since the
+   tag is re-cut at every asset refresh, any hash written here goes stale by
+   construction; `git rev-parse v0.1.0` is now the stated authority. The asset
+   count is also reconciled with D10's wording (two tarballs plus `SHA256SUMS`).
+
+The release keeps version `v0.1.0`, the tag is re-cut at this pass's head, and
+the assets are clobbered in place. The camera-ready PDF is untouched: no placed
+figure was re-rendered, so the 11-page layout stands.

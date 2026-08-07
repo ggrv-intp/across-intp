@@ -124,7 +124,7 @@ STAGES_CSV="$DEFAULT_STAGES"
 VARIANTS_CSV="$DEFAULT_VARIANTS"
 ENVS_CSV="bare"   # bare only by default; user opts in to container/vm explicitly
 WORKLOAD_FILTER=""
-# Defaults are the SBAC-PAD campaign parameters (paper §IV-C): 12 reps, 90 s
+# Defaults are the SBAC-PAD campaign parameters (paper §IV): 12 reps, 90 s
 # steady-state, 15 s warmup, 10 s cooldown, 600 s timeseries, 90 s overhead.
 # run-big-batch.sh passes these explicitly; keeping them as the standalone
 # defaults means a direct invocation reproduces the campaign setup.

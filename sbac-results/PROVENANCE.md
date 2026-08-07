@@ -106,8 +106,10 @@ names is `VERSIONS.md`. The four measured versions are v0.2
 
 ## Published artifact
 
-The public data pointer cited by the paper is release **v0.1.0** (tag at
-commit `9795c5b`). It carries three assets:
+The public data pointer cited by the paper is release **v0.1.0**. The tag is
+re-cut at the head of `main` on every asset refresh, so `git rev-parse v0.1.0`
+is the authoritative source snapshot — a hash pinned in this file would go
+stale at the next refresh. It carries two tarballs plus an integrity file:
 
 **`across-intp-sbac-results-v0.1.0.tar.gz`** — the anonymized artifact:
 
@@ -131,8 +133,10 @@ remain canonical.
 
 **`SHA256SUMS`** — integrity reference covering both tarballs.
 
-Release assets are updated in place when figures are regenerated; the tag
-does not move.
+Release assets are updated in place when figures are regenerated, and the tag
+is re-cut at the commit that produced them, so the source snapshot always
+matches the assets it ships with. The version stays `v0.1.0`; see `DECISIONS.md`
+D10 and D11 for the two refreshes this policy has been applied to.
 
 ## Figure regeneration (camera-ready)
 
@@ -141,10 +145,12 @@ Camera-ready figures are rendered at their exact printed size by
 `bench/plot/paper_style.py`) and gated by `bench/plot/qa_fig_fonts.py`,
 which measures page geometry and embedded font sizes from the produced
 PDFs — floor 6.5 pt (heatmap annotations) / 7.0 pt (axis, tick, legend,
-label text). The gate report ships as `QA-FIGS.md` next to the rendered
-set and includes a per-figure visible-string diff against the previously
+label text). The gate report ships in the artifact as `published/QA-FIGS.md`
+and includes a per-figure visible-string diff against the previously
 published figures, so typography-only regeneration is auditable: no data
-value changed.
+value changed. `published/README.md` maps the paper's `figures/` filenames
+onto the `published/<subset>/` layout and flags the two artifact-only
+renders that no camera-ready figure uses.
 
 ## Anonymization
 

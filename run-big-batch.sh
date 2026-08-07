@@ -123,7 +123,7 @@ fi
 ln -sfn "$OUT" "$ROOT/results/LATEST-BIG"
 
 # ── Timing / quality ───────────────────────────────────────────────────────────
-# Defaults below are the SBAC-PAD campaign parameters (paper §IV-C):
+# Defaults below are the SBAC-PAD campaign parameters (paper §IV):
 # 12 reps, 90 s steady-state, 15 s warmup, 10 s cooldown, 600 s timeseries,
 # 90 s overhead window. Override via env vars for quicker sizing runs.
 DURATION="${DURATION:-90}"

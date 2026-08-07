@@ -51,7 +51,7 @@ constants ebpf-ring uses.
 | blk     | ≡ ebpf-ring                                                                 |
 | cpu     | ≡ ebpf-ring                                                                 |
 | llcmr   | ≡ ebpf-ring (sample_period scaling preserved)                               |
-| **mbw** | **eBPF-CORE emits BOTH `mbw_pct` (no silent clip, opt-in via `--clip-mbw`) AND `mbw_raw_mbps` (raw MB/s); the bimodal discrete 96/80/64/48/32/16/0 artifact ebpf-ring produces from the silent clip is gone. See paper section IV-E.** |
+| **mbw** | **eBPF-CORE emits BOTH `mbw_pct` (no silent clip, opt-in via `--clip-mbw`) AND `mbw_raw_mbps` (raw MB/s); the bimodal discrete 96/80/64/48/32/16/0 artifact ebpf-ring produces from the silent clip is gone. See `docs/V3-OVERHEAD-FINDINGS.md` §3.** |
 | llcocc  | ≡ ebpf-ring                                                                 |
 
 The trailing `mbw_raw_mbps` column is diagnostic, not metric. The
