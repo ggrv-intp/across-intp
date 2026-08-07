@@ -477,8 +477,8 @@ once per `--interval` instead of draining a stream.
 ebpf-ring trades off observability for portability; eBPF-CORE trades it again for
 "non-amplification of the schedule clock". They are different points
 on the same axis, not refinements of each other. The paper reports ebpf-ring
-unchanged; eBPF-CORE is the additional data point requested by the section
-VIII discussion.
+unchanged; eBPF-CORE is the additional data point requested by the §III-A
+discussion.
 
 ### What still goes wrong
 

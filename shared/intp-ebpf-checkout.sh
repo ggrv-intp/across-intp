@@ -341,4 +341,4 @@ echo "=== Auxiliary rerun done: $(date -Iseconds) ==="
 echo "Output dir: $OUT_DIR"
 echo
 echo "Next step: scp -r pantanal01:$OUT_DIR ./   and feed summary.tsv into the paper's"
-echo "noise-floor table (§IV-E) and the composite-mechanism prose (§V-D)."
+echo "noise-floor table (§IV) and the composite-mechanism prose (§V-B)."

@@ -94,7 +94,7 @@ in megabytes per second. The new column is suppressed with
 # v3.2 eBPF-COREregate -- netp:tracepoint nets:softirq blk:tracepoint cpu:sched_switch llcmr:perf_event mbw:resctrl llcocc:resctrl
 # kernel 6.17 env=bare-metal
 # mbw_pct = (mbm_total_bytes_delta / interval) / mem_bw_max_bps * 100  (clip_mbw=off)
-# mbw_raw_mbps = (mbm_total_bytes_delta / interval) / 1e6  (diagnostic, see paper IV-E)
+# mbw_raw_mbps = (mbm_total_bytes_delta / interval) / 1e6  (diagnostic, see docs/V3-OVERHEAD-FINDINGS.md §3)
 netp    nets    blk     mbw     llcmr   llcocc  cpu     mbw_raw_mbps
 12      01      05      23      03      45      67      5650
 ```
@@ -113,7 +113,7 @@ canonical reason for `pct > 100` is a misconfigured
 eBPF-CORE ships two integration tests on top of the ebpf-ring smoke test:
 
 - `tests/integration/test-no-ctxsw-amplification.sh` (`make test-amplification`)
-  -- the structural acceptance test for the paper's V-D hypothesis.
+  -- the structural acceptance test for the paper's §V-B hypothesis.
   Runs stress-ng under vmstat for 90 s with and without the profiler,
   computes the ratio of context switches, and fails if the ratio
   exceeds 1.10. ebpf-ring fails this test at 194-416x.
@@ -144,7 +144,7 @@ the saturating subtraction `counters_diff()` relies on.
 ## When to pick V3.2 (eBPF-CORE) over V3 (ebpf-ring)
 
 - You're running ebpf-ring against a sustained-workload campaign and the
-  paper's V-D amplification is showing up in your numbers.
+  paper's §V-B amplification is showing up in your numbers.
 - You don't need per-event introspectability for this campaign.
 - You don't need MPSC FIFO ordering between probes.
 

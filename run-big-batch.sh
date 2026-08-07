@@ -151,7 +151,7 @@ BENCH_ENVS="${BENCH_ENVS:-bare}"
 #        BENCH_VARIANTS="v0,v0.2,v1.1,v2,v3".
 #   v1   stap-native (pre-helper) — BENCH_VARIANTS="...,v1".
 #   v3.1 bpftrace alternative — BENCH_VARIANTS="...,v3.1".
-#   v3.2 in-kernel-aggregating variant (addresses the V-D amplification);
+#   v3.2 in-kernel-aggregating variant (addresses the §V-B amplification);
 #        see variants/v3.2-ebpf-core/DESIGN.md — BENCH_VARIANTS="...,v3.2".
 BENCH_VARIANTS="${BENCH_VARIANTS:-v0.2,v1.1,v2,v3}"
 # HIBENCH_VARIANTS defaults to BENCH_VARIANTS, EXCEPT that the classic V0

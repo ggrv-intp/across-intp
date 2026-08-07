@@ -335,7 +335,7 @@ static void emit_tsv_header(FILE *out,
             clip_mbw ? "on (legacy V3 cap-at-99)" : "off (raw, may exceed 100)");
     if (!no_raw_mbw)
         fprintf(out, "# mbw_raw_mbps = (mbm_total_bytes_delta / interval) "
-                     "/ 1e6  (diagnostic, see paper IV-E)\n");
+                     "/ 1e6  (diagnostic, see docs/V3-OVERHEAD-FINDINGS.md §3)\n");
     if (no_raw_mbw)
         fprintf(out, "netp\tnets\tblk\tmbw\tllcmr\tllcocc\tcpu\n");
     else
@@ -583,7 +583,7 @@ int main(int argc, char **argv)
 
             /* Warn-once when the unclipped percent exceeds 100. Either
              * mem_bw_max_bps is misconfigured (the systematic V3 bug
-             * documented in paper IV-E) or sustained DDR throughput is
+             * documented in docs/V3-OVERHEAD-FINDINGS.md §3) or sustained DDR throughput is
              * genuinely above the configured ceiling. Either way the
              * analyst needs to recheck --mem-bw-max-bps; we keep
              * emitting the raw value so they can. */
