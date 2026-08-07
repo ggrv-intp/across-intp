@@ -4,7 +4,7 @@
  * V3.2 is the in-kernel-aggregating variant of V3. Where V3 pushes one
  * record per event into a 16 MiB BPF_MAP_TYPE_RINGBUF and burns a
  * userspace consumer in a polling loop to drain it (see SBAC-PAD 2026
- * paper, section V-D: 188-390x context-switch amplification structurally
+ * paper, §V-B: 194-416x context-switch amplification structurally
  * coupled to that consumer), V3.2 accumulates the same per-event signal
  * directly into per-CPU/per-PID counter maps. Userspace polls those
  * maps once per --interval and emits one TSV row -- no ring-buffer

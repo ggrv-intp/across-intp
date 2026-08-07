@@ -2,10 +2,10 @@
 
 This document describes the design rationale and implementation
 strategy for v3.2 (eBPF-CORE) of IntP. eBPF-CORE is the fourth extension specified in
-section VIII of the SBAC-PAD 2026 paper: a structural rework of v3 (ebpf-ring)
+§III-A of the SBAC-PAD 2026 paper: a structural rework of v3 (ebpf-ring)
 that replaces the ring-buffer-streaming consumer with in-kernel
-counter aggregation, eliminating the 188-390x context-switch
-amplification documented in paper section V-D.
+counter aggregation, eliminating the 194-416x context-switch
+amplification documented in paper §V-B.
 
 ## 1. Research positioning
 
@@ -22,7 +22,7 @@ across the IntP variants. The axis is:
 | **V3.2**| **Per-event eBPF probe -> in-kernel counter maps -> userspace poll** |
 
 The hypothesis eBPF-CORE tests is that the difference between C-ABI and ebpf-ring on
-the scheduler-perturbation axis (paper section V-D) is structurally
+the scheduler-perturbation axis (paper §V-B) is structurally
 caused by the consumer loop, not by intrinsic eBPF cost. The
 evidence transferred from the paper's discussion of iprof / PRISM
 (section VII) is consistent with this: iprof (which aggregates in
@@ -96,7 +96,7 @@ its maps exactly once at shutdown; PRISM polls them every second.
 eBPF-CORE sits between these temporal models: it polls at a user-specified
 `--interval` (default 1 s, matching PRISM), which gives time-series
 output while preserving the absence of the amplification mechanism
-documented in paper section V-D. The 5.8+ verifier accepts the
+documented in paper §V-B. The 5.8+ verifier accepts the
 pattern, the prevailing libbpf-bootstrap examples ship with it, and
 the hardware atomic on a per-CPU 64-bit field is essentially free on
 modern x86 / arm64.
@@ -143,7 +143,7 @@ disk I/O and LLC). That is the direct template eBPF-CORE reuses.
 
 ## 6. mbw normalization fix
 
-Paper section IV-E documents a systematic ebpf-ring reporting issue: the
+`docs/V3-OVERHEAD-FINDINGS.md` §3 documents a systematic ebpf-ring reporting issue: the
 `mbw` column emits a bimodal discrete pattern 96/80/64/48/32/16/0
 that is **not** measurement -- it is the artifact of the
 silent clip in `resctrl_read_mbm_delta()` (ebpf-ring caps `pct` at 100
@@ -228,7 +228,7 @@ axis. Concretely:
   then 12 64-bit adds per CPU, then the resctrl reads. Total
   per-interval userspace work is well under 1 ms.
 - *Context switches*: ideally one per interval (the `nanosleep`
-  wakeup). ebpf-ring incurs 188-390x amplification because every record in
+  wakeup). ebpf-ring incurs 194-416x amplification because every record in
   the ring buffer creates work for the consumer; eBPF-CORE's userspace
   does no per-event work.
 
@@ -269,7 +269,7 @@ detect/resctrl change.
 | Userspace transport                | `ring_buffer__poll` | `clock_nanosleep` + `bpf_map_lookup_elem` |
 | Per-event introspection            | yes (`--trace`)   | no                 |
 | MPSC FIFO ordering between probes  | yes               | no                 |
-| 188-390x ctxsw amplification (V-D) | yes               | no (test enforces <= 1.10) |
+| 194-416x ctxsw amplification (§V-B) | yes               | no (test enforces <= 1.10) |
 | mbw silent clip-at-100             | yes (legacy)      | no (opt-in via `--clip-mbw`) |
 | `mbw_raw_mbps` diagnostic column   | no                | yes (suppressible via `--no-raw-mbw`) |
 | Kernel floor                       | 5.8               | 5.8                |

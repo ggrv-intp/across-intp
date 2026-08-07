@@ -50,7 +50,7 @@ the original SystemTap approach across kernel versions and hardware architecture
 | V2 (C-ABI) -- C / procfs / perf_event / resctrl | Complete; validated on Hetzner Sapphire Rapids for Phase 3 experiments |
 | V3.1 (bpftrace) -- bpftrace + Python orchestrator | Complete; validated on Hetzner Sapphire Rapids for Phase 3 experiments |
 | V3 (ebpf-ring) -- eBPF/CO-RE (libbpf, ring-buffer-streaming) | Complete; validated on Hetzner Sapphire Rapids for Phase 3 experiments |
-| V3.2 (eBPF-CORE) -- eBPF/CO-RE (libbpf, in-kernel-aggregating, paper section VIII) | Complete; validated on Hetzner Sapphire Rapids for Phase 3 experiments |
+| V3.2 (eBPF-CORE) -- eBPF/CO-RE (libbpf, in-kernel-aggregating, paper §III-A) | Complete; validated on Hetzner Sapphire Rapids for Phase 3 experiments |
 
 ### Citation
 
@@ -59,6 +59,9 @@ This repository is the companion artifact of a paper accepted at
 figures and tables. If you use this software in your research, please cite it
 using the metadata in [CITATION.cff](CITATION.cff). A full thesis citation
 will be added upon defense (expected until March 2027).
+
+Arriving from the paper? [docs/READER-MAP.md](docs/READER-MAP.md) maps every
+figure, table and claim to its path here or in the release artifact.
 
 ## Variant Comparison
 
@@ -117,7 +120,7 @@ x = supported, ~ = polling approximation, - = disabled in this build
 |   |-- v2-c-abi/           Pure C: procfs / perf_event_open / resctrl
 |   |-- v3-ebpf-ring/       Full eBPF/CO-RE with libbpf (ring-buffer-streaming)
 |   |-- v3.1-bpftrace/         bpftrace scripts + Python orchestrator + resctrl
-|   |-- v3.2-ebpf-core/         Full eBPF/CO-RE with libbpf (in-kernel-aggregating, paper section VIII)
+|   |-- v3.2-ebpf-core/         Full eBPF/CO-RE with libbpf (in-kernel-aggregating, paper §III-A)
 |-- VERSIONS.md                Variant-naming map (current vs legacy pre-2026-05-05)
 ```
 
@@ -227,12 +230,13 @@ sudo ./intp-ebpf-core --pids <PID> --interval <seconds>
 sudo make test-amplification
 ```
 
-eBPF-CORE is the in-kernel-aggregating variant specified in paper section
-VIII: same probe set as ebpf-ring, but the 16 MiB ring buffer is replaced
+eBPF-CORE is the in-kernel-aggregating variant specified in paper §III-A:
+same probe set as ebpf-ring, but the 16 MiB ring buffer is replaced
 with per-CPU + per-PID counter maps polled once per `--interval`.
 The userspace consumer is no longer draining a continuous event
-stream, which is supposed to eliminate the 188-390x context-switch
-amplification documented in paper section V-D.
+stream, which eliminates the 194-416x context-switch amplification
+documented in paper §V-B -- the auxiliary rerun measures eBPF-CORE at
+1.0x the no-profiler baseline on all three reference loads.
 
 Requires: libbpf, clang, kernel BTF, resctrl for mbw/llcocc (same as
 ebpf-ring). Adds a trailing `mbw_raw_mbps` diagnostic column to the TSV
@@ -264,7 +268,8 @@ Both wrap `bench/run-os-campaign.sh` (`--help` for all knobs and the
 - [Portability Roadmap](docs/PORTABILITY-ROADMAP.md) -- Cross-kernel, cross-arch analysis
 - [Variant Comparison](docs/VARIANT-COMPARISON.md) -- Detailed rationale for each variant
 - [Experiment Strategy](docs/EXPERIMENT-STRATEGY.md) -- Operational gotchas, run discipline, workload→metric stress map
-- [Paper Cross-References](docs/PAPER-CROSS-REFERENCES.md) -- Maps each `[TODO: ...]` in the paper draft to the repo doc carrying the material
+- [Reader Map](docs/READER-MAP.md) -- **Start here if you arrived from the paper.** Every figure, table and claim mapped to its path in this repo or in the release artifact, including the Overleaf-to-artifact filename mapping
+- [Paper Cross-References](docs/PAPER-CROSS-REFERENCES.md) -- *Historical (writing phase).* Maps each `[TODO: ...]` in the paper **draft** to the repo doc carrying the material; its section and figure numbers are the draft's, not the camera-ready's
 - [Bench Findings Index](bench/findings/README.md) -- Centralized empirical findings (stap-2022 baseline diagnosis, stap-nohelper reliability notes)
 
 ## References

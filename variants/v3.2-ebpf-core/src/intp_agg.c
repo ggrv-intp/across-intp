@@ -6,7 +6,7 @@
  * "sleep --interval, read maps, compute deltas, emit one TSV row." No
  * ring_buffer__poll, no event handler dispatch, no consumer-wakeup loop.
  * That structural change is what is supposed to eliminate the
- * 188-390x context-switch amplification V3 incurs (paper section V-D).
+ * 194-416x context-switch amplification V3 incurs (paper §V-B).
  *
  * Lifecycle:
  *   1.  Parse CLI flags (intp_agg_args.c).

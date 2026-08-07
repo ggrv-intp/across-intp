@@ -143,7 +143,7 @@ axis (interval-based snapshots vs end-of-run single read).
 
 The earlier characterisation of iprof's LLC metric as a
 "stalled-backend-cycles proxy" was incorrect; iprof computes LLC miss
-ratio directly via `perf_events` (paper §III.A "Last Level Cache":
+ratio directly via `perf_events` (iprof's paper §III.A "Last Level Cache":
 "two eBPF programs, one ... for the reference count and another for
 the miss count, to every generated `perf_event`"). What iprof
 **does** approximate is `mem` -- following Kim et al. (IEEE Access
@@ -526,7 +526,7 @@ userspace polls once per interval.
 The decision to introduce eBPF-CORE was driven by three empirical findings
 documented in `docs/V3-OVERHEAD-FINDINGS.md`:
 
-1. **188-390x system-wide context-switch amplification.** ebpf-ring's
+1. **194-416x system-wide context-switch amplification.** ebpf-ring's
    ring-buffer streaming pattern forces a userspace consumer wakeup
    plus an induced preemption of co-resident workers for every drain
    cycle. The two mechanisms are structurally coupled (each wakeup
@@ -568,5 +568,4 @@ introspection profiler.
 - `docs/V3-OVERHEAD-FINDINGS.md` -- the empirical case for eBPF-CORE.
 - `docs/EXPERIMENT-STRATEGY.md` § "Why it lives next to V3 instead
   of replacing it" -- the campaign-level decision.
-- Paper section VI (overhead decomposition) and section VIII
-  (in-kernel aggregation).
+- Paper §V-B (overhead) and §III-A (in-kernel aggregation).

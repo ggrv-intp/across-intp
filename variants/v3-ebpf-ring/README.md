@@ -7,7 +7,7 @@ measured eBPF endpoint** for the SBAC-PAD 2026 campaign by replacing
 ebpf-ring's 16 MiB ring buffer with in-kernel counter aggregation. ebpf-ring is
 retained in the repository as the empirical-evidence predecessor and
 the introspection profiler; see `docs/V3-OVERHEAD-FINDINGS.md` for
-the measurement record (188-390x context-switch amplification, mbw
+the measurement record (194-416x context-switch amplification, mbw
 silent clip) that motivated eBPF-CORE.
 
 ebpf-ring is still evaluated head-to-head against the SystemTap lineage

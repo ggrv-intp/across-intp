@@ -1,7 +1,7 @@
 # V3.2 (eBPF-CORE) -- eBPF In-Kernel Aggregating IntP
 
 The fourth extension of the dissertation work, specified in
-section VIII of the SBAC-PAD 2026 paper: an in-kernel-aggregating
+§III-A of the SBAC-PAD 2026 paper: an in-kernel-aggregating
 variant of V3 (ebpf-ring) that replaces ebpf-ring's 16 MiB ring buffer with per-CPU
 counter maps + per-PID hash maps polled once per sampling interval.
 
@@ -11,7 +11,7 @@ The hypothesis eBPF-CORE tests is structural, not optimization:
 > mechanisms both vanish by construction when the userspace consumer
 > is no longer draining a continuous event stream."
 
-ebpf-ring incurs 188-390x context-switch amplification (paper section V-D)
+ebpf-ring incurs 194-416x context-switch amplification (paper §V-B)
 because its userspace process loops on `ring_buffer__poll` returning
 records and is scheduled-in / scheduled-out at the event rate. eBPF-CORE
 removes the loop: BPF probes atomically increment counters; userspace
@@ -38,7 +38,7 @@ Trade-offs accepted by design:
 - MPSC FIFO ordering between probes lost.
 
 These costs were judged worthwhile for the structural removal of the
-amplification mechanism, per paper section VIII.
+amplification mechanism, per paper §III-A.
 
 ## Build requirements
 
@@ -106,7 +106,7 @@ Both include `mbw_raw_mbps` by default (suppressible with
 When the unclipped `mbw_pct` exceeds 100% an analyst-facing warning
 fires once to stderr; the value is still reported faithfully. The
 canonical reason for `pct > 100` is a misconfigured
-`--mem-bw-max-bps`; paper section IV-E details the chain.
+`--mem-bw-max-bps`; `docs/V3-OVERHEAD-FINDINGS.md` §3 details the chain.
 
 ## Acceptance tests
 
@@ -116,7 +116,7 @@ eBPF-CORE ships two integration tests on top of the ebpf-ring smoke test:
   -- the structural acceptance test for the paper's V-D hypothesis.
   Runs stress-ng under vmstat for 90 s with and without the profiler,
   computes the ratio of context switches, and fails if the ratio
-  exceeds 1.10. ebpf-ring fails this test at 188-390x.
+  exceeds 1.10. ebpf-ring fails this test at 194-416x.
 - `tests/integration/test-metrics-equivalence.sh` -- runs ebpf-ring and eBPF-CORE
   back-to-back over the same stress-ng workload and verifies each of
   the 7 canonical metric medians agrees within 15% relative tolerance.

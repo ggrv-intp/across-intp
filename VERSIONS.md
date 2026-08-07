@@ -19,7 +19,7 @@ implementations within the same paradigm.
   resctrl). Active.
 - **v3.x** -- eBPF-based implementations. Active. v3 streams events
   through a ring buffer (predecessor); v3.1 is the bpftrace companion;
-  **v3.2** is the in-kernel-aggregation endpoint (paper section VIII)
+  **v3.2** is the in-kernel-aggregation endpoint (paper §III-A)
   that supersedes v3 as the measured eBPF endpoint.
 
 ## Mapping
@@ -40,7 +40,7 @@ to as the "2022 baseline".
 | v2      | C-ABI     | v4     | `variants/v2-c-abi/`        | Pure C (no framework): procfs polling, `perf_event_open` syscall, resctrl filesystem. Runtime-adaptive backend hierarchy | Active |
 | v3      | ebpf-ring    | v6     | `variants/v3-ebpf-ring/`         | C + libbpf + CO-RE; software metrics through 16 MiB ring buffer (streaming pattern); hardware metrics through resctrl. **Predecessor of v3.2**; retained for overhead-evidence documentation. | Active (predecessor) |
 | v3.1    | bpftrace     | v5     | `variants/v3.1-bpftrace/`          | bpftrace DSL scripts + Python orchestrator + resctrl. SystemTap-script-style ergonomics on top of eBPF | Active (companion) |
-| v3.2    | eBPF-CORE     | (new)  | `variants/v3.2-ebpf-core/`    | C + libbpf + CO-RE with **in-kernel aggregation**: `BPF_MAP_TYPE_PERCPU_ARRAY` + `BPF_MAP_TYPE_HASH` counters polled once per interval (no ring buffer). Eliminates the 188-390x context-switch amplification documented for v3; emits both `mbw_pct` and `mbw_raw_mbps`. See `variants/v3.2-ebpf-core/DESIGN.md` and `docs/V3-OVERHEAD-FINDINGS.md`. | Active (measured eBPF endpoint) |
+| v3.2    | eBPF-CORE     | (new)  | `variants/v3.2-ebpf-core/`    | C + libbpf + CO-RE with **in-kernel aggregation**: `BPF_MAP_TYPE_PERCPU_ARRAY` + `BPF_MAP_TYPE_HASH` counters polled once per interval (no ring buffer). Eliminates the 194-416x context-switch amplification documented for v3; emits both `mbw_pct` and `mbw_raw_mbps`. See `variants/v3.2-ebpf-core/DESIGN.md` and `docs/V3-OVERHEAD-FINDINGS.md`. | Active (measured eBPF endpoint) |
 
 \* The v3 lineage was discontinued at the `pre-rename-2026-05-05` tag because
 its embedded-C `perf_event_create_kernel_counter()` calls triggered RCU
@@ -137,14 +137,14 @@ to avoid the RCU-unsafe pattern, recovering the full 7-metric coverage.
 ## Status after V3.2 introduction (2026-05-13)
 
 - v3.2 (`variants/v3.2-ebpf-core/`) was added as the measured eBPF
-  endpoint for the SBAC-PAD 2026 paper section VIII. Architecture:
+  endpoint for the SBAC-PAD 2026 paper §III-A. Architecture:
   same eBPF probe set as v3 (`tracepoint:net/net_dev_xmit`,
   `tracepoint:block/block_rq_complete`, `tracepoint:sched/sched_switch`,
   `tracepoint:irq/softirq_entry+exit`, perf_event LLC counters),
   but every event is written into a `BPF_MAP_TYPE_PERCPU_ARRAY` +
   `BPF_MAP_TYPE_HASH` slot via `__sync_fetch_and_add`; userspace
   reads the maps once per `--interval` instead of draining a ring
-  buffer. The structural goal is to eliminate the 188-390x ctxsw
+  buffer. The structural goal is to eliminate the 194-416x ctxsw
   amplification v3 exhibits.
 - v3 is retained as the **predecessor of v3.2**, not deleted. Its
   overhead measurements are the empirical evidence that motivates
@@ -155,4 +155,4 @@ to avoid the RCU-unsafe pattern, recovering the full 7-metric coverage.
   the default matrix; v3 stays for overhead evidence only.
 - Acceptance gate: `make -C variants/v3.2-ebpf-core test-amplification`
   must pass (ratio <= 1.10 on a 90 s stress-ng window) before v3.2
-  joins a campaign. v3 fails this test at 188-390x by construction.
+  joins a campaign. v3 fails this test at 194-416x by construction.

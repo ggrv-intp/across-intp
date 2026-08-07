@@ -1,27 +1,50 @@
 # v3 (ebpf-ring) overhead findings (motivation for v3.2 (eBPF-CORE))
 
 This document summarises the empirical ebpf-ring measurements that motivated
-the design of eBPF-CORE. It is the in-repo digest of paper section VI
-(overhead decomposition). ebpf-ring itself is not deprecated: it remains the
+the design of eBPF-CORE. It is the in-repo digest of paper §V-B
+(overhead). ebpf-ring itself is not deprecated: it remains the
 introspection-friendly profiler and the *predecessor of record* for
 eBPF-CORE's architectural decisions.
 
 For full numbers, raw traces, and the paper-grade exposition, see:
 
-- Paper section VI (overhead decomposition).
+- Paper §V-B (overhead: profiler self-cost and sample reliability).
 - `variants/v3-ebpf-ring/DESIGN.md` section 4 ("Ring buffer vs. perf event array").
 - Specific run logs under `bench/findings/`.
 
 ---
 
-## 1. System-wide context-switch amplification: 188-390x
+## 1. System-wide context-switch amplification: 194-416x
 
 Under steady-state load on `intp-master` (Xeon Gold 5412U / Sapphire
 Rapids, kernel 6.8), ebpf-ring amplifies the host's system-wide
-context-switch rate by a factor of **188x to 390x** depending on the
-workload class. Idle floor and bursty I/O are at the low end of the
-range; CPU-bound multithreaded workloads (HiBench Spark stages,
-`stress-ng --cpu`) are at the high end.
+context-switch rate by a factor of **194x to 416x** depending on the
+workload class. The three reference loads of the 2026-05-24 auxiliary
+rerun bracket the range (mean of 3 reps per cell, `vmstat` `cs` summed
+over the 90 s window):
+
+| Reference load | `stress-ng` | baseline | with ebpf-ring | ratio |
+| --- | --- | --- | --- | --- |
+| `ref_stream` | `--stream 12 --stream-madvise hugepage` | 43,879 | 8,513,654 | **194x** |
+| `ref_cpu` | `--cpu 24 --cpu-method matrixprod` | 43,865 | 17,741,396 | **404x** |
+| `ref_disk` | `--hdd 8 --hdd-bytes 1G --hdd-write-size 1M` | 150,334 | 62,573,918 | **416x** |
+
+Bursty I/O sets the high end, not the low one: `ref_disk` already
+context-switches 3.4x more than the other two at baseline, and every one
+of those switches is a probe firing that the consumer has to be woken
+for. Memory bandwidth sets the floor -- `ref_stream` spends its time
+inside long uninterrupted copy loops, which fire the fewest probes per
+second of the three. CPU-bound multithreaded load (HiBench Spark stages,
+`stress-ng --cpu`) sits just below the disk case.
+
+The same computation over `intp-aux-rerun-v3.2-*` gives **1.0x on all
+three loads**, which is the claim the acceptance gate in
+`variants/v3.2-ebpf-core/tests/integration/test-no-ctxsw-amplification.sh`
+enforces at a 1.10 threshold.
+
+Recompute from the published artifact with `parse_vmstat_cs` in
+`bench/plot/plot-aux-rerun.py`, over
+`extra/intp-aux-rerun-v3-20260524-164742/ringbuf_pidstat/<ref>/{baseline,with_profiler}/rep*/vmstat.txt`.
 
 ### Measurement caveat
 
@@ -119,7 +142,7 @@ ebpf-ring is retained as the predecessor of eBPF-CORE for two reasons:
    the empirical evidence that motivates the in-kernel-aggregation
    architecture. Removing ebpf-ring would orphan that evidence chain. Any
    future reviewer who asks "why not just stream events?" should be
-   able to run ebpf-ring and reproduce the 188-390x amplification on their
+   able to run ebpf-ring and reproduce the 194-416x amplification on their
    own host.
 
 2. **Per-event introspection.** ebpf-ring retains `--trace` mode and the

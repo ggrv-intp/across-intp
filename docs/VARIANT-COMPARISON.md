@@ -603,7 +603,7 @@ overhead (Volpert et al. ICPE 2025 methodology), portability,
 deployment complexity, and execution-environment behaviour
 (bare-metal / container / VM).
 
-### V3.2 (eBPF-CORE) -- eBPF in-kernel aggregation (paper section VIII)
+### V3.2 (eBPF-CORE) -- eBPF in-kernel aggregation (paper §III-A)
 
 **Architecture summary.** eBPF-CORE is ebpf-ring's structural alternative: a
 distinct point on the streaming-vs-aggregation axis the paper
@@ -651,10 +651,10 @@ with C-ABI on scheduler-perturbation while keeping eBPF portability and
 the 7-metric coverage. The acceptance test enforces this:
 `test-no-ctxsw-amplification.sh` measures vmstat ctxt across a 90s
 window with and without the profiler and fails if the ratio exceeds
-1.10 (ebpf-ring fails this test at 188-390x).
+1.10 (ebpf-ring fails this test at 194-416x).
 
 **mbw normalization.** eBPF-CORE fixes the silent clip documented in
-paper section IV-E. The legacy V3 `resctrl_read_mbm_delta()` hard-
+`docs/V3-OVERHEAD-FINDINGS.md` §3. The legacy V3 `resctrl_read_mbm_delta()` hard-
 clips at 100% (producing the bimodal discrete 96/80/64/48/32/16/0
 pattern when `mem_bw_max_bps` is misconfigured); eBPF-CORE's
 `resctrl_read_mbm_pct_and_raw()` returns the unclipped percent AND
@@ -676,5 +676,5 @@ byte-compat. The clip-at-99 behavior is opt-in via `--clip-mbw`.
 streaming-vs-aggregation axis (less observability, less amplification)
 and "above" C-ABI (eBPF probes with sub-microsecond cost vs. /proc
 polling). It does not replace ebpf-ring -- ebpf-ring remains the introspection
-profiler. eBPF-CORE is the steady-state profiler the paper section VIII
+profiler. eBPF-CORE is the steady-state profiler the paper §III-A
 calls for.

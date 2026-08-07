@@ -460,13 +460,13 @@ zeros.
 
 ---
 
-## v3.2 (eBPF-CORE) — eBPF in-kernel aggregation (paper section VIII), 7/7 metrics
+## v3.2 (eBPF-CORE) — eBPF in-kernel aggregation (paper §III-A), 7/7 metrics
 
 ### What's in scope
 
 eBPF-CORE (`variants/v3.2-ebpf-core/`) is the in-kernel-aggregating variant
-specified in paper section VIII. It is the structural answer to the
-188-390x context-switch amplification documented in section V-D:
+specified in paper §III-A. It is the structural answer to the
+194-416x context-switch amplification documented in §V-B:
 same probe sites as ebpf-ring, but every event lands as an atomic 64-bit
 increment in a `BPF_MAP_TYPE_PERCPU_ARRAY` counter slot rather than
 a record in the 16 MiB ring buffer. Userspace polls the counter map
