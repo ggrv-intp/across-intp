@@ -45,9 +45,11 @@ Two rows are worth reading twice:
   used, kept so only the `width=` factor had to change.
 
 Subsets are variant sets: `baseline` = intp-baseline (v0.2), `new` = C-ABI +
-eBPF-CORE (v2 + v3.2), `merged` = all three. `published/` also carries two
-renders that no camera-ready figure uses — the same panels cut for the other
-subset — flagged as artifact-only in `published/README.md`.
+eBPF-CORE (v2 + v3.2), `merged` = all three. Each subset holds the full plotter
+output, so `published/` has 33 PDFs of which only these 13 are camera-ready
+renders; the other 20 are the original campaign renders at the exploratory
+layout's size. `published/README.md` draws the line, and do not include an
+ungated one in a paper at scale 1.0.
 
 Fig. 1 is a TikZ diagram in the LaTeX source; it is not produced by this
 pipeline.

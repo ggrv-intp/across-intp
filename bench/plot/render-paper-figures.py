@@ -28,8 +28,15 @@ Outputs:
                               values, for inlining as a table or in running
                               text instead of as a float (Addendum B.2)
 
-The run is deterministic: same inputs produce byte-identical layout, so the
-pipeline can be re-run and diffed.
+The run is deterministic in what it draws -- same inputs produce the same data
+in the same place -- but not byte-identical across environments. Every PDF
+carries a creation timestamp, and ``constrained_layout`` solves the axes
+packing from measured text extents, so a different fontconfig or matplotlib
+build shifts the plot box by a fraction of an inch without moving a single
+data point. Diffing a re-run against a published figure therefore compares
+content, not bytes: ``qa_fig_fonts.py --compare-to`` reports the visible-string
+delta, and a raster comparison shows the packing shift. Byte-identity holds
+only within one pinned environment.
 """
 
 from __future__ import annotations
@@ -130,14 +137,20 @@ def main() -> None:
         src = out / subset / "pdf" / f"{stem}.pdf"
         if not src.exists():
             sys.exit(f"expected render is missing: {src}")
-        shutil.copyfile(src, figures / spec.out_name)
+        # Artifact-only specs are gated like the rest but no float includes
+        # them, so they stay out of figures/ and the Overleaf drop-in holds
+        # exactly what main.tex includes.
+        if not spec.artifact_only:
+            shutil.copyfile(src, figures / spec.out_name)
         (published / subset).mkdir(parents=True, exist_ok=True)
         shutil.copyfile(src, published / subset / f"{stem}.pdf")
         png = out / subset / "png" / f"{stem}.png"
         if png.exists():
-            shutil.copyfile(png, figures / (spec.out_name[:-4] + ".png"))
+            if not spec.artifact_only:
+                shutil.copyfile(png, figures / (spec.out_name[:-4] + ".png"))
             shutil.copyfile(png, published / subset / f"{stem}.png")
-        print(f"  {spec.out_name:46s} <- {subset}/pdf/{stem}.pdf")
+        where = "published only" if spec.artifact_only else spec.out_name
+        print(f"  {where:46s} <- {subset}/pdf/{stem}.pdf")
         collected += 1
 
     # Addendum B.2 item 3 replaced the Pearson matrix float with nine numbers

@@ -1845,10 +1845,14 @@ def fig_iada_segmented(results_dir: Path, outdir: Path, n_segments: int = 4) -> 
         print("[iada_segmented] no timeseries data — skip")
         return
     n = len(files)
-    cols = min(2, n)
-    rows = (n + cols - 1) // cols
     spec = (paper_style.spec_for(PAPER_SUBSET, "fig13_iada_segmented")
             if CAMERA_READY else None)
+    # Camera-ready is a single full-width strip, so every variant gets a column
+    # instead of wrapping at two. For the two-variant subset the paper places
+    # this is the same 1x2 grid either way; it is the three-variant artifact cut
+    # that would otherwise become a 2x2 grid with an empty cell.
+    cols = n if spec is not None else min(2, n)
+    rows = (n + cols - 1) // cols
     if spec is not None:
         # Camera-ready: full \textwidth, panels side by side, y-axis shared so
         # only the leftmost panel pays for tick labels.

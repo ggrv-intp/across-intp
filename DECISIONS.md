@@ -191,16 +191,43 @@ to a draft section numbering that no longer exists.
    (`new-fig01b_*` for the merged subset, `merged-fig11_rep_errorbars` for stem
    `fig11_idi_bars`) were otherwise undiscoverable.
 
-5. **Two artifact-only figure specs.** `published/new/fig01b` and
-   `published/merged/fig13` were still pre-camera-ready renders: the refresh in
-   D10 only covered the eleven stems in `PAPER_FIGURES`, and those two are the
-   other subset's cut of the same panel, which no paper figure uses. They are
-   now specs with `artifact_only=True` — rendered at `TEXT_WIDTH` and gated like
-   the rest, but not copied into `figures/`, so the Overleaf drop-in still holds
-   exactly the eleven the paper includes. The gate report now ships as
-   `published/QA-FIGS.md`, which `PROVENANCE.md` had promised without delivering.
+5. **Two artifact-only figure specs.** Measuring all 33 PDFs in `published/`
+   put the audit's premise straight: the D10 refresh covered the eleven stems in
+   `PAPER_FIGURES`, leaving 22 at the exploratory plotter's default size, and
+   exactly **one** of those 22 was below the 6.5 pt floor —
+   `new/fig01b_per_variant_bars` at 5.8 pt, 670x421 pt. `merged/fig13` was
+   off-format (1088x457 pt) but legible at 7.0 pt, and the other 20 are all at
+   or above 7 pt. None of the 22 is a stale copy of a placed figure: each is a
+   different variant subset's cut of the same panel.
 
-6. **`PROVENANCE.md` no longer pins the tag's commit hash.** It claimed
+   The two that matter are now specs with `artifact_only=True`, rendered at
+   `TEXT_WIDTH` and gated like the rest but not copied into `figures/`, so the
+   Overleaf drop-in still holds exactly the eleven the paper includes.
+   `fig_iada_segmented` needed a layout change to go with it: `cols = min(2, n)`
+   turns the three-variant cut into a 2x2 grid with an empty cell, so
+   camera-ready mode now gives every variant its own column, matching what
+   `fig01b` already did. The two-variant subset the paper places is a 1x2 grid
+   either way, so Fig. 4 is unaffected. The gate report now ships as
+   `published/QA-FIGS.md`, which `PROVENANCE.md` had promised without
+   delivering, alongside a `published/README.md` that separates the 13 gated
+   figures from the 20 campaign renders.
+
+6. **The published figures were kept, not re-rendered.** A full re-render
+   reproduces the data exactly — the gate's visible-string delta is empty for
+   all eleven, and rasterising published against re-rendered shows every bar,
+   error bar, PCA point, cluster assignment and dendrogram merge distance in the
+   same place. But no PDF matched byte-for-byte, and only two matched at the
+   content-stream level, under matplotlib 3.10.7 and 3.10.9 alike (the two
+   versions are identical to each other here, so the version is not the cause).
+   `constrained_layout` solves the axes packing from measured text extents, so a
+   different fontconfig shifts the plot box by a fraction of an inch. Since the
+   camera-ready references the published PDFs and nothing about them is wrong,
+   only the two artifact-only figures were replaced; 31 of the 33 are unchanged
+   bytes. `render-paper-figures.py` claimed the run was "deterministic: same
+   inputs produce byte-identical layout" — true only within one pinned
+   environment, and now documented as such.
+
+7. **`PROVENANCE.md` no longer pins the tag's commit hash.** It claimed
    `9795c5b` and "the tag does not move", both contradicted by D10. Since the
    tag is re-cut at every asset refresh, any hash written here goes stale by
    construction; `git rev-parse v0.1.0` is now the stated authority. The asset

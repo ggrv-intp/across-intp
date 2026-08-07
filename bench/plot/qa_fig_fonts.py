@@ -141,7 +141,10 @@ def main() -> int:
     for (subset, stem), spec in sorted(
             paper_style.PAPER_FIGURES.items(),
             key=lambda kv: (kv[1].paper_fig, kv[1].out_name)):
-        pdf = args.figures / spec.out_name
+        # Artifact-only figures never reach figures/, so they are measured
+        # where they do land: the published/ tree the driver writes alongside.
+        pdf = (out / "published" / subset / f"{stem}.pdf"
+               if spec.artifact_only else args.figures / spec.out_name)
         if not pdf.exists():
             failures.append(f"{spec.out_name}: missing")
             rows.append((spec, subset, stem, None, None, None, "MISSING",
@@ -368,6 +371,30 @@ def main() -> int:
             + (f", {h * PT_PER_IN:.0f} pt tall" if h is not None else "")
             + (f"; reinstating it as its own single-column float would cost "
                f"about {h * PT_PER_IN + 38:.0f} pt." if h is not None else ""))
+
+    # The budget above iterates FLOATS, which only knows about floats the paper
+    # places. Artifact-only figures would otherwise vanish from the narrative
+    # and the report would read as though it had covered everything it gated.
+    artifact_only = [(k, s) for k, s in sorted(paper_style.PAPER_FIGURES.items())
+                     if s.artifact_only]
+    if artifact_only:
+        lines += [
+            "",
+            "## Artifact-only figures",
+            "",
+            "Gated and measured above, shipped in `published/`, but included by",
+            "no float — so they cost no column-space and do not appear in the",
+            "budget. These are the other variant subset's cut of a panel the",
+            "camera-ready places for one subset only.",
+            "",
+        ]
+        for (subset, stem), spec in artifact_only:
+            h = height_of.get((subset, stem))
+            mn = minpt_of.get((subset, stem))
+            lines.append(
+                f"- `published/{subset}/{stem}.pdf` — {spec.paper_fig}"
+                + (f", {h * PT_PER_IN:.0f} pt tall" if h is not None else "")
+                + (f", min {mn:.2f} pt" if mn is not None else ""))
 
     # ---- what main.tex has to change --------------------------------------
     lines += [

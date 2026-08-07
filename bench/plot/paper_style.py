@@ -122,12 +122,18 @@ class FigSpec:
     height         the height actually used for the render (tuned per figure).
     paper_fig      placement in the camera-ready, for the QA report.
     out_name       filename in the paper's figures/ directory.
+    artifact_only  the figure is gated and shipped in the campaign artifact,
+                   but no camera-ready float includes it, so it is not copied
+                   into figures/. Keeps the Overleaf drop-in holding exactly
+                   the figures main.tex includes. out_name is still the QA
+                   report's label for the row.
     """
     width: float
     height_budget: float
     height: float
     paper_fig: str
     out_name: str
+    artifact_only: bool = False
 
 
 # Keyed by (variant-subset, figure stem). The subset is which variants the
@@ -194,6 +200,22 @@ PAPER_FIGURES: dict[tuple[str, str], FigSpec] = {
     ("merged", "fig05_fidelity_matrix"): FigSpec(
         3.01, 2.4, 2.10, "alternative (Pearson matrix, unplaced)",
         "merged-fig05_fidelity_matrix.pdf"),
+    # Artifact-only. The camera-ready places each of these panels for one
+    # subset only, so the other subset's cut kept whatever size the
+    # pre-camera-ready plotter defaulted to. published/new/fig01b was the one
+    # figure in the whole published tree below the 6.5 pt floor (5.8 pt at
+    # 670x421 pt); merged/fig13 was legible but off-format at 1088x457. Both
+    # are real campaign output -- a different variant subset, not a stale copy
+    # of the placed figure -- so they are re-rendered to spec rather than
+    # dropped. Neither is copied into figures/.
+    ("new", "fig01b_per_variant_bars"): FigSpec(
+        TEXT_WIDTH, 3.30, 3.25, "artifact-only (new subset: v2 + v3.2)",
+        "published-new-fig01b_per_variant_bars.pdf", artifact_only=True),
+    # §V-B promises the intp-baseline trace in the companion repository; this
+    # is the cut that carries it alongside the modern pair.
+    ("merged", "fig13_iada_segmented"): FigSpec(
+        TEXT_WIDTH, 1.60, 1.58, "artifact-only (merged subset: all three)",
+        "published-merged-fig13_iada_segmented.pdf", artifact_only=True),
 }
 
 
