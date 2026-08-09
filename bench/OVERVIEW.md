@@ -101,9 +101,29 @@ metrics.
 | `app13_query_scan` | disk | `--hdd 8 --hdd-bytes 4G --hdd-write-size 1M` |
 | `app14_query_join` | disk | `--hdd 8 --hdd-bytes 2G --hdd-write-size 4K` |
 | `app15_query_merge` | disk | `--iomix 8 --iomix-bytes 2G` |
+| `app11b_tcp_veth` | NIC/TCP | `iperf3 -P 16` over veth (`VETH:tcp:23420:-P 16`) |
+| `app12b_udp_veth` | NIC/UDP | `iperf3 -P 16 -u -b 0` over veth (`VETH:udp:23430:-P 16 -b 0`) |
 
 Worker counts assume 24 physical cores; stream/matrix workers cap at 12
 because each saturates a memory channel.
+
+### Campaign stages (paper §IV)
+
+The `stress-ng` layer accumulates 313 runs per variant (204 solo + 72
+pairwise + 36 overhead + 1 timeseries; 939 over the three measured
+versions); the HiBench sweep adds a further 504 runs per variant
+(12 reps × 6 workloads × 7 profiles).
+
+| Stage | Design | Window | Feeds |
+|---|---|---|---|
+| Solo | `stress-ng` 12×17; HiBench 12×6×7 | 15/90/10 s | baselines |
+| Pairwise | 12 reps, 6 matched pairs | 15/90/10 s | pairwise matrix, IDI |
+| Overhead | 12 reps × 3 reference loads | 90 s | self-cost |
+| Timeseries | 1 trace/variant, `mixed_long` | 600 s | stability |
+
+Windows are ramp/measure/drain; defaults live in
+[`run-intp-bench.sh`](run-intp-bench.sh) (`REPS`, `DURATION`,
+`TIMESERIES_DURATION`, `OVERHEAD_DURATION`).
 
 ### 4.2 Pairwise interference matrix
 

@@ -67,6 +67,7 @@ by `bench/plot/qa_fig_fonts.py`, whose report ships as `published/QA-FIGS.md`.
 | §IV | "the complete plotting pipeline" | repo: [bench/plot/](../bench/plot/) |
 | §IV | "the exact stress-ng invocation behind each workload" | repo: [bench/run-intp-bench.sh](../bench/run-intp-bench.sh) (`WORKLOADS`, `REF_LOADS`), tabulated in [bench/OVERVIEW.md](../bench/OVERVIEW.md) |
 | §IV | HiBench sweep (6 workloads × 7 profiles × 12 reps) | repo: [bench/hibench/run-hibench-subset.sh](../bench/hibench/run-hibench-subset.sh) |
+| §IV | campaign stages (solo / pairwise / overhead / timeseries; 313 runs per variant) | repo: [bench/OVERVIEW.md](../bench/OVERVIEW.md) "Campaign stages", parameters in [bench/run-intp-bench.sh](../bench/run-intp-bench.sh) |
 | §V-A | "per-workload radar plots (companion repository)" | artifact: `sbac_results-publish/figures/full/bench-full/plots/pdf/fig09_radar_fingerprint.pdf` and `.../hibench/plots/pdf/fig05_radar_fingerprint.pdf` |
 | §V-A | Pearson correlations between variants | artifact: `sbac_results-publish/paper-tables/correlation-*.tsv`; also emitted as `qa/pearson_ground_truth.tsv` by the render driver |
 | §V-B | "∼194–416× (vmstat)" | artifact: `extra/intp-aux-rerun-v3-20260524-164742/ringbuf_pidstat/<ref>/{baseline,with_profiler}/rep*/vmstat.txt`; recomputed in [docs/V3-OVERHEAD-FINDINGS.md](V3-OVERHEAD-FINDINGS.md) §1 |
