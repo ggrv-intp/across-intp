@@ -6,11 +6,18 @@ This repository contains nine implementation variants of IntP, an interference
 profiler that collects 7 metrics from the Linux kernel. The variants are
 organized for systematic comparison as part of a Master's dissertation on
 kernel instrumentation for interference profiling (PPGCC/PUCRS, advisor
-Prof. Cesar De Rose). The research compares the original SystemTap-based IntP
-across kernel eras (V0 (stap-2022) / V0.1 (stap-nollc) / V0.2 (legacy-intp-baseline)), an RCU-safe stap+helper hybrid (V1.1 (stap-modern)),
-and modern instrumentation approaches (procfs polling — V2 (C-ABI); bpftrace — V3.1 (bpftrace);
-eBPF/CO-RE — V3 (ebpf-ring) ring-buffer-streaming; eBPF/CO-RE — V3.2 (eBPF-CORE) in-kernel-aggregating)
-to evaluate portability, safety, and measurement-fidelity trade-offs.
+Prof. Cesar De Rose). It is the companion artifact of the SBAC-PAD 2026 paper
+that reports the comparison.
+
+**Three of the nine are the measured versions** the paper evaluates:
+**V0.2 (intp-baseline)**, the legacy-faithful reference, which keeps the 2022
+SystemTap probe set verbatim and isolates the two RCU-unsafe operations in a
+userspace helper; **V2 (C-ABI)**, a portable C implementation on stable
+userspace ABIs; and **V3.2 (eBPF-CORE)**, eBPF/CO-RE with in-kernel
+aggregation. The other six (stap-2022, stap-nollc, stap-nohelper, stap-modern,
+ebpf-ring, bpftrace) are structural evidence: they document the portability and
+reliability cliffs, prove out an architecture, or corroborate the measured
+results. The comparison axes are **portability, overhead, and fidelity**.
 
 ## About
 
@@ -36,21 +43,28 @@ the original SystemTap approach across kernel versions and hardware architecture
 1. Reproduce the original IntP baseline (stap-2022) and document breakage on kernel 6.8+.
 2. Develop minimal patches to restore functionality on current kernels (stap-nollc, stap-nohelper) and stap+helper hybrids that recover full metric coverage without RCU-unsafe operations: legacy-intp-baseline on kernel 5.15 GA (Ubuntu 22.04, paper-faithful stap-2022 semantics) and stap-modern on kernel 6.8+.
 3. Implement kernel-module-free alternatives using procfs/perf_event (C-ABI), bpftrace, and eBPF/CO-RE (ebpf-ring).
-4. Compare all nine variants across portability, safety, deployment complexity, and measurement fidelity dimensions.
+4. Compare all nine variants across the paper's three axes — portability, overhead, and fidelity — plus deployment complexity and safety.
 
 ### Status
 
-| Variant | Status |
-| --------- | -------- |
-| V0 (stap-2022) -- Original (SystemTap, needs `intel_cqm` driver — mainline removed it in 4.14) | Original baseline; in practice runs only on kernel < 4.4 or custom compiled for cqm_rmid field comaptibility) |
-| V0.1 (stap-nollc) -- Updated (SystemTap, 6.8+, LLC disabled) | Complete |
-| V0.2 (legacy-intp-baseline) -- Stap + userspace helper (SystemTap, 5.15 GA, stap-2022-faithful, RCU-safe) | Complete; validated on Hetzner Sapphire Rapids for Phase 3 experiments (UB22 boot) |
-| V1 (stap-nohelper) -- Stap-native (SystemTap, 6.8+, mbw/llcocc disabled) | Complete |
-| V1.1 (stap-modern) -- Stap + userspace helper (SystemTap, 6.8+, full metrics, RCU-safe) | Complete (helper, `.stp`, and bench integration done; HiBench distributed-mode limitation documented in METRICS-ALIGNMENT.md) |
-| V2 (C-ABI) -- C / procfs / perf_event / resctrl | Complete; validated on Hetzner Sapphire Rapids for Phase 3 experiments |
-| V3.1 (bpftrace) -- bpftrace + Python orchestrator | Complete; validated on Hetzner Sapphire Rapids for Phase 3 experiments |
-| V3 (ebpf-ring) -- eBPF/CO-RE (libbpf, ring-buffer-streaming) | Complete; validated on Hetzner Sapphire Rapids for Phase 3 experiments |
-| V3.2 (eBPF-CORE) -- eBPF/CO-RE (libbpf, in-kernel-aggregating, paper §III-A) | Complete; validated on Hetzner Sapphire Rapids for Phase 3 experiments |
+Role names follow the paper's Table I. **Measured** marks the three versions the
+paper's results are computed from; the rest are structural evidence.
+
+| Variant | Role (paper Table I) | Status |
+| --------- | -------- | -------- |
+| V0 (stap-2022) -- Original (SystemTap, needs `intel_cqm` driver — mainline removed it in 4.14) | Cliff (portability) | Reference only; in practice runs only on a pre-4.14 mainline kernel, an enterprise kernel still carrying the `intel_cqm` backport, or a custom build with the driver restored |
+| V0.1 (stap-nollc) -- Updated (SystemTap, LLC disabled) | Cliff (portability, partial) | Complete; recovers compilation at the cost of `llcocc` (6/7 metrics) |
+| V0.2 (legacy-intp-baseline) -- Stap + userspace helper (SystemTap, 5.15 GA, stap-2022-faithful, RCU-safe) | **Measured** (`intp-baseline`) | Complete; the campaign's UB22 leg (kernel 5.15.0-177) |
+| V1 (stap-nohelper) -- Stap-native (SystemTap, 6.8+, mbw/llcocc disabled) | Cliff (reliability) | Complete; emits `mbw`/`llcocc` as zeros and destabilizes `systemd-logind` — that is the result it exists to show |
+| V1.1 (stap-modern) -- Stap + userspace helper (SystemTap, 6.8+, full metrics, RCU-safe) | Arch. proof (kernel 6.8) | Complete; carries the V0.2 helper design to 6.8 to prove SystemTap needs it there. Not a measured endpoint. HiBench distributed-mode limitation documented in METRICS-ALIGNMENT.md |
+| V2 (C-ABI) -- C / procfs / perf_event / resctrl | **Measured** | Complete; the campaign's UB24 leg (kernel 6.8.0-111) |
+| V3.1 (bpftrace) -- bpftrace + Python orchestrator | Companion (corroboration) | Complete; mirrors V3's attachment points |
+| V3 (ebpf-ring) -- eBPF/CO-RE (libbpf, ring-buffer-streaming) | Predecessor (mechanism) | Complete; retained to contrast overhead profiles with V3.2 — it is the variant that shows the ~194-416x context-switch amplification |
+| V3.2 (eBPF-CORE) -- eBPF/CO-RE (libbpf, in-kernel-aggregating, paper §III-A) | **Measured** | Complete; the campaign's UB24 leg (kernel 6.8.0-111) |
+
+All measurements were collected on a single-socket Intel Xeon Gold 5412U
+(Sapphire Rapids, 24 physical / 48 logical cores, 256 GB DDR5), dual-booted
+across the two kernel series.
 
 ### Citation
 
@@ -62,6 +76,31 @@ will be added upon defense (expected until March 2027).
 
 Arriving from the paper? [docs/READER-MAP.md](docs/READER-MAP.md) maps every
 figure, table and claim to its path here or in the release artifact.
+
+### Where the measurement data lives
+
+**The campaign data and the rendered figures are not files in this repository.**
+They ship as **release assets** attached to
+[`v0.1.0`](https://github.com/ggrv-intp/across-intp/releases/tag/v0.1.0) — about
+350 MB of measurement output that would swamp a source tree. Download them from
+the release page; cloning the repository will not produce them.
+
+| Release asset | What it holds |
+| --- | --- |
+| `across-intp-sbac-results-v0.1.0.tar.gz` | The anonymized campaign payload: the fusion tree of `run.json` records and profiler traces, `aggregate-means.tsv`, the fragility tables, the §V backing tables under `paper-tables/`, and `published/` with the 33 figure PDFs — 13 of them camera-ready renders — plus `QA-FIGS.md`, the typography gate report |
+| `consolidation-raw.tar.gz` | The pre-anonymization raw sources: the five measurement sessions across two hosts, the auxiliary reruns behind the §V-B amplification result, and the fusion trees with their PROVENANCE records |
+| `SHA256SUMS` | Integrity reference covering both tarballs |
+
+What this repository *does* carry is everything that **produced** those assets:
+the nine variants under `variants/`, the campaign drivers and complete plotting
+pipeline under `bench/`, and
+[sbac-results/PROVENANCE.md](sbac-results/PROVENANCE.md) — the chain from the
+measurement sessions to the published tarballs. Note that `sbac-results/` holds
+that provenance record and its README **only**; the results themselves are in
+the release assets, not in that directory.
+
+In [docs/READER-MAP.md](docs/READER-MAP.md) every row is tagged **repo:** or
+**artifact:** precisely so this stays unambiguous.
 
 ## Variant Comparison
 
@@ -102,27 +141,63 @@ x = supported, ~ = polling approximation, - = disabled in this build
 .
 |-- README.md                  This file
 |-- LICENSE                    MIT license
+|-- CITATION.cff               Citation metadata (software + the SBAC-PAD 2026 paper)
+|-- VERSIONS.md                Variant-naming map (current vs legacy pre-2026-05-05)
+|-- DECISIONS.md               Decision log, including the two release refreshes (D10, D11)
+|-- METRICS-ALIGNMENT.md       Per-metric equivalence across variants, and where it is only approximate
+|-- Makefile                   Build entry points for the compiled variants
+|-- capabilities-sbacpad.env   Capability snapshot of the campaign host
+|-- run-big-batch.sh           Full campaign driver (stress-ng + HiBench, all envs)
+|-- run-smoke-all.sh           Fast all-variant sanity sweep
+|-- ub22run.sh / ub24run.sh    Per-OS campaign drivers (kernel 5.15 leg / kernel 6.8 leg)
 |-- docs/                      Cross-variant documentation
-|   |-- METRICS-DEEP-DIVE.md   Technical details of all 7 metrics
+|   |-- READER-MAP.md          Start here if you arrived from the paper
+|   |-- METRICS-DEEP-DIVE.md   Probe points, formulas and constants behind the 7 metrics
+|   |-- VARIANT-COMPARISON.md  Detailed rationale for each of the nine variants
 |   |-- KERNEL-6.8-CHANGES.md  What kernel 6.8 broke and why
-|   |-- PORTABILITY-ROADMAP.md Portability analysis
-|   |-- HARDWARE-COMPATIBILITY.md  Hardware feature tables
-|   |-- VARIANT-COMPARISON.md  Detailed variant rationale
+|   |-- PORTABILITY-ROADMAP.md Cross-kernel, cross-arch analysis
+|   |-- HARDWARE-COMPATIBILITY.md  RDT / PQoS / MPAM feature tables
+|   |-- EXPERIMENT-STRATEGY.md Operational gotchas, run discipline, workload->metric stress map
+|   |-- V3-OVERHEAD-FINDINGS.md  Context-switch amplification, its decomposition, the mbw silent clip
+|   |-- CROSS-ENV-CAMPAIGN.md  bare / container / VM campaign design
+|   |-- NETP-SYNTHETIC-TRAFFIC.md  veth + iperf3 workload rationale
+|   |-- PAPER-CROSS-REFERENCES.md  Historical (writing phase); draft section numbering
+|   |-- images/                Repository banner
 |-- shared/                    Components used across variants
 |   |-- intp-detect.sh         Hardware capability detection
+|   |-- intp-preflight.sh      Pre-run environment gate
 |   |-- intp-resctrl-helper.sh resctrl companion daemon
+|   |-- intp-ebpf-checkout.sh  libbpf/vmlinux.h bootstrap for the eBPF variants
+|   |-- validate-cross-variant.sh  Cross-variant output contract check
 |-- variants/                  One directory per IntP implementation variant
-|   |-- v0-stap-2022/      Unmodified 2022 IntP (SystemTap, kernel <=6.6)
-|   |-- v0.1-stap-nollc/        Kernel 6.8 patch (LLC occupancy disabled)
-|   |-- v0.2-legacy-intp-baseline/    Kernel 5.15 GA, V0-faithful stap + userspace helper (RCU-safe)
-|   |-- v1-stap-nohelper/          Kernel 6.8+, stap-native probes (mbw/llcocc disabled)
-|   |-- v1.1-stap-modern/      Kernel 6.8+, stap + userspace helper (full 7 metrics, RCU-safe)
-|   |-- v2-c-abi/           Pure C: procfs / perf_event_open / resctrl
-|   |-- v3-ebpf-ring/       Full eBPF/CO-RE with libbpf (ring-buffer-streaming)
+|   |-- v0-stap-2022/          Unmodified 2022 IntP (SystemTap; needs pre-4.14 cqm_rmid)
+|   |-- v0.1-stap-nollc/       Compilation recovered by dropping llcocc (6/7 metrics)
+|   |-- v0.2-legacy-intp-baseline/  MEASURED `intp-baseline`: kernel 5.15, V0-faithful stap + userspace helper
+|   |-- v1-stap-nohelper/      Kernel 6.8+, stap-native probes (mbw/llcocc disabled)
+|   |-- v1.1-stap-modern/      Kernel 6.8+, stap + userspace helper (architectural proof)
+|   |-- v2-c-abi/              MEASURED `C-ABI`: pure C over procfs / perf_event_open / resctrl
+|   |-- v3-ebpf-ring/          eBPF/CO-RE with libbpf, ring-buffer-streaming
 |   |-- v3.1-bpftrace/         bpftrace scripts + Python orchestrator + resctrl
-|   |-- v3.2-ebpf-core/         Full eBPF/CO-RE with libbpf (in-kernel-aggregating, paper §III-A)
-|-- VERSIONS.md                Variant-naming map (current vs legacy pre-2026-05-05)
+|   |-- v3.2-ebpf-core/        MEASURED `eBPF-CORE`: eBPF/CO-RE, in-kernel aggregation (paper §III-A)
+|-- bench/                     Campaign harness and analysis pipeline
+|   |-- OVERVIEW.md            Workload table, campaign stages, run accounting
+|   |-- run-intp-bench.sh      stress-ng campaign driver (per-variant kernel gates live here)
+|   |-- run-os-campaign.sh     Per-OS leg orchestration
+|   |-- publish-sbac-results.sh  Merge a campaign tree into sbac-results/ layout
+|   |-- plot/                  Full plotting pipeline + camera-ready figure gate
+|   |-- hibench/               HiBench Spark subset provisioning and sweep
+|   |-- setup/                 Testbed provisioning, REPRODUCTION.md
+|   |-- findings/              Per-campaign empirical notes
+|   |-- deploy/                Remote deployment helpers
+|   |-- iada/                  IADA downstream-classifier integration
+|-- sbac-results/              Provenance record ONLY -- the data itself is a release asset
+|   |-- PROVENANCE.md          Chain from the measurement sessions to the published tarballs
+|   |-- README.md              Layout of the published tree inside the artifact
 ```
+
+The campaign output tree (`results/`) is gitignored: it is reproduced by the
+drivers above, and its published form ships as the release assets described in
+[Where the measurement data lives](#where-the-measurement-data-lives).
 
 ## Quick Start
 
