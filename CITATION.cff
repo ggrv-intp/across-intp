@@ -4,15 +4,21 @@ title: "Across-IntP — Multi-Variant Comparison Harness for the intp Interferen
 abstract: >
   Nine implementation variants of intp, an interference profiler that collects
   seven metrics from the Linux kernel. Developed as part of a Master's
-  dissertation on kernel instrumentation for interference profiling, comparing
-  the original SystemTap-based IntP (Xavier et al., 2022) and an RCU-safe
-  stap+helper hybrid against modern instrumentation approaches (procfs polling,
-  bpftrace, eBPF/CO-RE) to evaluate portability, safety, and measurement
-  fidelity tradeoffs.
+  dissertation on kernel instrumentation for interference profiling. The
+  measured baseline (intp-baseline, v0.2) preserves the probe set of the
+  original SystemTap IntP (Xavier et al., 2022) verbatim and isolates the two
+  RCU-unsafe operations in a userspace helper; it serves as the legacy-faithful
+  reference contract against two modern substrates, a portable C version on
+  stable userspace ABIs and an eBPF/CO-RE version. The remaining variants
+  (stap-2022, stap-nollc, stap-nohelper, stap-modern, ebpf-ring, bpftrace)
+  document the portability and reliability cliffs and corroborate the measured
+  results. Evaluates portability, overhead, and fidelity trade-offs across
+  instrumentation ABIs.
 authors:
   - family-names: "Sacilotto"
     given-names: "André"
-    affiliation: "PPGCC/PUCRS"
+    affiliation: "School of Technology, Pontifícia Universidade Católica do Rio Grande do Sul (PUCRS)"
+    email: "andre.santos01@edu.pucrs.br"
     orcid: "https://orcid.org/0000-0002-1639-3238"
 repository-code: "https://github.com/ggrv-intp/across-intp"
 license: MIT
@@ -26,7 +32,7 @@ keywords:
   - performance monitoring
   - cloud computing
 version: "0.1.0"
-date-released: "2026-08-06"
+date-released: "2026-08-15"
 preferred-citation:
   type: conference-paper
   title: "Cross-Application Interference Profiling in Consolidated Cloud Servers: Improving Portability, Overhead and Fidelity in IntP"
@@ -76,15 +82,3 @@ references:
     publisher:
       name: "IEEE"
     url: "https://ieeexplore.ieee.org/document/9980934/"
-# MsC Proposal accepted in April 2026 (waiting to be published), expected defense on March 2027:
-# preferred-citation:
-#   type: thesis
-#   title: "REFACTORING INTP FOR MODERN LINUX KERNELS:
-#    A COMPARATIVE ANALYSIS OF INSTRUMENTATION
-#    APPROACHES FOR INTERFERENCE PROFILING"
-#   authors:
-#     - family-names: "Sacilotto"
-#       given-names: "André"
-#   institution:
-#     name: "PUCRS"
-#   year: 2027
