@@ -99,8 +99,7 @@
 
 set -u -o pipefail
 
-# Derived from script location so the campaign survives repo path changes
-# (e.g. the historical intp → intp-comparison → across-intp renames).
+# Derived from script location so the campaign survives repo path changes.
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # Resume support: set RESUME_DIR to an existing big-batch output directory for
 # idempotent re-execution. The stress-ng segment skips reps whose profiler.tsv
