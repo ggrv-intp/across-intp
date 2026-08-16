@@ -33,13 +33,6 @@ keywords:
   - cloud computing
 version: "0.1.0"
 date-released: "2026-08-15"
-identifiers:
-  - type: doi
-    value: "10.5281/zenodo.21959350"
-    description: "Concept DOI — always resolves to the latest version of this software."
-  - type: doi
-    value: "10.5281/zenodo.21959351"
-    description: "Version DOI for release v0.1.0."
 preferred-citation:
   type: conference-paper
   title: "Cross-Application Interference Profiling in Consolidated Cloud Servers: Improving Portability, Overhead and Fidelity in IntP"

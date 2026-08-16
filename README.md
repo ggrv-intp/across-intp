@@ -1,7 +1,5 @@
 # Across-IntP: Multi-Variant Interference Profiler
 
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21959350.svg)](https://doi.org/10.5281/zenodo.21959350)
-
 <img src="docs/images/across-intp.png" alt="Across-IntP — Linux interference profiler with multi-variant comparison of SystemTap, procfs, bpftrace, and eBPF/CO-RE instrumentation." width="720">
 
 This repository contains nine implementation variants of IntP, an interference
@@ -75,16 +73,6 @@ This repository is the companion artifact of a paper accepted at
 figures and tables. If you use this software in your research, please cite it
 using the metadata in [CITATION.cff](CITATION.cff). A full thesis citation
 will be added upon defense (expected until March 2027).
-
-The software is archived on Zenodo:
-
-- **Concept DOI** — [10.5281/zenodo.21959350](https://doi.org/10.5281/zenodo.21959350)
-  always resolves to the latest version. Cite this one unless you need to pin a release.
-- **Version DOI** — [10.5281/zenodo.21959351](https://doi.org/10.5281/zenodo.21959351)
-  is this release, `v0.1.0`, specifically.
-
-Note that the Zenodo deposit archives the **source** of the tagged repository.
-The measurement data ships separately as GitHub release assets — see below.
 
 Arriving from the paper? [docs/READER-MAP.md](docs/READER-MAP.md) maps every
 figure, table and claim to its path here or in the release artifact.
